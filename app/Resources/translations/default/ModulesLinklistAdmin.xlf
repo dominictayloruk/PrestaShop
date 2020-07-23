@@ -44,12 +44,12 @@
       <trans-unit id="b5750478c3c490d2c1df5dfdfdd6b7a4">
         <source>Link List</source>
         <target>Link List</target>
-        <note>Line: 84</note>
+        <note>Line: 86</note>
       </trans-unit>
       <trans-unit id="34a65b805d7e94c02bad18890a97f134">
         <source>Adds a block with several links.</source>
         <target>Adds a block with several links.</target>
-        <note>Line: 85</note>
+        <note>Line: 87</note>
       </trans-unit>
     </body>
   </file>
@@ -81,12 +81,12 @@
       <trans-unit id="e6b391a8d2c4d45902a23a8b6585703d">
         <source>URL</source>
         <target>URL</target>
-        <note>Line: 46</note>
+        <note>Line: 47</note>
       </trans-unit>
       <trans-unit id="b78a3223503896721cca1303f776159b">
         <source>Title</source>
         <target>Title</target>
-        <note>Line: 42</note>
+        <note>Line: 43</note>
       </trans-unit>
     </body>
   </file>
