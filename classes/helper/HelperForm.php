@@ -23,9 +23,8 @@
  * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
- use PrestaShop\PrestaShop\Core\Addon\Module\ModuleManagerBuilder;
 
- /**
+/**
  * @since 1.5.0
  */
 class HelperFormCore extends Helper
@@ -80,6 +79,26 @@ class HelperFormCore extends Helper
         $tinymce = true;
         $textarea_autosize = true;
         $file = true;
+        $translator = Context::getContext()->getTranslator();
+
+        $default_switch_labels = [
+            'active_on' => $translator->trans('Yes', [], 'Admin.Global'),
+            'active_off' => $translator->trans('No', [], 'Admin.Global'),
+        ];
+
+        $default_switch_values = [
+            [
+                'id' => 'active_off',
+                'value' => 0,
+                'label' => $default_switch_labels['active_off'],
+            ],
+            [
+                'id' => 'active_on',
+                'value' => 1,
+                'label' => $default_switch_labels['active_on'],
+            ],
+        ];
+
         foreach ($this->fields_form as $fieldset_key => &$fieldset) {
             if (isset($fieldset['form']['tabs'])) {
                 $tabs[] = $fieldset['form']['tabs'];
@@ -92,6 +111,21 @@ class HelperFormCore extends Helper
                         unset($this->fields_form[$fieldset_key]['form']['input'][$key]);
                     }
                     switch ($params['type']) {
+                        case 'switch':
+                            $switch_values = $params['values'];
+                            if (!empty($params['values'])) {
+                                foreach ($switch_values as $k => $value) {
+                                    if (!isset($value['label'])) {
+                                        $default_key = (int) $value['value'] ? 1 : 0;
+                                        $defautl_label = $default_switch_labels[$value['id']] ?? $default_switch_values[$default_key]['label'];
+                                        $this->fields_form[$fieldset_key]['form']['input'][$key]['values'][$k]['label'] = $defautl_label;
+                                    }
+                                }
+                            } else {
+                                $this->fields_form[$fieldset_key]['form']['input'][$key]['values'] = $default_switch_values;
+                            }
+                            break;
+
                         case 'select':
                             $field_name = (string) $params['name'];
                             // If multiple select check that 'name' field is suffixed with '[]'
@@ -243,9 +277,6 @@ class HelperFormCore extends Helper
             }
         }
 
-        $moduleManagerBuilder = ModuleManagerBuilder::getInstance();
-        $moduleManager = $moduleManagerBuilder->build();
-
         $this->tpl->assign([
             'title' => $this->title,
             'toolbar_btn' => $this->toolbar_btn,
@@ -267,7 +298,6 @@ class HelperFormCore extends Helper
             'fields' => $this->fields_form,
             'fields_value' => $this->fields_value,
             'required_fields' => $this->getFieldsRequired(),
-            'vat_number' => $moduleManager->isInstalled('vatnumber') && file_exists(_PS_MODULE_DIR_ . 'vatnumber/ajax.php'),
             'module_dir' => _MODULE_DIR_,
             'base_url' => $this->context->shop->getBaseURL(),
             'contains_states' => (isset($this->fields_value['id_country'], $this->fields_value['id_state'])) ? Country::containsStates($this->fields_value['id_country']) : null,
@@ -305,7 +335,7 @@ class HelperFormCore extends Helper
     public function renderAssoShop($disable_shared = false, $template_directory = null)
     {
         if (!Shop::isFeatureActive()) {
-            return;
+            return '';
         }
 
         $assos = [];
@@ -339,13 +369,6 @@ class HelperFormCore extends Helper
                     break;
             }
         }
-
-        /*$nb_shop = 0;
-        foreach ($tree as &$value)
-        {
-            $value['disable_shops'] = (isset($value[$disable_shared]) && $value[$disable_shared]);
-            $nb_shop += count($value['shops']);
-        }*/
 
         $tree = new HelperTreeShops('shop-tree', 'Shops');
         if (isset($template_directory)) {

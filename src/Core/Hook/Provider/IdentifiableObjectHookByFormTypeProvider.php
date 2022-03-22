@@ -30,9 +30,7 @@ use Exception;
 use Generator;
 use Logger;
 use Symfony\Component\DependencyInjection\Container;
-use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\Form\FormFactoryInterface;
-use Symfony\Component\Form\FormRegistryInterface;
 use Throwable;
 
 /**
@@ -40,19 +38,21 @@ use Throwable;
  */
 final class IdentifiableObjectHookByFormTypeProvider implements HookByFormTypeProviderInterface
 {
-    const FORM_TYPE_POSITION_IN_CONSTRUCTOR_OF_FORM_BUILDER = 0;
+    public const FORM_TYPE_POSITION_IN_CONSTRUCTOR_OF_FORM_BUILDER = 0;
 
-    const FORM_BUILDER_HOOK_PREFIX = 'action';
-    const FORM_BUILDER_HOOK_SUFFIX = 'FormBuilderModifier';
+    public const FORM_BUILDER_HOOK_PREFIX = 'action';
+    public const FORM_BUILDER_HOOK_SUFFIX = 'FormBuilderModifier';
+    private const FORM_BUILDER_HOOK_SUFFIX_DATA_PROVIDER_DATA = 'FormDataProviderData';
+    private const FORM_BUILDER_HOOK_SUFFIX_DATA_PROVIDER_DEFAULT_DATA = 'FormDataProviderDefaultData';
 
-    const FORM_HANDLER_UPDATE_BEFORE_PREFIX = 'actionBeforeUpdate';
-    const FORM_HANDLER_UPDATE_AFTER_PREFIX = 'actionAfterUpdate';
-    const FORM_HANDLER_CREATE_BEFORE_PREFIX = 'actionBeforeCreate';
-    const FORM_HANDLER_CREATE_AFTER_PREFIX = 'actionAfterCreate';
-    const FORM_HANDLER_SUFFIX = 'FormHandler';
+    public const FORM_HANDLER_UPDATE_BEFORE_PREFIX = 'actionBeforeUpdate';
+    public const FORM_HANDLER_UPDATE_AFTER_PREFIX = 'actionAfterUpdate';
+    public const FORM_HANDLER_CREATE_BEFORE_PREFIX = 'actionBeforeCreate';
+    public const FORM_HANDLER_CREATE_AFTER_PREFIX = 'actionAfterCreate';
+    public const FORM_HANDLER_SUFFIX = 'FormHandler';
 
     /**
-     * @var FormRegistryInterface
+     * @var FormFactoryInterface
      */
     private $formFactory;
 
@@ -71,17 +71,31 @@ final class IdentifiableObjectHookByFormTypeProvider implements HookByFormTypePr
     {
         $formNames = $this->getFormNames($formTypes);
 
-        $formBuilderHookNames = [];
-        $formHandlerBeforeUpdateHookNames = [];
-        $formHandlerAfterUpdateHookNames = [];
-        $formHandlerBeforeCreateHookNames = [];
-        $formHandlerAfterCreateHookNames = [];
+        $formBuilderHookNames =
+            $formBuilderDataProviderDataHookNames =
+            $formBuilderDataProviderDefaultDataHookNames =
+            $formHandlerBeforeUpdateHookNames =
+            $formHandlerAfterUpdateHookNames =
+            $formHandlerBeforeCreateHookNames =
+            $formHandlerAfterCreateHookNames = [];
 
         foreach ($formNames as $formName) {
             $formBuilderHookNames[] = $this->formatHookName(
                 self::FORM_BUILDER_HOOK_PREFIX,
                 $formName,
                 self::FORM_BUILDER_HOOK_SUFFIX
+            );
+
+            $formBuilderDataProviderDataHookNames[] = $this->formatHookName(
+                self::FORM_BUILDER_HOOK_PREFIX,
+                $formName,
+                self::FORM_BUILDER_HOOK_SUFFIX_DATA_PROVIDER_DATA
+            );
+
+            $formBuilderDataProviderDefaultDataHookNames[] = $this->formatHookName(
+                self::FORM_BUILDER_HOOK_PREFIX,
+                $formName,
+                self::FORM_BUILDER_HOOK_SUFFIX_DATA_PROVIDER_DEFAULT_DATA
             );
 
             $formHandlerBeforeUpdateHookNames[] = $this->formatHookName(
@@ -111,6 +125,8 @@ final class IdentifiableObjectHookByFormTypeProvider implements HookByFormTypePr
 
         return array_merge(
             $formBuilderHookNames,
+            $formBuilderDataProviderDataHookNames,
+            $formBuilderDataProviderDefaultDataHookNames,
             $formHandlerBeforeUpdateHookNames,
             $formHandlerAfterUpdateHookNames,
             $formHandlerBeforeCreateHookNames,
@@ -121,7 +137,7 @@ final class IdentifiableObjectHookByFormTypeProvider implements HookByFormTypePr
     /**
      * Gets form names which are used when generating hooks.
      *
-     * @param Definition[] $formTypes
+     * @param string[] $formTypes
      *
      * @return Generator
      */

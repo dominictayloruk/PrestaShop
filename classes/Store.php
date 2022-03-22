@@ -59,7 +59,7 @@ class StoreCore extends ObjectModel
     /** @var float Longitude */
     public $longitude;
 
-    /** @var string Store hours (PHP serialized) */
+    /** @var string|array Store hours (PHP serialized) */
     public $hours;
 
     /** @var string Phone number */
@@ -124,8 +124,8 @@ class StoreCore extends ObjectModel
     /**
      * StoreCore constructor.
      *
-     * @param null $idStore
-     * @param null $idLang
+     * @param int|null $idStore
+     * @param int|null $idLang
      */
     public function __construct($idStore = null, $idLang = null)
     {
@@ -137,25 +137,18 @@ class StoreCore extends ObjectModel
     /**
      * Get Stores by language.
      *
-     * @param $idLang
+     * @param int $idLang
      *
-     * @return array|false|mysqli_result|PDOStatement|resource|null
+     * @return array
      */
     public static function getStores($idLang)
     {
-        $stores = Db::getInstance()->executeS(
-            '
-            SELECT s.id_store AS `id`, s.*, sl.*
-            FROM ' . _DB_PREFIX_ . 'store s
-            ' . Shop::addSqlAssociation('store', 's') . '
-            LEFT JOIN ' . _DB_PREFIX_ . 'store_lang sl ON (
-            sl.id_store = s.id_store
-            AND sl.id_lang = ' . (int) $idLang . '
-            )
+        return Db::getInstance()->executeS(
+            'SELECT s.id_store AS `id`, s.*, sl.*
+            FROM ' . _DB_PREFIX_ . 'store s  ' . Shop::addSqlAssociation('store', 's') . '
+            LEFT JOIN ' . _DB_PREFIX_ . 'store_lang sl ON (sl.id_store = s.id_store AND sl.id_lang = ' . (int) $idLang . ')
             WHERE s.active = 1'
         );
-
-        return $stores;
     }
 
     /**
@@ -199,7 +192,8 @@ class StoreCore extends ObjectModel
             '
             SELECT `id_store`
             FROM ' . _DB_PREFIX_ . 'store a
-            WHERE a.`id_store` = ' . (int) $idStore
+            WHERE a.`id_store` = ' . (int) $idStore,
+            false
         );
 
         return isset($row['id_store']);

@@ -1,6 +1,10 @@
 # ./vendor/bin/behat -c tests/Integration/Behaviour/behat.yml -s order --tags add-payment-to-order
-@reset-database-before-feature
+@restore-all-tables-before-feature
+@clear-cache-before-feature
 @reboot-kernel-before-feature
+@restore-currencies-after-feature
+@reboot-kernel-after-feature
+@restore-currencies-before-scenario
 @add-payment-to-order
 Feature: Add payment to Order from Back Office (BO)
   In order to manage orders for FO customers
@@ -15,23 +19,27 @@ Feature: Add payment to Order from Back Office (BO)
     And country "FR" is enabled
     And language "French" with locale "fr-FR" exists
     And I add new currency "currency2" with following properties:
-      | iso_code         | EUR                              |
-      | exchange_rate    | 0.88                             |
-      | name             | My Euros                         |
-      | symbols          | en-US:€;fr-FR:€                  |
-      | patterns         | en-US:¤#,##0.00;fr-FR:#,##0.00 ¤ |
-      | is_enabled       | 1                                |
-      | is_unofficial    | 0                                |
-      | shop_association | shop1                            |
+      | iso_code         | EUR        |
+      | exchange_rate    | 0.88       |
+      | name             | My Euros   |
+      | symbols[en-US]   | €          |
+      | symbols[fr-FR]   | €          |
+      | patterns[en-US]  | ¤#,##0.00  |
+      | patterns[fr-FR]  | #,##0.00 ¤ |
+      | is_enabled       | 1          |
+      | is_unofficial    | 0          |
+      | shop_association | shop1      |
     And I add new currency "currency3" with following properties:
-      | iso_code         | JPY                                   |
-      | exchange_rate    | 107.52                                |
-      | name             | My Japanese Yen                       |
-      | symbols          | en-US:¥;fr-FR:¥                       |
-      | patterns         | en-US:¤#,##0.00;fr-FR:#,##0.00 ¤      |
-      | is_enabled       | 1                                     |
-      | is_unofficial    | 0                                     |
-      | shop_association | shop1                                 |
+      | iso_code         | JPY             |
+      | exchange_rate    | 107.52          |
+      | name             | My Japanese Yen |
+      | symbols[en-US]   | ¥               |
+      | symbols[fr-FR]   | ¥               |
+      | patterns[en-US]  | ¤#,##0.00       |
+      | patterns[fr-FR]  | #,##0.00 ¤      |
+      | is_enabled       | 1               |
+      | is_unofficial    | 0               |
+      | shop_association | shop1           |
     And the module "dummy_payment" is installed
     And I am logged in as "test@prestashop.com" employee
     And there is customer "testCustomer" with email "pub@prestashop.com"
@@ -69,13 +77,13 @@ Feature: Add payment to Order from Back Office (BO)
       | transaction_id | test123             |
       | currency       | USD                 |
       | amount         | 6.00                |
-    Then order "bo_order1" payments should have the following details:
+    Then order "bo_order1" payment in first position should have the following details:
       | date           | 2019-11-26 13:56:23 |
-      | payment_method | Payments by check   |
-      | transaction_id | test123             |
+      | paymentMethod  | Payments by check   |
+      | transactionId  | test123             |
       | amount         | $6.00               |
     And order "bo_order1" should have the following details:
-      | total_paid_real           | 6.000000 |
+      | total_paid_real | 6.000000 |
 
   Scenario: Add a payment when Order is in default_currency and Payment is NOT in Order currency
     When order "bo_order1" has 0 payments
@@ -85,13 +93,13 @@ Feature: Add payment to Order from Back Office (BO)
       | transaction_id | test123             |
       | currency       | currency2           |
       | amount         | 6.00                |
-    Then order "bo_order1" payments should have the following details:
+    Then order "bo_order1" payment in first position should have the following details:
       | date           | 2019-11-26 13:56:23 |
-      | payment_method | Payments by check   |
-      | transaction_id | test123             |
+      | paymentMethod  | Payments by check   |
+      | transactionId  | test123             |
       | amount         | €6.00               |
     And order "bo_order1" should have the following details:
-      | total_paid_real           | 6.820000 |
+      | total_paid_real | 6.820000 |
 
 #  Scenario: Add a payment when Order is NOT in default_currency and Payment is in Order currency
 #    Given I update the cart "dummy_cart" currency to "currency2"

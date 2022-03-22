@@ -24,6 +24,7 @@
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
 use PrestaShop\PrestaShop\Adapter\ServiceLocator;
+use PrestaShopBundle\Translation\TranslatorComponent;
 
 abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation\Database\EntityInterface
 {
@@ -52,16 +53,23 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
     const HAS_ONE = 1;
     const HAS_MANY = 2;
 
-    /** @var int Object ID */
+    /** @var int|null Object ID */
     public $id;
 
-    /** @var int Language ID */
+    /** @var int|null Language ID */
     protected $id_lang = null;
 
     /** @var int Shop ID */
     protected $id_shop = null;
 
-    /** @var array List of shop IDs */
+    /**
+     * This field contains the list of shop that you intend to update. When add or update is called the ObjectModel
+     * uses the IDs from the Context by default, except when this field is not empty. In this case the shop IDs
+     * contained in this field override the ones from the Context allowing you to control exactly which shops are
+     * impacted.
+     *
+     * @var array List of shop IDs
+     */
     public $id_shop_list = [];
 
     /** @var bool */
@@ -142,7 +150,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
     /** @var string file type of image files. */
     protected $image_format = 'jpg';
 
-    /** @var PrestaShopBundle\Translation\Translator */
+    /** @var TranslatorComponent */
     protected $translator;
 
     /**
@@ -166,7 +174,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
     /** @var array|null List of specific fields to update (all fields if null). */
     protected $update_fields = null;
 
-    /** @var Db An instance of the db in order to avoid calling Db::getInstance() thousands of times. */
+    /** @var Db|bool An instance of the db in order to avoid calling Db::getInstance() thousands of times. */
     protected static $db = false;
 
     /** @var array|null List of HTML field (based on self::TYPE_HTML) */
@@ -180,6 +188,9 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
      */
     protected static $cache_objects = true;
 
+    /**
+     * @return null
+     */
     public static function getRepositoryClassName()
     {
         return null;
@@ -220,7 +231,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
      * @param int|null $id if specified, loads and existing object from DB (optional)
      * @param int|null $id_lang required if object is multilingual (optional)
      * @param int|null $id_shop ID shop for objects with multishop tables
-     * @param PrestaShopBundle\Translation\Translator
+     * @param TranslatorComponent|null $translator
      *
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
@@ -262,7 +273,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
         if ($id) {
             /** @var \PrestaShop\PrestaShop\Adapter\EntityMapper $entity_mapper */
             $entity_mapper = ServiceLocator::get('\\PrestaShop\\PrestaShop\\Adapter\\EntityMapper');
-            $entity_mapper->load($id, $id_lang, $this, $this->def, $this->id_shop, self::$cache_objects);
+            $entity_mapper->load($id, $this->id_lang, $this, $this->def, $this->id_shop, self::$cache_objects);
         }
     }
 
@@ -365,6 +376,24 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
     }
 
     /**
+     * Returns the language related to the object or the default one if it doesn't exists
+     *
+     * @return Language
+     *
+     * @throws PrestaShopDatabaseException
+     * @throws PrestaShopException
+     */
+    public function getAssociatedLanguage(): Language
+    {
+        $language = new Language($this->id_lang);
+        if (null === $language->id) {
+            $language = new Language((int) Configuration::get('PS_LANG_DEFAULT'));
+        }
+
+        return $language;
+    }
+
+    /**
      * Formats values of each fields.
      *
      * @since 1.5.0.1
@@ -386,14 +415,26 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
         foreach ($this->def['fields'] as $field => $data) {
             // Only get fields we need for the type
             // E.g. if only lang fields are filtered, ignore fields without lang => true
+
+            // For type FORMAT_LANG only multi lang fields are returned
             if (($type == self::FORMAT_LANG && empty($data['lang']))
+                // For type FORMAT_SHOP only multi shop fields are returned
                 || ($type == self::FORMAT_SHOP && empty($data['shop']))
-                || ($type == self::FORMAT_COMMON && ((!empty($data['shop']) && $data['shop'] != 'both') || !empty($data['lang'])))) {
+                // For type FORMAT_COMMON only fields that are neither multi shop nor multi lang are returned (one exception though in case
+                // shop === both, then the field is returned for both FORMAT_SHOP and FORMAT_COMMON types)
+                || ($type == self::FORMAT_COMMON && ((!empty($data['shop']) && $data['shop'] !== 'both') || !empty($data['lang'])))) {
                 continue;
             }
 
+            // This field contains a list of fields that need to be updated, and only those fields So this method must filter out the fields
+            // that do not belong in $this->update_fields Since fields have already been filtered beforehand regarding of the requested type
+            // the check here is only about checking that the data has been marked as "to be updated"
             if (is_array($this->update_fields)) {
-                if ((!empty($data['lang']) || (!empty($data['shop']) && $data['shop'] != 'both')) && (empty($this->update_fields[$field]) || ($type == self::FORMAT_LANG && empty($this->update_fields[$field][$id_lang])))) {
+                if (empty($this->update_fields[$field])) {
+                    // Regular fields updates (multi shop or not) are identified by their field name
+                    continue;
+                } elseif ($type == self::FORMAT_LANG && empty($this->update_fields[$field][$id_lang])) {
+                    // Multi lang updates are identified by associated language ID
                     continue;
                 }
             }
@@ -410,7 +451,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
                 }
             }
 
-            $purify = (isset($data['validate']) && Tools::strtolower($data['validate']) == 'iscleanhtml') ? true : false;
+            $purify = isset($data['validate']) && Tools::strtolower($data['validate']) == 'iscleanhtml';
             // Format field value
             $fields[$field] = ObjectModel::formatValue($value, $data['type'], false, $purify, !empty($data['allow_null']));
         }
@@ -531,7 +572,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
     public function add($auto_date = true, $null_values = false)
     {
         if (isset($this->id) && !$this->force_id) {
-            unset($this->id);
+            $this->id = null;
         }
 
         // @hook actionObject<ObjectClassName>AddBefore
@@ -546,6 +587,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
             $this->date_upd = date('Y-m-d H:i:s');
         }
 
+        $id_shop_list = [];
         if (Shop::isTableAssociated($this->def['table'])) {
             $id_shop_list = Shop::getContextListShopID();
             if (count($this->id_shop_list)) {
@@ -554,15 +596,18 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
         }
 
         // Database insertion
-        if (Shop::checkIdShopDefault($this->def['table'])) {
+        if (Shop::checkIdShopDefault($this->def['table']) && array_key_exists('id_shop_default', get_object_vars($this))) {
+            /* @phpstan-ignore-next-line  */
             $this->id_shop_default = (in_array(Configuration::get('PS_SHOP_DEFAULT'), $id_shop_list) == true) ? Configuration::get('PS_SHOP_DEFAULT') : min($id_shop_list);
         }
         if (!$result = Db::getInstance()->insert($this->def['table'], $this->getFields(), $null_values)) {
             return false;
         }
 
-        // Get object id in database
-        $this->id = Db::getInstance()->Insert_ID();
+        // Get object id in database if force_id is not true
+        if (empty($this->id)) {
+            $this->id = Db::getInstance()->Insert_ID();
+        }
 
         // Database insertion for multishop fields related to the object
         if (Shop::isTableAssociated($this->def['table'])) {
@@ -711,7 +756,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
         $this->clearCache();
 
         // Automatically fill dates
-        if (array_key_exists('date_upd', $this)) {
+        if (property_exists($this, 'date_upd')) {
             $this->date_upd = date('Y-m-d H:i:s');
             if (isset($this->update_fields) && is_array($this->update_fields) && count($this->update_fields)) {
                 $this->update_fields['date_upd'] = true;
@@ -719,7 +764,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
         }
 
         // Automatically fill dates
-        if (array_key_exists('date_add', $this) && $this->date_add == null) {
+        if (property_exists($this, 'date_add') && $this->date_add == null) {
             $this->date_add = date('Y-m-d H:i:s');
             if (isset($this->update_fields) && is_array($this->update_fields) && count($this->update_fields)) {
                 $this->update_fields['date_add'] = true;
@@ -731,18 +776,21 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
             $id_shop_list = $this->id_shop_list;
         }
 
-        if (Shop::checkIdShopDefault($this->def['table']) && !$this->id_shop_default) {
+        /* @phpstan-ignore-next-line  */
+        if (Shop::checkIdShopDefault($this->def['table']) && array_key_exists('id_shop_default', get_object_vars($this)) && !$this->id_shop_default) {
+            /* @phpstan-ignore-next-line  */
             $this->id_shop_default = (in_array(Configuration::get('PS_SHOP_DEFAULT'), $id_shop_list) == true) ? Configuration::get('PS_SHOP_DEFAULT') : min($id_shop_list);
         }
         // Database update
-        if (!$result = Db::getInstance()->update($this->def['table'], $this->getFields(), '`' . pSQL($this->def['primary']) . '` = ' . (int) $this->id, 0, $null_values)) {
+        $fieldsToUpdate = $this->getFields();
+        if (!$result = Db::getInstance()->update($this->def['table'], $fieldsToUpdate, '`' . pSQL($this->def['primary']) . '` = ' . (int) $this->id, 0, $null_values)) {
             return false;
         }
 
         // Database insertion for multishop fields related to the object
         if (Shop::isTableAssociated($this->def['table'])) {
-            $fields = $this->getFieldsShop();
-            $fields[$this->def['primary']] = (int) $this->id;
+            $multiShopFieldsToUpdate = $this->getFieldsShop();
+            $multiShopFieldsToUpdate[$this->def['primary']] = (int) $this->id;
             if (is_array($this->update_fields)) {
                 $update_fields = $this->update_fields;
                 $this->update_fields = null;
@@ -750,11 +798,11 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
                 $all_fields[$this->def['primary']] = (int) $this->id;
                 $this->update_fields = $update_fields;
             } else {
-                $all_fields = $fields;
+                $all_fields = $multiShopFieldsToUpdate;
             }
 
             foreach ($id_shop_list as $id_shop) {
-                $fields['id_shop'] = (int) $id_shop;
+                $multiShopFieldsToUpdate['id_shop'] = (int) $id_shop;
                 $all_fields['id_shop'] = (int) $id_shop;
                 $where = $this->def['primary'] . ' = ' . (int) $this->id . ' AND id_shop = ' . (int) $id_shop;
 
@@ -762,7 +810,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
                 // only if we are in a shop context (if we are in all context, we just want to update entries that alread exists)
                 $shop_exists = Db::getInstance()->getValue('SELECT ' . $this->def['primary'] . ' FROM ' . _DB_PREFIX_ . $this->def['table'] . '_shop WHERE ' . $where);
                 if ($shop_exists) {
-                    $result &= Db::getInstance()->update($this->def['table'] . '_shop', $fields, $where, 0, $null_values);
+                    $result &= Db::getInstance()->update($this->def['table'] . '_shop', $multiShopFieldsToUpdate, $where, 0, $null_values);
                 } elseif (Shop::getContext() == Shop::CONTEXT_SHOP) {
                     $result &= Db::getInstance()->insert($this->def['table'] . '_shop', $all_fields, $null_values);
                 }
@@ -771,9 +819,9 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
 
         // Database update for multilingual fields related to the object
         if (isset($this->def['multilang']) && $this->def['multilang']) {
-            $fields = $this->getFieldsLang();
-            if (is_array($fields)) {
-                foreach ($fields as $field) {
+            $multiLangFieldsToUpdate = $this->getFieldsLang();
+            if (is_array($multiLangFieldsToUpdate)) {
+                foreach ($multiLangFieldsToUpdate as $field) {
                     foreach (array_keys($field) as $key) {
                         if (!Validate::isTableOrIdentifier($key)) {
                             throw new PrestaShopException('key ' . $key . ' is not a valid table or identifier');
@@ -907,7 +955,8 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
         if (!array_key_exists('deleted', get_object_vars($this))) {
             throw new PrestaShopException('Property "deleted" is missing in object model ' . get_class($this));
         }
-        $this->deleted = 1;
+        /* @phpstan-ignore-next-line */
+        $this->deleted = true;
 
         return $this->update();
     }
@@ -922,7 +971,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
     public function toggleStatus()
     {
         // Object must have a variable called 'active'
-        if (!array_key_exists('active', $this)) {
+        if (!property_exists($this, 'active')) {
             throw new PrestaShopException('property "active" is missing in object ' . get_class($this));
         }
 
@@ -1095,7 +1144,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
      * @param array $skip array of fields to skip
      * @param bool $human_errors if true, uses more descriptive, translatable error strings
      *
-     * @return true|string true or error message string
+     * @return bool|string true or error message string
      *
      * @throws PrestaShopException
      */
@@ -1221,6 +1270,11 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
         }
 
         if ($_FIELDS === null && file_exists(_PS_TRANSLATIONS_DIR_ . $context->language->iso_code . '/fields.php')) {
+            @trigger_error(
+                 'Translating ObjectModel fields using fields.php is deprecated since version 8.0.0.',
+                E_USER_DEPRECATED
+            );
+
             include_once _PS_TRANSLATIONS_DIR_ . $context->language->iso_code . '/fields.php';
         }
 
@@ -1368,10 +1422,10 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
             }
             if (isset($details['validate'])) {
                 $current_field['validateMethod'] = (
-                                array_key_exists('validateMethod', $resource_parameters['fields'][$field_name]) ?
-                                array_merge($resource_parameters['fields'][$field_name]['validateMethod'], [$details['validate']]) :
-                                [$details['validate']]
-                            );
+                    array_key_exists('validateMethod', $resource_parameters['fields'][$field_name]) ?
+                    array_merge($resource_parameters['fields'][$field_name]['validateMethod'], [$details['validate']]) :
+                    [$details['validate']]
+                );
             }
             $resource_parameters['fields'][$field_name] = array_merge($resource_parameters['fields'][$field_name], $current_field);
 
@@ -1420,6 +1474,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
                 $sql_join = $multi_shop_join . ' ' . $sql_join;
             } else {
                 $vars = get_class_vars($class_name);
+                $or = [];
                 foreach ($vars['shopIDs'] as $id_shop) {
                     $or[] = '(main.id_shop = ' . (int) $id_shop . (isset($this->def['fields']['id_shop_group']) ? ' OR (id_shop = 0 AND id_shop_group=' . (int) Shop::getGroupFromShop((int) $id_shop) . ')' : '') . ')';
                 }
@@ -1468,7 +1523,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
             $value = Tools::getValue($field, null);
 
             if ($value === null) {
-                $errors[$field] = $this->trans('The field %s is required.', [self::displayFieldName($field, get_class($this), $htmlentities)], 'Admin.Notifications.Error');
+                $errors[$field] = $this->trans('The %s field is required.', [self::displayFieldName($field, get_class($this), $htmlentities)], 'Admin.Notifications.Error');
             }
         }
 
@@ -1706,7 +1761,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
      *
      * @since 1.5.0.1
      *
-     * @param $id
+     * @param int $id
      *
      * @return bool|void
      *
@@ -1827,6 +1882,16 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
     }
 
     /**
+     * Returns the shop ID used to fetch initial object data.
+     *
+     * @return int
+     */
+    public function getShopId(): int
+    {
+        return (int) $this->id_shop;
+    }
+
+    /**
      * Delete images associated with the object.
      *
      * @param bool $force_delete
@@ -1872,19 +1937,36 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
      * Checks if an object exists in database.
      *
      * @param int $id_entity
-     * @param string $table
+     * @param string $table Deprecated since 1.7.8.x
      *
      * @return bool
      */
-    public static function existsInDatabase($id_entity, $table)
+    public static function existsInDatabase($id_entity, $table = null)
     {
+        if ($table !== null) {
+            Tools::displayParameterAsDeprecated('table');
+        }
+
+        if ($table !== null && static::class == 'ObjectModel') {
+            $primary = 'id_' . bqSQL($table);
+        } else {
+            $object_def = static::$definition;
+
+            if (empty($object_def['table']) || empty($object_def['primary'])) {
+                return false;
+            }
+
+            $table = $object_def['table'];
+            $primary = $object_def['primary'];
+        }
+
         $row = Db::getInstance()->getRow(
-            '
-			SELECT `id_' . bqSQL($table) . '` as id
-			FROM `' . _DB_PREFIX_ . bqSQL($table) . '` e
-			WHERE e.`id_' . bqSQL($table) . '` = ' . (int) $id_entity,
-            false
-        );
+                (new DbQuery())
+                    ->select('e.`' . $primary . '` as id')
+                    ->from($table, 'e')
+                    ->where('e.`' . $primary . '` = ' . (int) $id_entity),
+                false
+            );
 
         return isset($row['id']);
     }
@@ -1928,7 +2010,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
     {
         $this->id_lang = $id_lang;
         if (isset($data[$this->def['primary']])) {
-            $this->id = $data[$this->def['primary']];
+            $this->id = (int) $data[$this->def['primary']];
         }
 
         foreach ($data as $key => $value) {
@@ -2000,7 +2082,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
     /**
      * Returns object definition.
      *
-     * @param string $class Name of object
+     * @param string|object $class Name of object
      * @param string|null $field Name of field if we want the definition of one field only
      *
      * @return array
@@ -2016,6 +2098,7 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
         }
 
         if ($field !== null || !Cache::isStored($cache_id)) {
+            /** @var array<string, mixed> $definition */
             $definition = $class::$definition;
 
             $definition['classname'] = $class;
@@ -2032,7 +2115,9 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
                 return isset($definition['fields'][$field]) ? $definition['fields'][$field] : null;
             }
 
-            Cache::store($cache_id, $definition);
+            if (isset($cache_id)) {
+                Cache::store($cache_id, $definition);
+            }
 
             return $definition;
         }
@@ -2147,11 +2232,19 @@ abstract class ObjectModelCore implements \PrestaShop\PrestaShop\Core\Foundation
      *
      * @since 1.5.0.1
      *
-     * @param array $fields
+     * @param array<string, bool|array<int, bool>>|null $fields
      */
-    public function setFieldsToUpdate(array $fields)
+    public function setFieldsToUpdate(?array $fields)
     {
         $this->update_fields = $fields;
+    }
+
+    /**
+     * @return array<string, bool|array<int, bool>>|null
+     */
+    public function getFieldsToUpdate(): ?array
+    {
+        return $this->update_fields;
     }
 
     /**

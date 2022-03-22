@@ -29,6 +29,7 @@ namespace Tests\Unit\Core\Search\Builder;
 use PHPUnit\Framework\TestCase;
 use PrestaShop\PrestaShop\Core\Search\Builder\ClassFiltersBuilder;
 use PrestaShop\PrestaShop\Core\Search\Filters;
+use Tests\Resources\SampleFilters;
 
 class ClassFiltersBuilderTest extends TestCase
 {
@@ -42,7 +43,7 @@ class ClassFiltersBuilderTest extends TestCase
     public function testOverrideWithoutClass()
     {
         $builder = new ClassFiltersBuilder();
-        $filters = new Filters(['limit' => 10]);
+        $filters = new Filters(['limit' => 51]);
         $builtFilters = $builder->buildFilters($filters);
         $this->assertNotNull($builtFilters);
         $this->assertEquals($filters->all(), $builtFilters->all());
@@ -81,22 +82,5 @@ class ClassFiltersBuilderTest extends TestCase
         $this->assertEquals(SampleFilters::getDefaults(), $builtFilters->all());
         $this->assertEmpty($builtFilters->getFilterId());
         $this->assertInstanceOf(SampleFilters::class, $builtFilters);
-    }
-}
-
-class SampleFilters extends Filters
-{
-    /**
-     * {@inheritdoc}
-     */
-    public static function getDefaults()
-    {
-        return [
-            'limit' => 42,
-            'offset' => 0,
-            'orderBy' => 'id_sample',
-            'sortOrder' => 'desc',
-            'filters' => [],
-        ];
     }
 }

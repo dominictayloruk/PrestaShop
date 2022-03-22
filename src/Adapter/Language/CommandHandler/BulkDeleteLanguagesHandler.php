@@ -26,10 +26,10 @@
 
 namespace PrestaShop\PrestaShop\Adapter\Language\CommandHandler;
 
-use Context;
-use Language;
+use PrestaShop\PrestaShop\Adapter\File\RobotsTextFileGenerator;
 use PrestaShop\PrestaShop\Core\Domain\Language\Command\BulkDeleteLanguagesCommand;
 use PrestaShop\PrestaShop\Core\Domain\Language\CommandHandler\BulkDeleteLanguagesHandlerInterface;
+use PrestaShop\PrestaShop\Core\Domain\Language\Exception\DefaultLanguageException;
 use PrestaShop\PrestaShop\Core\Domain\Language\Exception\LanguageException;
 use Shop;
 
@@ -41,6 +41,19 @@ use Shop;
 final class BulkDeleteLanguagesHandler extends AbstractLanguageHandler implements BulkDeleteLanguagesHandlerInterface
 {
     /**
+     * @var RobotsTextFileGenerator
+     */
+    private $robotsTextFileGenerator;
+
+    /**
+     * @param RobotsTextFileGenerator $robotsTextFileGenerator
+     */
+    public function __construct(RobotsTextFileGenerator $robotsTextFileGenerator)
+    {
+        $this->robotsTextFileGenerator = $robotsTextFileGenerator;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function handle(BulkDeleteLanguagesCommand $command)
@@ -51,12 +64,23 @@ final class BulkDeleteLanguagesHandler extends AbstractLanguageHandler implement
         foreach ($command->getLanguageIds() as $languageId) {
             $language = $this->getLegacyLanguageObject($languageId);
 
-            $this->assertLanguageIsNotDefault($language);
+            try {
+                $this->assertLanguageIsNotDefault($language);
+            } catch (DefaultLanguageException $e) {
+                throw new DefaultLanguageException(
+                    sprintf(
+                        'Default language "%s" cannot be deleted',
+                        $language->iso_code
+                    ),
+                    DefaultLanguageException::CANNOT_DELETE_DEFAULT_ERROR
+                );
+            }
             $this->assertLanguageIsNotInUse($language);
 
             if (false === $language->delete()) {
-                throw new LanguageException(sprintf('Failed to delele language "%s"', $language->iso_code));
+                throw new LanguageException(sprintf('Failed to delete language "%s"', $language->iso_code));
             }
         }
+        $this->robotsTextFileGenerator->generateFile();
     }
 }

@@ -1,30 +1,57 @@
 require('module-alias/register');
 const FOBasePage = require('@pages/FO/FObasePage');
 
-module.exports = class Checkout extends FOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Checkout page, contains functions that can be used on the page
+ * @class
+ * @extends FOBasePage
+ */
+class Checkout extends FOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on checkout page
+   */
+  constructor() {
+    super();
 
     // Selectors
     this.checkoutPageBody = 'body#checkout';
-    this.personalInformationStepSection = '#checkout-personal-information-step';
     this.paymentStepSection = '#checkout-payment-step';
     this.paymentOptionInput = name => `${this.paymentStepSection} input[name='payment-option']`
       + `[data-module-name='${name}']`;
     this.conditionToApproveLabel = `${this.paymentStepSection} #conditions-to-approve label`;
     this.conditionToApproveCheckbox = '#conditions_to_approve\\[terms-and-conditions\\]';
+    this.termsOfServiceLink = '#cta-terms-and-conditions-0';
+    this.termsOfServiceModalDiv = '#modal div.js-modal-content';
     this.paymentConfirmationButton = `${this.paymentStepSection} #payment-confirmation button:not([disabled])`;
+    this.shippingValueSpan = '#cart-subtotal-shipping span.value';
+    this.noPaymentNeededElement = `${this.paymentStepSection} div.content > p.cart-payment-step-not-needed-info`;
+    this.noPaymentNeededText = 'No payment needed for this order';
+
     // Personal information form
     this.personalInformationStepForm = '#checkout-personal-information-step';
-    this.createAccountOptionalNotice = `${this.personalInformationStepForm} #customer-form section p`;
+    this.createAccountOptionalNotice = `${this.personalInformationStepForm} `
+      + '#customer-form .form-informations .form-informations-title';
     this.signInLink = `${this.personalInformationStepForm} a[href="#checkout-login-form"]`;
     this.checkoutGuestForm = '#checkout-guest-form';
+    this.checkoutGuestGenderInput = pos => `${this.checkoutGuestForm} input[name='id_gender'][value='${pos}']`;
+    this.checkoutGuestFirstnameInput = `${this.checkoutGuestForm} input[name='firstname']`;
+    this.checkoutGuestLastnameInput = `${this.checkoutGuestForm} input[name='lastname']`;
+    this.checkoutGuestEmailInput = `${this.checkoutGuestForm} input[name='email']`;
     this.checkoutGuestPasswordInput = `${this.checkoutGuestForm} input[name='password']`;
+    this.checkoutGuestBirthdayInput = `${this.checkoutGuestForm} input[name='birthday']`;
+    this.checkoutGuestOptinCheckbox = `${this.checkoutGuestForm} input[name='optin']`;
+    this.checkoutGuestCustomerPrivacyCheckbox = `${this.checkoutGuestForm} input[name='customer_privacy']`;
+    this.checkoutGuestNewsletterCheckbox = `${this.checkoutGuestForm} input[name='newsletter']`;
+    this.checkoutGuestGdprCheckbox = `${this.checkoutGuestForm} input[name='psgdpr']`;
+    this.checkoutGuestContinueButton = `${this.checkoutGuestForm} button[name='continue']`;
+
     // Checkout login form
     this.checkoutLoginForm = `${this.personalInformationStepForm} #checkout-login-form`;
     this.emailInput = `${this.checkoutLoginForm} input[name='email']`;
     this.passwordInput = `${this.checkoutLoginForm} input[name='password']`;
     this.personalInformationContinueButton = `${this.checkoutLoginForm} #login-form footer button`;
+
     // Checkout address form
     this.addressStepSection = '#checkout-addresses-step';
     this.addressStepCompanyInput = `${this.addressStepSection} input[name='company']`;
@@ -32,12 +59,19 @@ module.exports = class Checkout extends FOBasePage {
     this.addressStepPostCodeInput = `${this.addressStepSection} input[name='postcode']`;
     this.addressStepCityInput = `${this.addressStepSection} input[name='city']`;
     this.addressStepPhoneInput = `${this.addressStepSection} input[name='phone']`;
+    this.addressStepUseSameAddressCheckbox = '#use_same_address';
     this.addressStepContinueButton = `${this.addressStepSection} button[name='confirm-addresses']`;
+
     // Shipping method step
     this.deliveryStepSection = '#checkout-delivery-step';
+    this.deliveryOptionsRadios = 'input[id*=\'delivery_option_\']';
     this.deliveryOptionLabel = id => `${this.deliveryStepSection} label[for='delivery_option_${id}']`;
+    this.deliveryOptionNameSpan = id => `${this.deliveryOptionLabel(id)} span.carrier-name`;
+    this.deliveryOptionAllNamesSpan = '#js-delivery .delivery-option .carriere-name-container span.carrier-name';
+    this.deliveryOptionAllPricesSpan = '#js-delivery .delivery-option span.carrier-price';
     this.deliveryMessage = '#delivery_message';
     this.deliveryStepContinueButton = `${this.deliveryStepSection} button[name='confirmDeliveryOption']`;
+
     // Gift selectors
     this.giftCheckbox = '#input_gift';
     this.recycableGiftCheckbox = '#input_recyclable';
@@ -51,158 +85,353 @@ module.exports = class Checkout extends FOBasePage {
 
   /**
    * Check if we are in checkout Page
+   * @param page {Page} Browser tab
    * @return {Promise<boolean>}
    */
-  async isCheckoutPage() {
-    return this.elementVisible(this.checkoutPageBody, 1000);
+  async isCheckoutPage(page) {
+    return this.elementVisible(page, this.checkoutPageBody, 1000);
   }
 
   /**
    * Check if step is complete
-   * @param stepSelector, step to check is complete
-   * @param stepSelector
+   * @param page {Page} Browser tab
+   * @param stepSelector {string} String of the step to check
    * @returns {Promise<boolean>}
    */
-  async isStepCompleted(stepSelector) {
-    return this.elementVisible(`${stepSelector}.-complete`, 1000);
+  async isStepCompleted(page, stepSelector) {
+    return this.elementVisible(page, `${stepSelector}.-complete`, 1000);
   }
 
   /**
    * Go to Delivery Step and check that Address step is complete
+   * @param page {Page} Browser tab
    * @return {Promise<boolean>}
    */
-  async goToDeliveryStep() {
-    await this.clickAndWaitForNavigation(this.addressStepContinueButton);
-    return this.isStepCompleted(this.addressStepSection);
+  async goToDeliveryStep(page) {
+    await this.clickAndWaitForNavigation(page, this.addressStepContinueButton);
+    return this.isStepCompleted(page, this.addressStepSection);
   }
 
   /**
    * Choose shipping method and add a comment
-   * @param shippingMethod
-   * @param comment
+   * @param page {Page} Browser tab
+   * @param shippingMethod {number} Position of the shipping method
+   * @param comment {string} Comment to add after selecting a shipping method
    * @returns {Promise<boolean>}
    */
-  async chooseShippingMethodAndAddComment(shippingMethod, comment) {
-    await this.waitForSelectorAndClick(this.deliveryOptionLabel(shippingMethod));
-    await this.setValue(this.deliveryMessage, comment);
-    return this.goToPaymentStep();
+  async chooseShippingMethodAndAddComment(page, shippingMethod, comment = '') {
+    await this.waitForSelectorAndClick(page, this.deliveryOptionLabel(shippingMethod));
+    await this.setValue(page, this.deliveryMessage, comment);
+    return this.goToPaymentStep(page);
+  }
+
+  /**
+   * Is shipping method exist
+   * @param page {Page} Browser tab
+   * @param shippingMethod {number} Position of the shipping method
+   * @returns {Promise<boolean>}
+   */
+  isShippingMethodVisible(page, shippingMethod) {
+    return this.elementVisible(page, this.deliveryOptionLabel(shippingMethod), 2000);
+  }
+
+  /**
+   * Is confirm button visible and enabled
+   * @param page
+   * @returns {Promise<boolean>}
+   */
+  isPaymentConfirmationButtonVisibleAndEnabled(page) {
+    // small side effect note, the selector is the one that checks for disabled
+    return this.elementVisible(page, this.paymentConfirmationButton, 1000);
+  }
+
+  /**
+   * Get No payment needed block content
+   * @param page
+   * @returns {string}
+   */
+  getNoPaymentNeededBlockContent(page) {
+    return this.getTextContent(page, this.noPaymentNeededElement);
+  }
+
+  /**
+   * Get selected shipping method name
+   * @param page {Page} Browser tab
+   * @return {Promise<string>}
+   */
+  async getSelectedShippingMethod(page) {
+    // Get checkbox radios
+    const optionsRadiosElement = await page.$$(this.deliveryOptionsRadios);
+    let selectedOptionId = 0;
+
+    // Get id of selected option
+    for (let position = 1; position <= optionsRadiosElement.length; position++) {
+      if (await (await optionsRadiosElement[position - 1].getProperty('checked')).jsonValue()) {
+        selectedOptionId = position;
+        break;
+      }
+    }
+
+    // Return text of the selected option
+    if (selectedOptionId !== 0) {
+      return this.getTextContent(page, this.deliveryOptionNameSpan(selectedOptionId));
+    }
+    throw new Error('No selected option was found');
+  }
+
+  /**
+   * Get all carriers prices
+   * @param page {Page} Browser tab
+   * @returns {Promise<Array<string>>}
+   */
+  async getAllCarriersPrices(page) {
+    return page.$$eval(this.deliveryOptionAllPricesSpan, all => all.map(el => el.textContent));
+  }
+
+  /**
+   * Get shipping value
+   * @param page {Page} Browser tab
+   * @returns {Promise<string>}
+   */
+  getShippingCost(page) {
+    return this.getTextContent(page, this.shippingValueSpan);
+  }
+
+  /**
+   * Get all carriers names
+   * @param page {Page} Browser tab
+   * @returns {Promise<Array<string>>}
+   */
+  async getAllCarriersNames(page) {
+    return page.$$eval(this.deliveryOptionAllNamesSpan, all => all.map(el => el.textContent));
   }
 
   /**
    * Go to Payment Step and check that delivery step is complete
+   * @param page {Page} Browser tab
    * @return {Promise<boolean>}
    */
-  async goToPaymentStep() {
-    await this.clickAndWaitForNavigation(this.deliveryStepContinueButton);
-    return this.isStepCompleted(this.deliveryStepSection);
+  async goToPaymentStep(page) {
+    await this.clickAndWaitForNavigation(page, this.deliveryStepContinueButton);
+    return this.isStepCompleted(page, this.deliveryStepSection);
   }
 
   /**
    * Choose payment method and validate Order
-   * @param paymentModuleName, payment method chosen (ex : ps_wirepayment)
+   * @param page {Page} Browser tab
+   * @param paymentModuleName {string} The chosen payment method
    * @return {Promise<void>}
    */
-  async choosePaymentAndOrder(paymentModuleName) {
-    await this.page.click(this.paymentOptionInput(paymentModuleName));
+  async choosePaymentAndOrder(page, paymentModuleName) {
+    await page.click(this.paymentOptionInput(paymentModuleName));
     await Promise.all([
-      this.waitForVisibleSelector(this.paymentConfirmationButton),
-      this.page.click(this.conditionToApproveLabel),
+      this.waitForVisibleSelector(page, this.paymentConfirmationButton),
+      page.click(this.conditionToApproveLabel),
     ]);
-    await this.clickAndWaitForNavigation(this.paymentConfirmationButton);
+    await this.clickAndWaitForNavigation(page, this.paymentConfirmationButton);
+  }
+
+  /**
+   * Order when no payment is needed
+   * @param page
+   * @returns {Promise<void>}
+   */
+  async orderWithoutPaymentMethod(page) {
+    // Click on terms of services checkbox if visible
+    if (await this.elementVisible(page, this.conditionToApproveLabel, 500)) {
+      await Promise.all([
+        this.waitForVisibleSelector(page, this.paymentConfirmationButton),
+        page.click(this.conditionToApproveLabel),
+      ]);
+    }
+
+    // Validate the order
+    await this.clickAndWaitForNavigation(page, this.paymentConfirmationButton);
   }
 
   /**
    * Check payment method existence
-   * @param paymentModuleName
+   * @param page {Page} Browser tab
+   * @param paymentModuleName {string} The payment module name
    * @returns {Promise<boolean>}
    */
-  isPaymentMethodExist(paymentModuleName) {
-    return this.elementVisible(this.paymentOptionInput(paymentModuleName), 2000);
+  isPaymentMethodExist(page, paymentModuleName) {
+    return this.elementVisible(page, this.paymentOptionInput(paymentModuleName), 2000);
   }
 
   /**
    * Click on sign in
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async clickOnSignIn() {
-    this.page.click(this.signInLink);
+  async clickOnSignIn(page) {
+    await page.click(this.signInLink);
   }
 
   /**
    * Login in FO
-   * @param customer
+   * @param page {Page} Browser tab
+   * @param customer {object} Customer's information (email and password)
    * @return {Promise<boolean>}
    */
-  async customerLogin(customer) {
-    await this.waitForVisibleSelector(this.emailInput);
-    await this.setValue(this.emailInput, customer.email);
-    await this.setValue(this.passwordInput, customer.password);
-    await this.clickAndWaitForNavigation(this.personalInformationContinueButton);
-    return this.isStepCompleted(this.personalInformationStepForm);
+  async customerLogin(page, customer) {
+    await this.waitForVisibleSelector(page, this.emailInput);
+    await this.setValue(page, this.emailInput, customer.email);
+    await this.setValue(page, this.passwordInput, customer.password);
+    await this.clickAndWaitForNavigation(page, this.personalInformationContinueButton);
+    return this.isStepCompleted(page, this.personalInformationStepForm);
   }
 
   /**
    * Is create account notice visible
+   * @param page {Page} Browser tab
    * @returns {boolean}
    */
-  isCreateAnAccountNoticeVisible() {
-    return this.elementVisible(this.createAccountOptionalNotice, 1000);
+  isCreateAnAccountNoticeVisible(page) {
+    return this.elementVisible(page, this.createAccountOptionalNotice, 1000);
   }
 
   /**
    * Is password input required
+   * @param page {Page} Browser tab
    * @returns {boolean}
    */
-  isPasswordRequired() {
-    return this.elementVisible(`${this.checkoutGuestPasswordInput}:required`, 1000);
+  isPasswordRequired(page) {
+    return this.elementVisible(page, `${this.checkoutGuestPasswordInput}:required`, 1000);
   }
 
   /**
    * Check if checkbox of condition to approve is visible
+   * @param page {Page} Browser tab
    * @returns {boolean}
    */
-  isConditionToApproveCheckboxVisible() {
-    return this.elementVisible(this.conditionToApproveCheckbox, 1000);
+  isConditionToApproveCheckboxVisible(page) {
+    return this.elementVisible(page, this.conditionToApproveCheckbox, 1000);
+  }
+
+  /**
+   * Get terms of service page title
+   * @param page {Page} Browser tab
+   * @returns {Promise<text>}
+   */
+  async getTermsOfServicePageTitle(page) {
+    await page.click(this.termsOfServiceLink);
+    return this.getTextContent(page, this.termsOfServiceModalDiv);
   }
 
   /**
    * Check if gift checkbox is visible
+   * @param page {Page} Browser tab
    * @return {boolean}
    */
-  isGiftCheckboxVisible() {
-    return this.elementVisible(this.giftCheckbox, 1000);
+  isGiftCheckboxVisible(page) {
+    return this.elementVisible(page, this.giftCheckbox, 1000);
   }
 
   /**
    * Check if recyclable checkbox is visible
+   * @param page {Page} Browser tab
    * @return {boolean}
    */
-  isRecyclableCheckboxVisible() {
-    return this.elementVisible(this.recycableGiftCheckbox, 1000);
+  isRecyclableCheckboxVisible(page) {
+    return this.elementVisible(page, this.recycableGiftCheckbox, 1000);
   }
 
   /**
    * Get gift price from cart summary
+   * @param page {Page} Browser tab
    * @return {Promise<string>}
    */
-  async getGiftPrice() {
-    await this.changeCheckboxValue(this.giftCheckbox, true);
-    return this.getTextContent(this.cartSubtotalGiftWrappingValueSpan);
+  async getGiftPrice(page) {
+    await this.setChecked(page, this.giftCheckbox, true);
+    return this.getTextContent(page, this.cartSubtotalGiftWrappingValueSpan);
   }
 
   /**
-   * Set address
-   * @param address
+   * Fill address form, used for delivery and invoice addresses
+   * @param page {Page} Browser tab
+   * @param address {object} Address's information to fill form with
+   * @returns {Promise<void>}
+   */
+  async fillAddressForm(page, address) {
+    await this.setValue(page, this.addressStepCompanyInput, address.company);
+    await this.setValue(page, this.addressStepAddress1Input, address.address);
+    await this.setValue(page, this.addressStepPostCodeInput, address.postalCode);
+    await this.setValue(page, this.addressStepCityInput, address.city);
+    await page.type(this.addressStepPhoneInput, address.phone, {delay: 50});
+    await this.setValue(page, this.addressStepPhoneInput, address.phone);
+  }
+
+  /**
+   * Set address step
+   * @param page {Page} Browser tab
+   * @param deliveryAddress {object} Address's information to add (for delivery)
+   * @param invoiceAddress {object} Address's information to add (for invoice
    * @returns {Promise<boolean>}
    */
-  async setAddress(address) {
-    await this.setValue(this.addressStepCompanyInput, address.company);
-    await this.setValue(this.addressStepAddress1Input, address.address);
-    await this.setValue(this.addressStepPostCodeInput, address.postalCode);
-    await this.setValue(this.addressStepCityInput, address.city);
-    await this.page.type(this.addressStepPhoneInput, address.phone, {delay: 50});
-    await this.setValue(this.addressStepPhoneInput, address.phone);
-    await this.page.click(this.addressStepContinueButton);
-    return this.isStepCompleted(this.addressStepSection);
+  async setAddress(page, deliveryAddress, invoiceAddress = null) {
+    // Set delivery address
+    await this.fillAddressForm(page, deliveryAddress);
+
+    // Set invoice address if not null
+    if (invoiceAddress !== null) {
+      await this.setChecked(page, this.addressStepUseSameAddressCheckbox, false);
+      await page.click(this.addressStepContinueButton);
+      await this.fillAddressForm(page, invoiceAddress);
+    } else {
+      await this.setChecked(page, this.addressStepUseSameAddressCheckbox);
+    }
+
+    await page.click(this.addressStepContinueButton);
+    return this.isStepCompleted(page, this.addressStepSection);
   }
-};
+
+  /**
+   * Fill personal information form and click on continue
+   * @param page {Page} Browser tab
+   * @param customerData {object} Guest Customer's information to fill on form
+   * @return {Promise<boolean>}
+   */
+  async setGuestPersonalInformation(page, customerData) {
+    await this.setChecked(page, this.checkoutGuestGenderInput(customerData.socialTitle === 'Mr.' ? 1 : 2));
+
+    await this.setValue(page, this.checkoutGuestFirstnameInput, customerData.firstName);
+    await this.setValue(page, this.checkoutGuestLastnameInput, customerData.lastName);
+    await this.setValue(page, this.checkoutGuestEmailInput, customerData.email);
+    await this.setValue(page, this.checkoutGuestPasswordInput, customerData.password);
+
+    // Fill birthday input
+    await this.setValue(
+      page,
+      this.checkoutGuestBirthdayInput,
+      `${customerData.monthOfBirth.padStart(2, '0')}/`
+      + `${customerData.dayOfBirth.padStart(2, '0')}/`
+      + `${customerData.yearOfBirth}`,
+    );
+
+    if (customerData.partnerOffers) {
+      await this.setChecked(page, this.checkoutGuestOptinCheckbox);
+    }
+
+    if (customerData.newsletter) {
+      await this.setChecked(page, this.checkoutGuestNewsletterCheckbox);
+    }
+
+    // Check customer privacy input if visible
+    if (await this.elementVisible(page, this.checkoutGuestCustomerPrivacyCheckbox, 500)) {
+      await this.setChecked(page, this.checkoutGuestCustomerPrivacyCheckbox);
+    }
+
+    // Check gdpr input if visible
+    if (await this.elementVisible(page, this.checkoutGuestGdprCheckbox, 500)) {
+      await this.setChecked(page, this.checkoutGuestGdprCheckbox);
+    }
+
+    // Click on continue
+    await page.click(this.checkoutGuestContinueButton);
+
+    return this.isStepCompleted(page, this.personalInformationStepForm);
+  }
+}
+
+module.exports = new Checkout();

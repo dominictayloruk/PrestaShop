@@ -27,13 +27,14 @@
 {% import '@PrestaShop/Admin/macros.html.twig' as ps %}
 
 {% block product_preferences_stock %}
-<div class="col-xl-10">
+
   <div class="card" id="configuration_fieldset_stock">
     <h3 class="card-header">
-      <i class="material-icons">shop</i> {{ 'Products stock'|trans }}
+      <i class="material-icons">shop</i>
+      {{ 'Products stock'|trans }}
     </h3>
-    <div class="card-block row">
-      <div class="card-text">
+    <div class="card-body">
+      <div class="form-wrapper">
         <div class="form-group row">
           {{ ps.label_with_help(('Allow ordering of out-of-stock products'|trans), ('By default, the "%add_to_cart_label%" button is hidden when a product is unavailable. You can choose to have it displayed in all cases.'|trans({'%add_to_cart_label%': 'Add to cart'|trans({}, 'Shop.Theme.Actions')}, 'Admin.Shopparameters.Help'))) }}
           <div class="col-sm">
@@ -100,7 +101,7 @@
             {{ form_widget(stockForm.pack_stock_management) }}
           </div>
         </div>
-
+        {{ form_row(stockForm.oos_show_label_listing_pages) }}
         {% block product_stock_preferences_form_rest %}
           {{ form_rest(stockForm) }}
         {% endblock %}
@@ -112,5 +113,5 @@
       </div>
     </div>
   </div>
-</div>
+
 {% endblock %}

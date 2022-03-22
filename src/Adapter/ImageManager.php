@@ -52,14 +52,14 @@ class ImageManager
      *
      * Use it upon a new Image management system is available.
      *
-     * @param $imageId
+     * @param int $imageId
      * @param string $imageType
      * @param string $tableName
      * @param string $imageDir
      *
      * @return string The HTML < img > tag
      */
-    public function getThumbnailForListing($imageId, $imageType = 'jpg', $tableName = 'product', $imageDir = _PS_PROD_IMG_DIR_)
+    public function getThumbnailForListing($imageId, $imageType = 'jpg', $tableName = 'product', $imageDir = _PS_PRODUCT_IMG_DIR_)
     {
         $thumbPath = $this->getThumbnailTag($imageId, $imageType, $tableName, $imageDir);
 
@@ -70,11 +70,16 @@ class ImageManager
         return $thumbPath;
     }
 
+    /**
+     * @param int $imageId
+     *
+     * @return string
+     */
     public function getThumbnailPath($imageId)
     {
         $imageType = 'jpg';
         $tableName = 'product';
-        $imageDir = _PS_PROD_IMG_DIR_;
+        $imageDir = _PS_PRODUCT_IMG_DIR_;
 
         $imagePath = $this->getImagePath($imageId, $imageType, $tableName, $imageDir);
         $thumbnailCachedImageName = $this->makeCachedImageName($imageId, $imageType, $tableName);
@@ -89,7 +94,7 @@ class ImageManager
     }
 
     /**
-     * @param $imageId
+     * @param int $imageId
      * @param string $imageType
      * @param string $tableName
      * @param string $imageDir
@@ -109,10 +114,10 @@ class ImageManager
     }
 
     /**
-     * @param $imageId
-     * @param $imageType
-     * @param $tableName
-     * @param $imageDir
+     * @param int $imageId
+     * @param string $imageType
+     * @param string $tableName
+     * @param string $imageDir
      *
      * @return string
      */
@@ -128,9 +133,9 @@ class ImageManager
     }
 
     /**
-     * @param $imageId
-     * @param $imageType
-     * @param $tableName
+     * @param int $imageId
+     * @param string $imageType
+     * @param string $tableName
      *
      * @return string
      */

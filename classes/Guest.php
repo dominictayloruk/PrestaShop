@@ -92,7 +92,7 @@ class GuestCore extends ObjectModel
     /**
      * Get Guest Language.
      *
-     * @param $acceptLanguage
+     * @param string $acceptLanguage
      *
      * @return mixed|string
      */
@@ -187,7 +187,7 @@ class GuestCore extends ObjectModel
      *
      * @param int $idCustomer Customer ID
      *
-     * @return bool
+     * @return bool|int
      */
     public static function getFromCustomer($idCustomer)
     {
@@ -199,7 +199,7 @@ class GuestCore extends ObjectModel
 		FROM `' . _DB_PREFIX_ . 'guest`
 		WHERE `id_customer` = ' . (int) ($idCustomer));
 
-        return $result['id_guest'];
+        return $result['id_guest'] ?? false;
     }
 
     /**
@@ -207,34 +207,46 @@ class GuestCore extends ObjectModel
      *
      * @param int $idGuest Guest ID
      * @param int $idCustomer Customer ID
+     *
+     * @return bool
      */
     public function mergeWithCustomer($idGuest, $idCustomer)
     {
         // Since the guests are merged, the guest id in the connections table must be changed too
-        Db::getInstance()->execute('
-		UPDATE `' . _DB_PREFIX_ . 'connections` c
-		SET c.`id_guest` = ' . (int) ($idGuest) . '
-		WHERE c.`id_guest` = ' . (int) ($this->id));
+        Db::getInstance()->update('connections', [
+            'id_guest' => (int) $idGuest,
+        ], 'id_guest = ' . (int) $this->id);
+
+        // Since the guests are merged, the guest id in the cart table must be changed too
+        Db::getInstance()->update('cart', [
+            'id_guest' => (int) $idGuest,
+        ], 'id_guest = ' . (int) $this->id);
+
+        // The existing guest is removed from the database
+        $existingGuest = new Guest((int) $idGuest);
+        $existingGuest->delete();
 
         // The current guest is removed from the database
         $this->delete();
 
         // $this is still filled with values, so it's id is changed for the old guest
-        $this->id = (int) ($idGuest);
-        $this->id_customer = (int) ($idCustomer);
+        $this->id = (int) $idGuest;
+        $this->id_customer = (int) $idCustomer;
 
         // $this is now the old guest but filled with the most up to date values
-        $this->update();
+        $this->force_id = true;
+
+        return $this->add();
     }
 
     /**
      * Set new guest.
      *
-     * @param Cookie $cookie
+     * @param CookieCore $cookie
      */
     public static function setNewGuest($cookie)
     {
-        $guest = new Guest(isset($cookie->id_customer) ? Guest::getFromCustomer((int) ($cookie->id_customer)) : null);
+        $guest = new Guest(isset($cookie->id_customer) ? (int) Guest::getFromCustomer((int) ($cookie->id_customer)) : null);
         $guest->userAgent();
         $guest->save();
         $cookie->id_guest = (int) ($guest->id);

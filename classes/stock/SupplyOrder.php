@@ -224,10 +224,10 @@ class SupplyOrderCore extends ObjectModel
         }
 
         // gets all product entries in this order
+        /** @var array<SupplyOrderDetail> $entries */
         $entries = $this->getEntriesCollection();
 
         foreach ($entries as $entry) {
-            /* @var SupplyOrderDetail $entry */
             // applys global discount rate on each product if possible
             if ($is_discount) {
                 $entry->applyGlobalDiscount((float) $this->discount_rate);
@@ -439,7 +439,7 @@ class SupplyOrderCore extends ObjectModel
      *
      * @param int|string $match Either the reference of the order, or the Id of the order
      *
-     * @return int SupplyOrder Id
+     * @return bool|int SupplyOrder Id
      */
     public static function exists($match)
     {
@@ -495,7 +495,7 @@ class SupplyOrderCore extends ObjectModel
             $this->id = $data[$this->def['primary']];
         }
         foreach ($data as $key => $value) {
-            if (array_key_exists($key, $this)) {
+            if (array_key_exists($key, get_object_vars($this))) {
                 // formats prices and floats
                 if ($this->def['fields'][$key]['validate'] == 'isFloat' ||
                     $this->def['fields'][$key]['validate'] == 'isPrice') {

@@ -4,23 +4,27 @@ const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
+const testContext = require('@utils/testContext');
+const {getDateFormat} = require('@utils/date');
 
-// Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const CustomersPage = require('@pages/BO/customers');
-const AddCustomerPage = require('@pages/BO/customers/add');
-const ViewCustomerPage = require('@pages/BO/customers/view');
-const AddAddressPage = require('@pages/BO/customers/addresses/add');
-const ViewOrderPage = require('@pages/BO/orders/view');
-const ViewCartPage = require('@pages/BO/orders/shoppingCarts/view');
-const FOBasePage = require('@pages/FO/FObasePage');
-const HomePage = require('@pages/FO/home');
-const ProductPage = require('@pages/FO/product');
-const CartPage = require('@pages/FO/cart');
-const CheckoutPage = require('@pages/FO/checkout');
-const OrderConfirmationPage = require('@pages/FO/checkout/orderConfirmation');
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
+
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const customersPage = require('@pages/BO/customers');
+const addCustomerPage = require('@pages/BO/customers/add');
+const viewCustomerPage = require('@pages/BO/customers/view');
+const addAddressPage = require('@pages/BO/customers/addresses/add');
+const orderPageCustomerBlock = require('@pages/BO/orders/view/customerBlock');
+const viewCartPage = require('@pages/BO/orders/shoppingCarts/view');
+
+// Import FO pages
+const foHomePage = require('@pages/FO/home');
+const productPage = require('@pages/FO/product');
+const cartPage = require('@pages/FO/cart');
+const checkoutPage = require('@pages/FO/checkout');
+const orderConfirmationPage = require('@pages/FO/checkout/orderConfirmation');
 
 // Import data
 const {PaymentMethods} = require('@data/demo/paymentMethods');
@@ -30,14 +34,11 @@ const {Languages} = require('@data/demo/languages');
 const {Statuses} = require('@data/demo/orderStatuses');
 const AddressFaker = require('@data/faker/address');
 
-// Import test context
-const testContext = require('@utils/testContext');
-
 const baseContext = 'functional_BO_customers_customers_viewCustomer';
-
 
 let browserContext;
 let page;
+const today = getDateFormat('mm/dd/yyyy');
 
 let numberOfCustomers = 0;
 
@@ -46,13 +47,6 @@ const createCustomerData = new CustomerFaker({defaultCustomerGroup: 'Customer'})
 const editCustomerData = new CustomerFaker({defaultCustomerGroup: 'Visitor'});
 const address = new AddressFaker({city: 'Paris', country: 'France'});
 const createAddressData = new AddressFaker({country: 'France'});
-
-// Get today date format 'mm/dd/yyyy'
-const today = new Date();
-const mm = (`0${today.getMonth() + 1}`).slice(-2); // Current month
-const dd = (`0${today.getDate()}`).slice(-2); // Current day
-const yyyy = today.getFullYear(); // Current year
-const todayDate = `${mm}/${dd}/${yyyy}`;
 
 // Get customer birth date format 'mm/dd/yyyy'
 const mmBirth = `0${createCustomerData.monthOfBirth}`.slice(-2);
@@ -65,115 +59,105 @@ const ddEditBirth = `0${editCustomerData.dayOfBirth}`.slice(-2);
 const yyyyEditBirth = editCustomerData.yearOfBirth;
 const editCustomerBirthDate = `${mmEditBirth}/${ddEditBirth}/${yyyyEditBirth}`;
 
-
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    customersPage: new CustomersPage(page),
-    addCustomerPage: new AddCustomerPage(page),
-    addAddressPage: new AddAddressPage(page),
-    viewCustomerPage: new ViewCustomerPage(page),
-    viewOrderPage: new ViewOrderPage(page),
-    viewCartPage: new ViewCartPage(page),
-    foBasePage: new FOBasePage(page),
-    homePage: new HomePage(page),
-    productPage: new ProductPage(page),
-    cartPage: new CartPage(page),
-    checkoutPage: new CheckoutPage(page),
-    orderConfirmationPage: new OrderConfirmationPage(page),
-  };
-};
-
-// View customer
-describe('View information about customer', async () => {
+/*
+Create customer
+View customer
+Create order
+View customer after creating the order
+Edit customer then check customer information page
+Edit order then check customer information page
+Edit address then check customer information page
+View carts page
+Delete customer
+ */
+describe('BO - Customers - Customers : View information about customer', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
   it('should go to \'Customers > Customers\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToCustomersPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.customersParentLink,
-      this.pageObjects.dashboardPage.customersLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.customersParentLink,
+      dashboardPage.customersLink,
     );
 
-    await this.pageObjects.customersPage.closeSfToolBar();
+    await customersPage.closeSfToolBar(page);
 
-    const pageTitle = await this.pageObjects.customersPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.customersPage.pageTitle);
+    const pageTitle = await customersPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(customersPage.pageTitle);
   });
 
   it('should reset all filters', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'resetAllFilter', baseContext);
 
-    numberOfCustomers = await this.pageObjects.customersPage.resetAndGetNumberOfLines();
+    numberOfCustomers = await customersPage.resetAndGetNumberOfLines(page);
     await expect(numberOfCustomers).to.be.above(0);
   });
 
   // 1 : Create customer
-  describe('Create Customer in BO', async () => {
+  describe('Create customer in BO', async () => {
     it('should go to add new customer page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToAddNewCustomerPage', baseContext);
 
-      await this.pageObjects.customersPage.goToAddNewCustomerPage();
-      const pageTitle = await this.pageObjects.addCustomerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.addCustomerPage.pageTitleCreate);
+      await customersPage.goToAddNewCustomerPage(page);
+      const pageTitle = await addCustomerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(addCustomerPage.pageTitleCreate);
     });
 
     it('should create customer and check result', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'createCustomer', baseContext);
 
-      const textResult = await this.pageObjects.addCustomerPage.createEditCustomer(createCustomerData);
-      await expect(textResult).to.equal(this.pageObjects.customersPage.successfulCreationMessage);
+      const textResult = await addCustomerPage.createEditCustomer(page, createCustomerData);
+      await expect(textResult).to.equal(customersPage.successfulCreationMessage);
 
-      const numberOfCustomersAfterCreation = await this.pageObjects.customersPage.getNumberOfElementInGrid();
+      const numberOfCustomersAfterCreation = await customersPage.getNumberOfElementInGrid(page);
       await expect(numberOfCustomersAfterCreation).to.be.equal(numberOfCustomers + 1);
     });
   });
 
   // 2 : View customer
   describe('View customer created', async () => {
-    it('should filter list by email', async function () {
+    it(`should filter list by email '${createCustomerData.email}'`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'filterToViewCreatedCustomer', baseContext);
 
-      await this.pageObjects.customersPage.resetFilter();
+      await customersPage.resetFilter(page);
 
-      await this.pageObjects.customersPage.filterCustomers(
+      await customersPage.filterCustomers(
+        page,
         'input',
         'email',
         createCustomerData.email,
       );
 
-      const textEmail = await this.pageObjects.customersPage.getTextColumnFromTableCustomers(1, 'email');
+      const textEmail = await customersPage.getTextColumnFromTableCustomers(page, 1, 'email');
       await expect(textEmail).to.contains(createCustomerData.email);
     });
 
     it('should click on view customer', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToViewCustomerPageAfterCreateCustomer', baseContext);
 
-      await this.pageObjects.customersPage.goToViewCustomerPage(1);
-      const pageTitle = await this.pageObjects.viewCustomerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewCustomerPage.pageTitle);
+      await customersPage.goToViewCustomerPage(page, 1);
+      const pageTitle = await viewCustomerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(viewCustomerPage.pageTitle);
     });
 
     it('should check personal information title', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkPersonalInformationTitle1', baseContext);
 
-      const cardHeaderText = await this.pageObjects.viewCustomerPage.getPersonalInformationTitle();
+      const cardHeaderText = await viewCustomerPage.getPersonalInformationTitle(page);
 
       await expect(cardHeaderText).to.contains(createCustomerData.firstName);
       await expect(cardHeaderText).to.contains(createCustomerData.lastName);
@@ -183,7 +167,7 @@ describe('View information about customer', async () => {
     it('should check customer personal information', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkCreatedCustomerInfo1', baseContext);
 
-      const cardHeaderText = await this.pageObjects.viewCustomerPage.getTextFromElement('Personal information');
+      const cardHeaderText = await viewCustomerPage.getTextFromElement(page, 'Personal information');
 
       await expect(cardHeaderText).to.contains(createCustomerData.socialTitle);
       await expect(cardHeaderText).to.contains(`birth date: ${customerBirthDate}`);
@@ -194,19 +178,17 @@ describe('View information about customer', async () => {
       await expect(cardHeaderText).to.contains('Active');
     });
 
-    const tests = [
+    [
       {args: {blockName: 'Orders', number: 0}},
       {args: {blockName: 'Carts', number: 0}},
       {args: {blockName: 'Messages', number: 0}},
       {args: {blockName: 'Vouchers', number: 0}},
       {args: {blockName: 'Groups', number: 3}},
-    ];
-
-    tests.forEach((test) => {
+    ].forEach((test) => {
       it(`should check ${test.args.blockName} number`, async function () {
         await testContext.addContextItem(this, 'testIdentifier', `check${test.args.blockName}Number`, baseContext);
 
-        const cardHeaderText = await this.pageObjects.viewCustomerPage.getNumberOfElementFromTitle(test.args.blockName);
+        const cardHeaderText = await viewCustomerPage.getNumberOfElementFromTitle(page, test.args.blockName);
         await expect(cardHeaderText).to.contains(test.args.number);
       });
     });
@@ -214,47 +196,62 @@ describe('View information about customer', async () => {
 
   // 3 : Create order
   describe('Create order in FO', async () => {
-    it('should go to FO and add the first product to the cart', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'addFirstProductToCart', baseContext);
+    it('should view my shop', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'viewMyShop', baseContext);
 
       // Click on view my shop
-      page = await this.pageObjects.viewCustomerPage.viewMyShop();
-      this.pageObjects = await init();
+      page = await viewCustomerPage.viewMyShop(page);
 
       // Change language
-      await this.pageObjects.foBasePage.changeLanguage('en');
+      await foHomePage.changeLanguage(page, 'en');
+
+      const isHomePage = await foHomePage.isHomePage(page);
+      await expect(isHomePage, 'Fail to open FO home page').to.be.true;
+    });
+
+    it('should add the first product to the cart', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'addFirstProductToCart', baseContext);
 
       // Go to the first product page
-      await this.pageObjects.homePage.goToProductPage(1);
+      await foHomePage.goToProductPage(page, 1);
 
       // Add the product to the cart
-      await this.pageObjects.productPage.addProductToTheCart();
+      await productPage.addProductToTheCart(page);
+
+      const notificationsNumber = await cartPage.getCartNotificationsNumber(page);
+      await expect(notificationsNumber).to.be.equal(1);
+    });
+
+    it('should proceed to checkout', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'proceedToCheckout', baseContext);
 
       // Proceed to checkout the shopping cart
-      await this.pageObjects.cartPage.clickOnProceedToCheckout();
-      const isCheckoutPage = await this.pageObjects.checkoutPage.isCheckoutPage();
+      await cartPage.clickOnProceedToCheckout(page);
+
+      const isCheckoutPage = await checkoutPage.isCheckoutPage(page);
       await expect(isCheckoutPage).to.be.true;
     });
 
     it('should login and go to address step', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'loginToFO', baseContext);
 
-      await this.pageObjects.checkoutPage.clickOnSignIn();
-      const isStepLoginComplete = await this.pageObjects.checkoutPage.customerLogin(createCustomerData);
+      await checkoutPage.clickOnSignIn(page);
+      const isStepLoginComplete = await checkoutPage.customerLogin(page, createCustomerData);
       await expect(isStepLoginComplete, 'Step Personal information is not complete').to.be.true;
     });
 
     it('should create address then continue to delivery step', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'createAddress', baseContext);
 
-      const isStepAddressComplete = await this.pageObjects.checkoutPage.setAddress(address);
+      const isStepAddressComplete = await checkoutPage.setAddress(page, address);
       await expect(isStepAddressComplete, 'Step Address is not complete').to.be.true;
     });
 
     it('should add a comment then continue to payment step', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToPaymentStep', baseContext);
 
-      const isStepDeliveryComplete = await this.pageObjects.checkoutPage.chooseShippingMethodAndAddComment(
+      const isStepDeliveryComplete = await checkoutPage.chooseShippingMethodAndAddComment(
+        page,
         1,
         'test message',
       );
@@ -265,65 +262,61 @@ describe('View information about customer', async () => {
     it('should choose the payment method and confirm the order', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'choosePaymentMethod', baseContext);
 
-      await this.pageObjects.checkoutPage.choosePaymentAndOrder(PaymentMethods.wirePayment.moduleName);
+      await checkoutPage.choosePaymentAndOrder(page, PaymentMethods.wirePayment.moduleName);
 
       // Check the confirmation message
-      const cardTitle = await this.pageObjects.orderConfirmationPage.getOrderConfirmationCardTitle();
-      await expect(cardTitle).to.contains(this.pageObjects.orderConfirmationPage.orderConfirmationCardTitle);
+      const cardTitle = await orderConfirmationPage.getOrderConfirmationCardTitle(page);
+      await expect(cardTitle).to.contains(orderConfirmationPage.orderConfirmationCardTitle);
     });
 
     it('should go back to BO', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goBackToBo', baseContext);
 
-      page = await this.pageObjects.foBasePage.closePage(browserContext, 0);
-      this.pageObjects = await init();
+      page = await orderConfirmationPage.closePage(browserContext, page, 0);
 
-      const pageTitle = await this.pageObjects.viewCustomerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewCustomerPage.pageTitle);
+      const pageTitle = await viewCustomerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(viewCustomerPage.pageTitle);
     });
   });
 
   // 4 : View customer after creating the order
   describe('View customer after creating the order', async () => {
-    it('should go to customers page', async function () {
+    it('should go to \'Customers > Customers\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToViewCustomersPage', baseContext);
 
-      await this.pageObjects.viewCustomerPage.goToSubMenu(
-        this.pageObjects.viewCustomerPage.customersParentLink,
-        this.pageObjects.viewCustomerPage.customersLink,
+      await viewCustomerPage.goToSubMenu(
+        page,
+        viewCustomerPage.customersParentLink,
+        viewCustomerPage.customersLink,
       );
 
-      const pageTitle = await this.pageObjects.customersPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.customersPage.pageTitle);
+      const pageTitle = await customersPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(customersPage.pageTitle);
     });
 
-    it('should filter list by email', async function () {
+    it(`should filter list by email '${createCustomerData.email}'`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'filterToViewCustomer', baseContext);
 
-      await this.pageObjects.customersPage.resetFilter();
+      await customersPage.resetFilter(page);
 
-      await this.pageObjects.customersPage.filterCustomers(
-        'input',
-        'email',
-        createCustomerData.email,
-      );
+      await customersPage.filterCustomers(page, 'input', 'email', createCustomerData.email);
 
-      const textEmail = await this.pageObjects.customersPage.getTextColumnFromTableCustomers(1, 'email');
+      const textEmail = await customersPage.getTextColumnFromTableCustomers(page, 1, 'email');
       await expect(textEmail).to.contains(createCustomerData.email);
     });
 
     it('should click on view customer', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToViewCustomerPageAfterCreateOrder', baseContext);
 
-      await this.pageObjects.customersPage.goToViewCustomerPage(1);
-      const pageTitle = await this.pageObjects.viewCustomerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewCustomerPage.pageTitle);
+      await customersPage.goToViewCustomerPage(page, 1);
+      const pageTitle = await viewCustomerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(viewCustomerPage.pageTitle);
     });
 
     it('should check personal information title', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkPersonalInformationTitle2', baseContext);
 
-      const cardHeaderText = await this.pageObjects.viewCustomerPage.getPersonalInformationTitle();
+      const cardHeaderText = await viewCustomerPage.getPersonalInformationTitle(page);
 
       await expect(cardHeaderText).to.contains(createCustomerData.firstName);
       await expect(cardHeaderText).to.contains(createCustomerData.lastName);
@@ -333,18 +326,18 @@ describe('View information about customer', async () => {
     it('should check customer personal information', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkCreatedCustomerInfo2', baseContext);
 
-      const cardHeaderText = await this.pageObjects.viewCustomerPage.getTextFromElement('Personal information');
+      const cardHeaderText = await viewCustomerPage.getTextFromElement(page, 'Personal information');
 
       await expect(cardHeaderText).to.contains(createCustomerData.socialTitle);
       await expect(cardHeaderText).to.contains(`birth date: ${customerBirthDate}`);
-      await expect(cardHeaderText).to.contains(todayDate);
+      await expect(cardHeaderText).to.contains(today);
       await expect(cardHeaderText).to.contains(Languages.english.name);
       await expect(cardHeaderText).to.contains('Newsletter');
       await expect(cardHeaderText).to.contains('Partner offers');
       await expect(cardHeaderText).to.contains('Active');
     });
 
-    const tests = [
+    [
       {args: {blockName: 'Orders', number: 1}},
       {args: {blockName: 'Carts', number: 1}},
       {args: {blockName: 'Viewed products', number: 1}},
@@ -353,9 +346,7 @@ describe('View information about customer', async () => {
       {args: {blockName: 'Last emails', number: 2}},
       {args: {blockName: 'Last connections', number: 1}},
       {args: {blockName: 'Groups', number: 3}},
-    ];
-
-    tests.forEach((test) => {
+    ].forEach((test) => {
       it(`should check ${test.args.blockName} number`, async function () {
         await testContext.addContextItem(
           this, 'testIdentifier',
@@ -363,7 +354,7 @@ describe('View information about customer', async () => {
           baseContext,
         );
 
-        const cardHeaderText = await this.pageObjects.viewCustomerPage.getNumberOfElementFromTitle(test.args.blockName);
+        const cardHeaderText = await viewCustomerPage.getNumberOfElementFromTitle(page, test.args.blockName);
         await expect(cardHeaderText).to.contains(test.args.number);
       });
     });
@@ -371,9 +362,9 @@ describe('View information about customer', async () => {
     it('should check orders', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkOrders', baseContext);
 
-      const carts = await this.pageObjects.viewCustomerPage.getTextFromElement('Orders');
+      const carts = await viewCustomerPage.getTextFromElement(page, 'Orders');
 
-      expect(carts).to.contains(todayDate);
+      expect(carts).to.contains(today);
       expect(carts).to.contains('Bank transfer');
       expect(carts).to.contains(Statuses.awaitingBankWire.status);
       expect(carts).to.contains('€0.00');
@@ -382,22 +373,22 @@ describe('View information about customer', async () => {
     it('should check carts', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkCarts', baseContext);
 
-      const carts = await this.pageObjects.viewCustomerPage.getTextFromElement('Carts');
-      expect(carts).to.contains(todayDate);
+      const carts = await viewCustomerPage.getTextFromElement(page, 'Carts');
+      expect(carts).to.contains(today);
       expect(carts).to.contains(Products.demo_1.finalPrice);
     });
 
     it('should check viewed products', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkViewedProduct', baseContext);
 
-      const viewedProduct = await this.pageObjects.viewCustomerPage.getTextFromElement('Viewed products');
+      const viewedProduct = await viewCustomerPage.getTextFromElement(page, 'Viewed products');
       expect(viewedProduct).to.contains(Products.demo_1.name);
     });
 
     it('should check address', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkAddress', baseContext);
 
-      const customerAddress = await this.pageObjects.viewCustomerPage.getTextFromElement('Addresses');
+      const customerAddress = await viewCustomerPage.getTextFromElement(page, 'Addresses');
 
       expect(customerAddress).to.contains(address.company);
       expect(customerAddress).to.contains(`${createCustomerData.firstName} ${createCustomerData.lastName}`);
@@ -409,9 +400,9 @@ describe('View information about customer', async () => {
     it('should check messages', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkMessages', baseContext);
 
-      const carts = await this.pageObjects.viewCustomerPage.getTextFromElement('Messages');
+      const carts = await viewCustomerPage.getTextFromElement(page, 'Messages');
 
-      expect(carts).to.contains(todayDate);
+      expect(carts).to.contains(today);
       expect(carts).to.contains('Open');
       expect(carts).to.contains('test message');
     });
@@ -419,47 +410,47 @@ describe('View information about customer', async () => {
     it('should check last connections', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkLAstConnections', baseContext);
 
-      const carts = await this.pageObjects.viewCustomerPage.getTextFromElement('Last connections');
+      const carts = await viewCustomerPage.getTextFromElement(page, 'Last connections');
 
-      expect(carts).to.contains(todayDate);
-      expect(carts).to.contains('Direct link');
+      expect(carts).to.contains(today);
     });
 
     it('should check groups', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkGroups', baseContext);
 
-      const groups = await this.pageObjects.viewCustomerPage.getTextFromElement('Groups');
+      const groups = await viewCustomerPage.getTextFromElement(page, 'Groups');
       expect(groups).to.contains(createCustomerData.defaultCustomerGroup);
     });
 
     it('should add a private note', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'addPrivateNote', baseContext);
 
-      const result = await this.pageObjects.viewCustomerPage.setPrivateNote('Test note');
-      expect(result).to.contains(this.pageObjects.viewCustomerPage.successfulUpdateMessage);
+      const result = await viewCustomerPage.setPrivateNote(page, 'Test note');
+      expect(result).to.contains(viewCustomerPage.successfulUpdateMessage);
     });
   });
+
   // 5 : Edit customer then check customer information page
-  describe('Edit customer created then view it', async () => {
+  describe('Edit customer then view it and check information', async () => {
     it('should go to edit customer page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToEditCustomerPage', baseContext);
 
-      await this.pageObjects.viewCustomerPage.goToEditCustomerPage();
-      const pageTitle = await this.pageObjects.addCustomerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.addCustomerPage.pageTitleEdit);
+      await viewCustomerPage.goToEditCustomerPage(page);
+      const pageTitle = await addCustomerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(addCustomerPage.pageTitleEdit);
     });
 
     it('should edit customer information', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'updateCustomer', baseContext);
 
-      const textResult = await this.pageObjects.addCustomerPage.createEditCustomer(editCustomerData);
-      await expect(textResult).to.equal(this.pageObjects.viewCustomerPage.successfulUpdateMessage);
+      const textResult = await addCustomerPage.createEditCustomer(page, editCustomerData);
+      await expect(textResult).to.equal(viewCustomerPage.successfulUpdateMessage);
     });
 
     it('should check personal information title', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkUpdatedCustomerTitle', baseContext);
 
-      const cardHeaderText = await this.pageObjects.viewCustomerPage.getPersonalInformationTitle();
+      const cardHeaderText = await viewCustomerPage.getPersonalInformationTitle(page);
 
       await expect(cardHeaderText).to.contains(editCustomerData.firstName);
       await expect(cardHeaderText).to.contains(editCustomerData.lastName);
@@ -469,11 +460,11 @@ describe('View information about customer', async () => {
     it('should check customer personal information', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkUpdatedCustomerInfo', baseContext);
 
-      const cardHeaderText = await this.pageObjects.viewCustomerPage.getTextFromElement('Personal information');
+      const cardHeaderText = await viewCustomerPage.getTextFromElement(page, 'Personal information');
 
       expect(cardHeaderText).to.contains(editCustomerData.socialTitle);
       expect(cardHeaderText).to.contains(`birth date: ${editCustomerBirthDate}`);
-      expect(cardHeaderText).to.contains(todayDate);
+      expect(cardHeaderText).to.contains(today);
       expect(cardHeaderText).to.contains(Languages.english.name);
       expect(cardHeaderText).to.contains('Newsletter');
       expect(cardHeaderText).to.contains('Partner offers');
@@ -483,69 +474,66 @@ describe('View information about customer', async () => {
     it('should check groups', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkGroupsAfterEdit', baseContext);
 
-      const groups = await this.pageObjects.viewCustomerPage.getTextFromElement('Groups');
+      const groups = await viewCustomerPage.getTextFromElement(page, 'Groups');
       expect(groups).to.contains(editCustomerData.defaultCustomerGroup);
     });
   });
 
   // 6 : Edit order then check customer information page
-  describe('Edit order then view customer', async () => {
+  describe('Edit order then view customer and check information', async () => {
     it('should go to view order page', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'goToViewOrderPage', baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', 'goToorderPageCustomerBlock', baseContext);
 
-      await this.pageObjects.viewCustomerPage.goToPage('Orders');
-      const pageTitle = await this.pageObjects.viewOrderPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewOrderPage.pageTitle);
+      await viewCustomerPage.goToPage(page, 'Orders');
+      const pageTitle = await orderPageCustomerBlock.getPageTitle(page);
+      await expect(pageTitle).to.contains(orderPageCustomerBlock.pageTitle);
     });
 
     it('should modify order status', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'modifyOrderStatus', baseContext);
 
-      const result = await this.pageObjects.viewOrderPage.modifyOrderStatus(Statuses.shipped.status);
+      const result = await orderPageCustomerBlock.modifyOrderStatus(page, Statuses.shipped.status);
       await expect(result).to.equal(Statuses.shipped.status);
     });
 
-    it('should go to customers page', async function () {
+    it('should go to \'Customers > Customers\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToCustomersPageAfterEditOrder', baseContext);
 
-      await this.pageObjects.viewOrderPage.goToSubMenu(
-        this.pageObjects.viewOrderPage.customersParentLink,
-        this.pageObjects.viewOrderPage.customersLink,
+      await orderPageCustomerBlock.goToSubMenu(
+        page,
+        orderPageCustomerBlock.customersParentLink,
+        orderPageCustomerBlock.customersLink,
       );
 
-      const pageTitle = await this.pageObjects.customersPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.customersPage.pageTitle);
+      const pageTitle = await customersPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(customersPage.pageTitle);
     });
 
-    it('should filter list by email', async function () {
+    it(`should filter list by email '${editCustomerData.email}'`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'filterToViewCustomerAfterEditOrder', baseContext);
 
-      await this.pageObjects.customersPage.resetFilter();
+      await customersPage.resetFilter(page);
 
-      await this.pageObjects.customersPage.filterCustomers(
-        'input',
-        'email',
-        editCustomerData.email,
-      );
+      await customersPage.filterCustomers(page, 'input', 'email', editCustomerData.email);
 
-      const textEmail = await this.pageObjects.customersPage.getTextColumnFromTableCustomers(1, 'email');
+      const textEmail = await customersPage.getTextColumnFromTableCustomers(page, 1, 'email');
       await expect(textEmail).to.contains(editCustomerData.email);
     });
 
     it('should click on view customer', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToViewCustomerPageAfterEditOrder', baseContext);
 
-      await this.pageObjects.customersPage.goToViewCustomerPage(1);
-      const pageTitle = await this.pageObjects.viewCustomerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewCustomerPage.pageTitle);
+      await customersPage.goToViewCustomerPage(page, 1);
+      const pageTitle = await viewCustomerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(viewCustomerPage.pageTitle);
     });
 
     it('should check order status', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'CheckOrderStatusAfterEdit', baseContext);
 
-      const carts = await this.pageObjects.viewCustomerPage.getTextFromElement('Orders');
+      const carts = await viewCustomerPage.getTextFromElement(page, 'Orders');
 
-      expect(carts).to.contains(todayDate);
+      expect(carts).to.contains(today);
       expect(carts).to.contains('Bank transfer');
       expect(carts).to.contains(Statuses.shipped.status);
       expect(carts).to.contains(Products.demo_1.finalPrice);
@@ -554,41 +542,41 @@ describe('View information about customer', async () => {
     it('should check purchased products number', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'CheckPurchasedProductsNumber', baseContext);
 
-      const cardHeaderText = await this.pageObjects.viewCustomerPage.getNumberOfElementFromTitle('Purchased products');
+      const cardHeaderText = await viewCustomerPage.getNumberOfElementFromTitle(page, 'Purchased products');
       await expect(cardHeaderText).to.contains(1);
     });
 
     it('should check purchased products', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkPurchasedProduct', baseContext);
 
-      const purchasedProduct = await this.pageObjects.viewCustomerPage.getTextFromElement('Purchased products');
+      const purchasedProduct = await viewCustomerPage.getTextFromElement(page, 'Purchased products');
 
-      expect(purchasedProduct).to.contains(todayDate);
+      expect(purchasedProduct).to.contains(today);
       expect(purchasedProduct).to.contains(Products.demo_1.name);
     });
   });
 
   // 7 : Edit address then check customer information page
-  describe('Edit address then view customer', async () => {
+  describe('Edit address then view customer and check address', async () => {
     it('should go to edit address page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToEditAddressPage', baseContext);
 
-      await this.pageObjects.viewCustomerPage.goToPage('Addresses');
-      const pageTitle = await this.pageObjects.addAddressPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.addAddressPage.pageTitleEdit);
+      await viewCustomerPage.goToPage(page, 'Addresses');
+      const pageTitle = await addAddressPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(addAddressPage.pageTitleEdit);
     });
 
     it('should modify the address', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'updateAddress', baseContext);
 
-      const textResult = await this.pageObjects.addAddressPage.createEditAddress(createAddressData);
-      await expect(textResult).to.equal(this.pageObjects.viewCustomerPage.updateSuccessfulMessage);
+      const textResult = await addAddressPage.createEditAddress(page, createAddressData);
+      await expect(textResult).to.equal(viewCustomerPage.updateSuccessfulMessage);
     });
 
     it('should check the edited address', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'CheckEditedAddress', baseContext);
 
-      const customerAddress = await this.pageObjects.viewCustomerPage.getTextFromElement('Addresses');
+      const customerAddress = await viewCustomerPage.getTextFromElement(page, 'Addresses');
 
       expect(customerAddress).to.contains(createAddressData.company);
       expect(customerAddress).to.contains(`${createAddressData.firstName} ${createAddressData.lastName}`);
@@ -597,54 +585,59 @@ describe('View information about customer', async () => {
       expect(customerAddress).to.contains(createAddressData.phone);
     });
   });
-  // 8 : View carts page
+
+  // 8 : View cart page
   describe('View cart page', async () => {
     it('should go to view cart page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToViewCartPage', baseContext);
 
-      await this.pageObjects.viewCustomerPage.goToPage('Carts');
-      const pageTitle = await this.pageObjects.viewCartPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewCartPage.pageTitle);
+      await viewCustomerPage.goToPage(page, 'Carts');
+      const pageTitle = await viewCartPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(viewCartPage.pageTitle);
     });
   });
 
   // 9 : Delete customer from BO
-  describe('Delete Customer', async () => {
-    it('should go to customers page', async function () {
+  describe('Delete customer', async () => {
+    it('should go to \'Customers > Customers\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToCustomersPageToDelete', baseContext);
 
-      await this.pageObjects.viewCartPage.goToSubMenu(
-        this.pageObjects.viewCartPage.customersParentLink,
-        this.pageObjects.viewCartPage.customersLink,
+      await viewCartPage.goToSubMenu(
+        page,
+        viewCartPage.customersParentLink,
+        viewCartPage.customersLink,
       );
 
-      const pageTitle = await this.pageObjects.customersPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.customersPage.pageTitle);
+      const pageTitle = await customersPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(customersPage.pageTitle);
     });
 
-    it('should filter list by email', async function () {
+    it(`should filter list by email '${editCustomerData.email}'`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'filterToDelete', baseContext);
 
-      await this.pageObjects.customersPage.resetFilter();
+      await customersPage.resetFilter(page);
 
-      await this.pageObjects.customersPage.filterCustomers(
-        'input',
-        'email',
-        editCustomerData.email,
-      );
+      await customersPage.filterCustomers(page, 'input', 'email', editCustomerData.email);
 
-      const textEmail = await this.pageObjects.customersPage.getTextColumnFromTableCustomers(1, 'email');
+      const textEmail = await customersPage.getTextColumnFromTableCustomers(page, 1, 'email');
       await expect(textEmail).to.contains(editCustomerData.email);
     });
 
     it('should delete customer', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'deleteCustomer', baseContext);
 
-      const textResult = await this.pageObjects.customersPage.deleteCustomer(1);
-      await expect(textResult).to.equal(this.pageObjects.customersPage.successfulDeleteMessage);
+      const textResult = await customersPage.deleteCustomer(page, 1);
+      await expect(textResult).to.equal(customersPage.successfulDeleteMessage);
 
-      const numberOfCustomersAfterDelete = await this.pageObjects.customersPage.resetAndGetNumberOfLines();
+      const numberOfCustomersAfterDelete = await customersPage.resetAndGetNumberOfLines(page);
       await expect(numberOfCustomersAfterDelete).to.be.equal(numberOfCustomers);
+    });
+
+    it('should reset all filters', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', 'resetAllFilter2', baseContext);
+
+      numberOfCustomers = await customersPage.resetAndGetNumberOfLines(page);
+      await expect(numberOfCustomers).to.be.above(0);
     });
   });
 });

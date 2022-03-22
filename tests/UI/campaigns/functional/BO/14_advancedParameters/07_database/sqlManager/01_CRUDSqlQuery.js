@@ -4,21 +4,20 @@ const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
+const testContext = require('@utils/testContext');
+
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
 
 // Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const SqlManagerPage = require('@pages/BO/advancedParameters/database/sqlManager');
-const AddSqlQueryPage = require('@pages/BO/advancedParameters/database/sqlManager/add');
-const ViewQueryManagerPage = require('@pages/BO/advancedParameters/database/sqlManager/view');
+const dashboardPage = require('@pages/BO/dashboard');
+const sqlManagerPage = require('@pages/BO/advancedParameters/database/sqlManager');
+const addSqlQueryPage = require('@pages/BO/advancedParameters/database/sqlManager/add');
+const viewQueryManagerPage = require('@pages/BO/advancedParameters/database/sqlManager/view');
 
 // Import data
 const SQLQueryFaker = require('@data/faker/sqlQuery');
 const {Tables} = require('@data/demo/sqlTables');
-
-// Import test context
-const testContext = require('@utils/testContext');
 
 const baseContext = 'functional_BO_advancedParams_database_sqlManager_CRUDSqlQuery';
 
@@ -26,55 +25,45 @@ let browserContext;
 let page;
 let numberOfSQLQuery = 0;
 
-const sqlQueryData = new SQLQueryFaker({tableName: 'ps_alias'});
-const editSqlQueryData = new SQLQueryFaker({name: `edit${sqlQueryData.name}`, tableName: 'ps_access'});
+const dbPrefix = global.INSTALL.DB_PREFIX;
+const sqlQueryData = new SQLQueryFaker({tableName: `${dbPrefix}alias`});
+const editSqlQueryData = new SQLQueryFaker({name: `edit${sqlQueryData.name}`, tableName: `${dbPrefix}access`});
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    sqlManagerPage: new SqlManagerPage(page),
-    addSqlQueryPage: new AddSqlQueryPage(page),
-    viewQueryManagerPage: new ViewQueryManagerPage(page),
-  };
-};
-
-describe('CRUD SQL query', async () => {
+describe('BO - Advanced Parameters - Database : Create, View, update and delete SQL query', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
   // Go to database page
   it('should go to \'Advanced Parameters > Database\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToDatabasePageToCreateNewSQLQuery', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.advancedParametersLink,
-      this.pageObjects.dashboardPage.databaseLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.advancedParametersLink,
+      dashboardPage.databaseLink,
     );
 
-    await this.pageObjects.sqlManagerPage.closeSfToolBar();
+    await sqlManagerPage.closeSfToolBar(page);
 
-    const pageTitle = await this.pageObjects.sqlManagerPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.sqlManagerPage.pageTitle);
+    const pageTitle = await sqlManagerPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(sqlManagerPage.pageTitle);
   });
 
   it('should reset all filters', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'firstResetFilter', baseContext);
 
-    numberOfSQLQuery = await this.pageObjects.sqlManagerPage.resetAndGetNumberOfLines();
+    numberOfSQLQuery = await sqlManagerPage.resetAndGetNumberOfLines(page);
 
     if (numberOfSQLQuery !== 0) {
       await expect(numberOfSQLQuery).to.be.above(0);
@@ -85,17 +74,17 @@ describe('CRUD SQL query', async () => {
     it('should go to \'New SQL query\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToNewSQLQueryPage', baseContext);
 
-      await this.pageObjects.sqlManagerPage.goToNewSQLQueryPage();
+      await sqlManagerPage.goToNewSQLQueryPage(page);
 
-      const pageTitle = await this.pageObjects.addSqlQueryPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.addSqlQueryPage.pageTitle);
+      const pageTitle = await addSqlQueryPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(addSqlQueryPage.pageTitle);
     });
 
     it('should create new SQL query', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'createNewSQLQuery', baseContext);
 
-      const textResult = await this.pageObjects.addSqlQueryPage.createEditSQLQuery(sqlQueryData);
-      await expect(textResult).to.equal(this.pageObjects.addSqlQueryPage.successfulCreationMessage);
+      const textResult = await addSqlQueryPage.createEditSQLQuery(page, sqlQueryData);
+      await expect(textResult).to.equal(addSqlQueryPage.successfulCreationMessage);
     });
   });
 
@@ -103,27 +92,27 @@ describe('CRUD SQL query', async () => {
     it('should filter list by name', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'filterToViewCreatedSQLQuery', baseContext);
 
-      await this.pageObjects.sqlManagerPage.resetFilter();
+      await sqlManagerPage.resetFilter(page);
 
-      await this.pageObjects.sqlManagerPage.filterSQLQuery('name', sqlQueryData.name);
+      await sqlManagerPage.filterSQLQuery(page, 'name', sqlQueryData.name);
 
-      const sqlQueryName = await this.pageObjects.sqlManagerPage.getTextColumnFromTable(1, 'name');
+      const sqlQueryName = await sqlManagerPage.getTextColumnFromTable(page, 1, 'name');
       await expect(sqlQueryName).to.contains(sqlQueryData.name);
     });
 
     it('should click on view button', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToViewNewSQLQueryPage', baseContext);
 
-      await this.pageObjects.sqlManagerPage.goToViewSQLQueryPage(1);
+      await sqlManagerPage.goToViewSQLQueryPage(page, 1);
 
-      const pageTitle = await this.pageObjects.viewQueryManagerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewQueryManagerPage.pageTitle);
+      const pageTitle = await viewQueryManagerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(viewQueryManagerPage.pageTitle);
     });
 
     it('should check sql query result number', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkNewSQLQueryResultNumber', baseContext);
 
-      const sqlQueryNumber = await this.pageObjects.viewQueryManagerPage.getSQLQueryResultNumber();
+      const sqlQueryNumber = await viewQueryManagerPage.getSQLQueryResultNumber(page);
       expect(sqlQueryNumber).to.be.above(0);
     });
 
@@ -131,51 +120,52 @@ describe('CRUD SQL query', async () => {
       await testContext.addContextItem(this, 'testIdentifier', 'checkColumnsNameForNewSQLQuery', baseContext);
 
       for (let i = 0; i <= Tables.ps_alias.columns.length - 1; i++) {
-        const columnNameText = await this.pageObjects.viewQueryManagerPage.getColumnName(i + 1);
+        const columnNameText = await viewQueryManagerPage.getColumnName(page, i + 1);
         expect(columnNameText).to.be.equal(Tables.ps_alias.columns[i]);
       }
     });
   });
 
   describe('Update SQL query created', async () => {
-    it('should go to \'SQL Manager\' page', async function () {
+    it('should go to \'Advanced Parameters > Database\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToDatabaseToUpdateSQLQuery', baseContext);
 
-      await this.pageObjects.viewQueryManagerPage.goToSubMenu(
-        this.pageObjects.viewQueryManagerPage.advancedParametersLink,
-        this.pageObjects.viewQueryManagerPage.databaseLink,
+      await viewQueryManagerPage.goToSubMenu(
+        page,
+        viewQueryManagerPage.advancedParametersLink,
+        viewQueryManagerPage.databaseLink,
       );
 
-      const pageTitle = await this.pageObjects.sqlManagerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.sqlManagerPage.pageTitle);
+      const pageTitle = await sqlManagerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(sqlManagerPage.pageTitle);
     });
 
     it('should filter list by name', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'filterToEditSqlQuery', baseContext);
 
-      await this.pageObjects.sqlManagerPage.resetFilter();
+      await sqlManagerPage.resetFilter(page);
 
-      await this.pageObjects.sqlManagerPage.filterSQLQuery('name', sqlQueryData.name);
+      await sqlManagerPage.filterSQLQuery(page, 'name', sqlQueryData.name);
 
-      const sqlQueryName = await this.pageObjects.sqlManagerPage.getTextColumnFromTable(1, 'name');
+      const sqlQueryName = await sqlManagerPage.getTextColumnFromTable(page, 1, 'name');
       await expect(sqlQueryName).to.contains(sqlQueryData.name);
     });
 
-    it('should go to edit SQL query page', async function () {
+    it('should go to edit \'SQL Query\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToEditPage', baseContext);
 
-      await this.pageObjects.sqlManagerPage.goToEditSQLQueryPage(1);
-      const pageTitle = await this.pageObjects.addSqlQueryPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.addSqlQueryPage.pageTitle);
+      await sqlManagerPage.goToEditSQLQueryPage(page, 1);
+      const pageTitle = await addSqlQueryPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(addSqlQueryPage.pageTitle);
     });
 
     it('should update SQL query', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'updateSQLQuery', baseContext);
 
-      const textResult = await this.pageObjects.addSqlQueryPage.createEditSQLQuery(editSqlQueryData);
-      await expect(textResult).to.equal(this.pageObjects.addSqlQueryPage.successfulUpdateMessage);
+      const textResult = await addSqlQueryPage.createEditSQLQuery(page, editSqlQueryData);
+      await expect(textResult).to.equal(addSqlQueryPage.successfulUpdateMessage);
 
-      const numberOfSQLQueryAfterUpdate = await this.pageObjects.sqlManagerPage.resetAndGetNumberOfLines();
+      const numberOfSQLQueryAfterUpdate = await sqlManagerPage.resetAndGetNumberOfLines(page);
       await expect(numberOfSQLQueryAfterUpdate).to.be.equal(numberOfSQLQuery + 1);
     });
   });
@@ -184,26 +174,26 @@ describe('CRUD SQL query', async () => {
     it('should filter list by name', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'filterToViewUpdatedSQlQuery', baseContext);
 
-      await this.pageObjects.sqlManagerPage.resetFilter();
+      await sqlManagerPage.resetFilter(page);
 
-      await this.pageObjects.sqlManagerPage.filterSQLQuery('name', editSqlQueryData.name);
+      await sqlManagerPage.filterSQLQuery(page, 'name', editSqlQueryData.name);
 
-      const sqlQueryName = await this.pageObjects.sqlManagerPage.getTextColumnFromTable(1, 'name');
+      const sqlQueryName = await sqlManagerPage.getTextColumnFromTable(page, 1, 'name');
       await expect(sqlQueryName).to.contains(editSqlQueryData.name);
     });
 
     it('should click on view button', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToViewUpdatedSQLQueryPage', baseContext);
 
-      await this.pageObjects.sqlManagerPage.goToViewSQLQueryPage(1);
-      const pageTitle = await this.pageObjects.viewQueryManagerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewQueryManagerPage.pageTitle);
+      await sqlManagerPage.goToViewSQLQueryPage(page, 1);
+      const pageTitle = await viewQueryManagerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(viewQueryManagerPage.pageTitle);
     });
 
     it('should check sql query result number', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'checkUpdatedSQLQueryResultNumber', baseContext);
 
-      const sqlQueryNumber = await this.pageObjects.viewQueryManagerPage.getSQLQueryResultNumber();
+      const sqlQueryNumber = await viewQueryManagerPage.getSQLQueryResultNumber(page);
       expect(sqlQueryNumber).to.be.above(0);
     });
 
@@ -211,43 +201,44 @@ describe('CRUD SQL query', async () => {
       await testContext.addContextItem(this, 'testIdentifier', 'checkColumnsNameForUpdatedSQLQuery', baseContext);
 
       for (let i = 0; i <= Tables.ps_access.columns.length - 1; i++) {
-        const columnNameText = await this.pageObjects.viewQueryManagerPage.getColumnName(i + 1);
+        const columnNameText = await viewQueryManagerPage.getColumnName(page, i + 1);
         expect(columnNameText).to.be.equal(Tables.ps_access.columns[i]);
       }
     });
   });
 
   describe('Delete SQL query', async () => {
-    it('should go to \'SQL Manager\' page', async function () {
+    it('should go to \'Advanced Parameters > Database\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToDatabasePageToDeleteSQLQuery', baseContext);
 
-      await this.pageObjects.viewQueryManagerPage.goToSubMenu(
-        this.pageObjects.viewQueryManagerPage.advancedParametersLink,
-        this.pageObjects.viewQueryManagerPage.databaseLink,
+      await viewQueryManagerPage.goToSubMenu(
+        page,
+        viewQueryManagerPage.advancedParametersLink,
+        viewQueryManagerPage.databaseLink,
       );
 
-      const pageTitle = await this.pageObjects.sqlManagerPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.sqlManagerPage.pageTitle);
+      const pageTitle = await sqlManagerPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(sqlManagerPage.pageTitle);
     });
 
     it('should filter list by name', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'filterToDeleteSQLQuery', baseContext);
 
-      await this.pageObjects.sqlManagerPage.resetFilter();
+      await sqlManagerPage.resetFilter(page);
 
-      await this.pageObjects.sqlManagerPage.filterSQLQuery('name', editSqlQueryData.name);
+      await sqlManagerPage.filterSQLQuery(page, 'name', editSqlQueryData.name);
 
-      const sqlQueryName = await this.pageObjects.sqlManagerPage.getTextColumnFromTable(1, 'name');
+      const sqlQueryName = await sqlManagerPage.getTextColumnFromTable(page, 1, 'name');
       await expect(sqlQueryName).to.contains(editSqlQueryData.name);
     });
 
     it('should delete SQL query', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'deleteSQLQuery', baseContext);
 
-      const textResult = await this.pageObjects.sqlManagerPage.deleteSQLQuery(1);
-      await expect(textResult).to.equal(this.pageObjects.sqlManagerPage.successfulDeleteMessage);
+      const textResult = await sqlManagerPage.deleteSQLQuery(page, 1);
+      await expect(textResult).to.equal(sqlManagerPage.successfulDeleteMessage);
 
-      const numberOfSQLQueryAfterDelete = await this.pageObjects.sqlManagerPage.resetAndGetNumberOfLines();
+      const numberOfSQLQueryAfterDelete = await sqlManagerPage.resetAndGetNumberOfLines(page);
       await expect(numberOfSQLQueryAfterDelete).to.be.equal(numberOfSQLQuery);
     });
   });

@@ -30,7 +30,6 @@ use Doctrine\Common\Annotations\Reader;
 use PrestaShopBundle\Routing\Linter\Exception\LinterException;
 use PrestaShopBundle\Security\Annotation\AdminSecurity;
 use ReflectionMethod;
-use Symfony\Bundle\FrameworkBundle\Controller\ControllerNameParser;
 use Symfony\Component\Routing\Route;
 
 /**
@@ -44,18 +43,11 @@ final class SecurityAnnotationLinter implements RouteLinterInterface
     private $annotationReader;
 
     /**
-     * @var ControllerNameParser
-     */
-    private $controllerNameParser;
-
-    /**
      * @param Reader $annotationReader
-     * @param ControllerNameParser $controllerNameParser
      */
-    public function __construct(Reader $annotationReader, ControllerNameParser $controllerNameParser)
+    public function __construct(Reader $annotationReader)
     {
         $this->annotationReader = $annotationReader;
-        $this->controllerNameParser = $controllerNameParser;
     }
 
     /**
@@ -70,6 +62,10 @@ final class SecurityAnnotationLinter implements RouteLinterInterface
     public function getRouteSecurityAnnotation($routeName, Route $route)
     {
         $controllerAndMethod = $this->extractControllerAndMethodNamesFromRoute($route);
+
+        if ($controllerAndMethod === null) {
+            throw new LinterException(sprintf('"%s" cannot be parsed', $route->getDefault('_controller')));
+        }
 
         $reflection = new ReflectionMethod(
             $controllerAndMethod['controller'],
@@ -96,15 +92,14 @@ final class SecurityAnnotationLinter implements RouteLinterInterface
     /**
      * @param Route $route
      *
-     * @return array
+     * @return array|null
      */
     private function extractControllerAndMethodNamesFromRoute(Route $route)
     {
         $controller = $route->getDefault('_controller');
 
         if (strpos($controller, '::') === false) {
-            // we need to support controllers defined as services & defined using short notation
-            $controller = $this->controllerNameParser->parse($controller);
+            return null;
         }
 
         list($controller, $method) = explode('::', $controller, 2);

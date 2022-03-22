@@ -84,6 +84,20 @@ class AddressControllerCore extends FrontController
         }
 
         if (Tools::getValue('delete')) {
+            if (
+                Validate::isLoadedObject($this->context->cart)
+                && ($this->context->cart->id_address_invoice == $id_address
+                || $this->context->cart->id_address_delivery == $id_address)
+            ) {
+                $this->errors[] = $this->trans(
+                    'Could not delete the address since it is used in the shopping cart.',
+                    [],
+                    'Shop.Notifications.Error'
+                );
+
+                return;
+            }
+
             $ok = $this->makeAddressPersister()->delete(
                 new Address($id_address, $this->context->language->id),
                 Tools::getValue('token')
@@ -163,7 +177,7 @@ class AddressControllerCore extends FrontController
 
         ob_end_clean();
         header('Content-Type: application/json');
-        $this->ajaxRender(Tools::jsonEncode([
+        $this->ajaxRender(json_encode([
             'address_form' => $this->render(
                 'customer/_partials/address-form',
                 $addressForm->getTemplateVariables()

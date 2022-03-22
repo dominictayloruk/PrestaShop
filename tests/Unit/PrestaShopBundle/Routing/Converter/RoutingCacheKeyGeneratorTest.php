@@ -24,7 +24,7 @@
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
 
-namespace Tests\PrestaShopBundle\Routing\Converter;
+namespace Tests\Unit\PrestaShopBundle\Routing\Converter;
 
 use PHPUnit\Framework\TestCase;
 use PrestaShopBundle\Routing\Converter\RoutingCacheKeyGenerator;
@@ -41,14 +41,14 @@ class RoutingCacheKeyGeneratorTest extends TestCase
     private $fs;
     private $filesTestDir;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
         $this->fs = new Filesystem();
         $this->filesTestDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'routing';
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         parent::tearDown();
         $this->cleanTestDir();

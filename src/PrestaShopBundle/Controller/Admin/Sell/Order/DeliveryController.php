@@ -43,7 +43,10 @@ class DeliveryController extends FrameworkBundleAdminController
      * Main page for Delivery slips.
      *
      * @Template("@PrestaShop/Admin/Sell/Order/Delivery/slip.html.twig")
-     * @AdminSecurity("is_granted(['read', 'update', 'create', 'delete'], request.get('_legacy_controller'))", message="Access denied.")
+     * @AdminSecurity(
+     *     "is_granted('read', request.get('_legacy_controller')) && is_granted('update', request.get('_legacy_controller')) && is_granted('create', request.get('_legacy_controller')) && is_granted('delete', request.get('_legacy_controller'))",
+     *     message="Access denied."
+     * )
      *
      * @param Request $request
      *
@@ -51,9 +54,9 @@ class DeliveryController extends FrameworkBundleAdminController
      */
     public function slipAction(Request $request)
     {
-        /** @var $formHandler FormHandlerInterface */
+        /** @var FormHandlerInterface $formHandler */
         $formHandler = $this->get('prestashop.adapter.order.delivery.slip.options.form_handler');
-        /** @var $form Form */
+        /** @var Form $form */
         $form = $formHandler->getForm();
 
         $form->handleRequest($request);
@@ -76,7 +79,6 @@ class DeliveryController extends FrameworkBundleAdminController
             'pdfForm' => $this->get('prestashop.adapter.order.delivery.slip.pdf.form_handler')->getForm()->createView(),
             'help_link' => $this->generateSidebarLink($request->attributes->get('_legacy_controller')),
             'layoutTitle' => $this->trans('Delivery Slips', 'Admin.Navigation.Menu'),
-            'requireAddonsSearch' => false,
             'requireBulkActions' => false,
             'showContentHeader' => true,
             'enableSidebar' => true,
@@ -86,7 +88,10 @@ class DeliveryController extends FrameworkBundleAdminController
     /**
      * Delivery slips PDF generator.
      *
-     * @AdminSecurity("is_granted(['read', 'update', 'create', 'delete'], request.get('_legacy_controller'))", message="Access denied.")
+     * @AdminSecurity(
+     *     "is_granted('read', request.get('_legacy_controller')) && is_granted('update', request.get('_legacy_controller')) && is_granted('create', request.get('_legacy_controller')) && is_granted('delete', request.get('_legacy_controller'))",
+     *     message="Access denied."
+     * )
      *
      * @param Request $request
      *
@@ -94,9 +99,9 @@ class DeliveryController extends FrameworkBundleAdminController
      */
     public function generatePdfAction(Request $request)
     {
-        /** @var $formHandler FormHandlerInterface */
+        /** @var FormHandlerInterface $formHandler */
         $formHandler = $this->get('prestashop.adapter.order.delivery.slip.pdf.form_handler');
-        /** @var $form Form */
+        /** @var Form $form */
         $form = $formHandler->getForm();
 
         $form->handleRequest($request);

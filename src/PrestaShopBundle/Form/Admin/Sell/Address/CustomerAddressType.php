@@ -75,8 +75,9 @@ class CustomerAddressType extends TranslatorAwareType
      * as well as extension of TranslationAwareType instead of using translator as dependency.
      *
      * @param TranslatorInterface $translator
+     * @param array $locales
      * @param ConfigurableFormChoiceProviderInterface $stateChoiceProvider
-     * @param $contextCountryId
+     * @param int $contextCountryId
      * @param RouterInterface $router
      */
     public function __construct(
@@ -114,7 +115,7 @@ class CustomerAddressType extends TranslatorAwareType
                 'constraints' => [
                     new NotBlank([
                         'message' => $this->trans(
-                            'This field cannot be empty', 'Admin.Notifications.Error'
+                            'This field cannot be empty.', 'Admin.Notifications.Error'
                         ),
                     ]),
                     new CleanHtml(),
@@ -161,7 +162,7 @@ class CustomerAddressType extends TranslatorAwareType
                 'constraints' => [
                     new NotBlank([
                         'message' => $this->trans(
-                            'This field cannot be empty', 'Admin.Notifications.Error'
+                            'This field cannot be empty.', 'Admin.Notifications.Error'
                         ),
                     ]),
                     new CleanHtml(),
@@ -188,7 +189,7 @@ class CustomerAddressType extends TranslatorAwareType
                 'constraints' => [
                     new NotBlank([
                         'message' => $this->trans(
-                            'This field cannot be empty', 'Admin.Notifications.Error'
+                            'This field cannot be empty.', 'Admin.Notifications.Error'
                         ),
                     ]),
                     new CleanHtml(),
@@ -215,7 +216,7 @@ class CustomerAddressType extends TranslatorAwareType
                 'constraints' => [
                     new NotBlank([
                         'message' => $this->trans(
-                            'This field cannot be empty', 'Admin.Notifications.Error'
+                            'This field cannot be empty.', 'Admin.Notifications.Error'
                         ),
                     ]),
                     new CleanHtml(),
@@ -277,7 +278,7 @@ class CustomerAddressType extends TranslatorAwareType
                 'constraints' => [
                     new NotBlank([
                         'message' => $this->trans(
-                            'This field cannot be empty', 'Admin.Notifications.Error'
+                            'This field cannot be empty.', 'Admin.Notifications.Error'
                         ),
                     ]),
                     new CleanHtml(),
@@ -367,7 +368,7 @@ class CustomerAddressType extends TranslatorAwareType
                 'constraints' => [
                     new NotBlank([
                         'message' => $this->trans(
-                            'This field cannot be empty', 'Admin.Notifications.Error'
+                            'This field cannot be empty.', 'Admin.Notifications.Error'
                         ),
                     ]),
                 ],

@@ -1,52 +1,42 @@
 require('module-alias/register');
-// Using chai
-const {expect} = require('chai');
+
+// Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
-// Importing pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const InvoicesPage = require('@pages/BO/orders/invoices/index');
-const OrdersPage = require('@pages/BO/orders/index');
-const ViewOrderPage = require('@pages/BO/orders/view');
-const ProductPage = require('@pages/FO/product');
-const FOBasePage = require('@pages/FO/FObasePage');
-const HomePage = require('@pages/FO/home');
-const FOLoginPage = require('@pages/FO/login');
-const CartPage = require('@pages/FO/cart');
-const CheckoutPage = require('@pages/FO/checkout');
-const OrderConfirmationPage = require('@pages/FO/checkout/orderConfirmation');
 const files = require('@utils/files');
+
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
+
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const invoicesPage = require('@pages/BO/orders/invoices/index');
+const ordersPage = require('@pages/BO/orders/index');
+const orderPageTabListBlock = require('@pages/BO/orders/view/tabListBlock');
+
+// Import FO pages
+const productPage = require('@pages/FO/product');
+const homePage = require('@pages/FO/home');
+const foLoginPage = require('@pages/FO/login');
+const cartPage = require('@pages/FO/cart');
+const checkoutPage = require('@pages/FO/checkout');
+const orderConfirmationPage = require('@pages/FO/checkout/orderConfirmation');
+
 // Importing data
 const {PaymentMethods} = require('@data/demo/paymentMethods');
-const {DefaultAccount} = require('@data/demo/customer');
+const {DefaultCustomer} = require('@data/demo/customer');
 const {Statuses} = require('@data/demo/orderStatuses');
+
 // Test context imports
 const testContext = require('@utils/testContext');
 
 const baseContext = 'functional_BO_orders_invoices_invoiceOptions_enableDisableProductImage';
 
+// Import expect from chai
+const {expect} = require('chai');
+
 let browserContext;
 let page;
 let filePath;
-
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    invoicesPage: new InvoicesPage(page),
-    ordersPage: new OrdersPage(page),
-    viewOrderPage: new ViewOrderPage(page),
-    productPage: new ProductPage(page),
-    foBasePage: new FOBasePage(page),
-    homePage: new HomePage(page),
-    foLoginPage: new FOLoginPage(page),
-    cartPage: new CartPage(page),
-    checkoutPage: new CheckoutPage(page),
-    orderConfirmationPage: new OrderConfirmationPage(page),
-  };
-};
 
 /*
 Enable product image in invoice
@@ -58,209 +48,189 @@ Create order
 Create invoice
 Check that there is 1 image in the invoice (Logo)
  */
-describe('Enable product image in invoices', async () => {
+describe('BO - Orders - Invoices : Enable/Disable product image in invoices', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
+
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
   const tests = [
-    {args: {action: 'Enable', enable: true, imageNumber: 2}},
-    {args: {action: 'Disable', enable: false, imageNumber: 1}},
+    {args: {action: 'Enable', enable: true, imageNumber: global.URLHasPort ? 1 : 2}},
+    {args: {action: 'Disable', enable: false, imageNumber: global.URLHasPort ? 0 : 1}},
   ];
 
-  tests.forEach((test) => {
+  tests.forEach((test, index) => {
     describe(`${test.args.action} product image in invoice then check the invoice file created`, async () => {
       describe(`${test.args.action} product image`, async () => {
-        it('should go to invoices page', async function () {
-          await testContext.addContextItem(
-            this,
-            'testIdentifier',
-            `goToInvoicesPageTo${test.args.action}ProductImage`,
-            baseContext,
+        it('should go to \'Orders > Invoices\' page', async function () {
+          await testContext.addContextItem(this, 'testIdentifier', `goToInvoicesPage${index}`, baseContext);
+
+          await dashboardPage.goToSubMenu(
+            page,
+            dashboardPage.ordersParentLink,
+            dashboardPage.invoicesLink,
           );
 
-          await this.pageObjects.dashboardPage.goToSubMenu(
-            this.pageObjects.dashboardPage.ordersParentLink,
-            this.pageObjects.dashboardPage.invoicesLink,
-          );
+          await invoicesPage.closeSfToolBar(page);
 
-          await this.pageObjects.invoicesPage.closeSfToolBar();
-
-          const pageTitle = await this.pageObjects.invoicesPage.getPageTitle();
-          await expect(pageTitle).to.contains(this.pageObjects.invoicesPage.pageTitle);
+          const pageTitle = await invoicesPage.getPageTitle(page);
+          await expect(pageTitle).to.contains(invoicesPage.pageTitle);
         });
 
         it(`should ${test.args.action} product image`, async function () {
           await testContext.addContextItem(this, 'testIdentifier', `${test.args.action}ProductImage`, baseContext);
 
-          await this.pageObjects.invoicesPage.enableProductImage(test.args.enable);
-          const textMessage = await this.pageObjects.invoicesPage.saveInvoiceOptions();
-          await expect(textMessage).to.contains(this.pageObjects.invoicesPage.successfulUpdateMessage);
+          await invoicesPage.enableProductImage(page, test.args.enable);
+          const textMessage = await invoicesPage.saveInvoiceOptions(page);
+          await expect(textMessage).to.contains(invoicesPage.successfulUpdateMessage);
         });
       });
 
       describe('Create new order in FO', async () => {
         it('should go to FO page', async function () {
-          await testContext.addContextItem(
-            this,
-            'testIdentifier',
-            `goToFO${test.args.action}`,
-            baseContext,
-          );
+          await testContext.addContextItem(this, 'testIdentifier', `goToFO${index}`, baseContext);
 
           // Click on view my shop
-          page = await this.pageObjects.invoicesPage.viewMyShop();
-          this.pageObjects = await init();
+          page = await invoicesPage.viewMyShop(page);
 
           // Change FO language
-          await this.pageObjects.homePage.changeLanguage('en');
+          await homePage.changeLanguage(page, 'en');
 
-          const isHomePage = await this.pageObjects.homePage.isHomePage();
+          const isHomePage = await homePage.isHomePage(page);
           await expect(isHomePage, 'Fail to open FO home page').to.be.true;
         });
 
         it('should go to login page', async function () {
-          await testContext.addContextItem(this, 'testIdentifier', `goToLoginFO${test.args.action}`, baseContext);
+          await testContext.addContextItem(this, 'testIdentifier', `goToLoginFO${index}`, baseContext);
 
-          await this.pageObjects.homePage.goToLoginPage();
-          const pageTitle = await this.pageObjects.foLoginPage.getPageTitle();
-          await expect(pageTitle, 'Fail to open FO login page').to.contains(this.pageObjects.foLoginPage.pageTitle);
+          await homePage.goToLoginPage(page);
+          const pageTitle = await foLoginPage.getPageTitle(page);
+          await expect(pageTitle, 'Fail to open FO login page').to.contains(foLoginPage.pageTitle);
         });
 
         it('should sign in with default customer', async function () {
-          await testContext.addContextItem(this, 'testIdentifier', `sighInFO${test.args.action}`, baseContext);
+          await testContext.addContextItem(this, 'testIdentifier', `sighInFO${index}`, baseContext);
 
-          await this.pageObjects.foLoginPage.customerLogin(DefaultAccount);
-          const isCustomerConnected = await this.pageObjects.foLoginPage.isCustomerConnected();
+          await foLoginPage.customerLogin(page, DefaultCustomer);
+          const isCustomerConnected = await foLoginPage.isCustomerConnected(page);
           await expect(isCustomerConnected, 'Customer is not connected').to.be.true;
         });
 
-        it('should create an order', async function () {
-          await testContext.addContextItem(this, 'testIdentifier', `createOrder${test.args.action}`, baseContext);
+        it('should add product to cart', async function () {
+          await testContext.addContextItem(this, 'testIdentifier', `addProductToCart${index}`, baseContext);
 
           // Go to home page
-          await this.pageObjects.foLoginPage.goToHomePage();
+          await foLoginPage.goToHomePage(page);
 
           // Go to the first product page
-          await this.pageObjects.homePage.goToProductPage(1);
+          await homePage.goToProductPage(page, 1);
 
-          // Add the created product to the cart
-          await this.pageObjects.productPage.addProductToTheCart();
+          // Add the product to the cart
+          await productPage.addProductToTheCart(page);
+
+          const notificationsNumber = await cartPage.getCartNotificationsNumber(page);
+          await expect(notificationsNumber).to.be.equal(1);
+        });
+
+        it('should go to delivery step', async function () {
+          await testContext.addContextItem(this, 'testIdentifier', `goToDeliveryStep${index}`, baseContext);
 
           // Proceed to checkout the shopping cart
-          await this.pageObjects.cartPage.clickOnProceedToCheckout();
+          await cartPage.clickOnProceedToCheckout(page);
 
           // Address step - Go to delivery step
-          const isStepAddressComplete = await this.pageObjects.checkoutPage.goToDeliveryStep();
+          const isStepAddressComplete = await checkoutPage.goToDeliveryStep(page);
           await expect(isStepAddressComplete, 'Step Address is not complete').to.be.true;
+        });
+
+        it('should go to payment step', async function () {
+          await testContext.addContextItem(this, 'testIdentifier', `goToPaymentStep${index}`, baseContext);
 
           // Delivery step - Go to payment step
-          const isStepDeliveryComplete = await this.pageObjects.checkoutPage.goToPaymentStep();
+          const isStepDeliveryComplete = await checkoutPage.goToPaymentStep(page);
           await expect(isStepDeliveryComplete, 'Step Address is not complete').to.be.true;
+        });
+
+        it('should choose payment method and confirm the order', async function () {
+          await testContext.addContextItem(this, 'testIdentifier', `confirmOrder${index}`, baseContext);
 
           // Payment step - Choose payment step
-          await this.pageObjects.checkoutPage.choosePaymentAndOrder(PaymentMethods.wirePayment.moduleName);
+          await checkoutPage.choosePaymentAndOrder(page, PaymentMethods.wirePayment.moduleName);
 
           // Check the confirmation message
-          const cardTitle = await this.pageObjects.orderConfirmationPage.getOrderConfirmationCardTitle();
-          await expect(cardTitle).to.contains(this.pageObjects.orderConfirmationPage.orderConfirmationCardTitle);
+          const cardTitle = await orderConfirmationPage.getOrderConfirmationCardTitle(page);
+          await expect(cardTitle).to.contains(orderConfirmationPage.orderConfirmationCardTitle);
         });
 
         it('should sign out from FO', async function () {
-          await testContext.addContextItem(this, 'testIdentifier', `sighOutFO${test.args.action}`, baseContext);
+          await testContext.addContextItem(this, 'testIdentifier', `sighOutFO${index}`, baseContext);
 
-          await this.pageObjects.orderConfirmationPage.logout();
-          const isCustomerConnected = await this.pageObjects.orderConfirmationPage.isCustomerConnected();
+          await orderConfirmationPage.logout(page);
+          const isCustomerConnected = await orderConfirmationPage.isCustomerConnected(page);
           await expect(isCustomerConnected, 'Customer is connected').to.be.false;
         });
 
         it('should go back to BO', async function () {
-          await testContext.addContextItem(this, 'testIdentifier', `goBackToBo${test.args.action}`, baseContext);
+          await testContext.addContextItem(this, 'testIdentifier', `goBackToBo${index}`, baseContext);
 
           // Close page and init page objects
-          page = await this.pageObjects.orderConfirmationPage.closePage(browserContext, 0);
-          this.pageObjects = await init();
+          page = await orderConfirmationPage.closePage(browserContext, page, 0);
 
-          const pageTitle = await this.pageObjects.invoicesPage.getPageTitle();
-          await expect(pageTitle).to.contains(this.pageObjects.invoicesPage.pageTitle);
+          const pageTitle = await invoicesPage.getPageTitle(page);
+          await expect(pageTitle).to.contains(invoicesPage.pageTitle);
         });
       });
 
       describe('Generate the invoice and check product image', async () => {
-        it('should go to the orders page', async function () {
-          await testContext.addContextItem(
-            this,
-            'testIdentifier',
-            `goToOrdersPageToCheck${test.args.action}ProductImage`,
-            baseContext,
+        it('should go to \'Orders > Orders\' page', async function () {
+          await testContext.addContextItem(this, 'testIdentifier', `goToOrdersPage${index}`, baseContext);
+
+          await invoicesPage.goToSubMenu(
+            page,
+            invoicesPage.ordersParentLink,
+            invoicesPage.ordersLink,
           );
 
-          await this.pageObjects.invoicesPage.goToSubMenu(
-            this.pageObjects.invoicesPage.ordersParentLink,
-            this.pageObjects.invoicesPage.ordersLink,
-          );
-
-          const pageTitle = await this.pageObjects.ordersPage.getPageTitle();
-          await expect(pageTitle).to.contains(this.pageObjects.ordersPage.pageTitle);
+          const pageTitle = await ordersPage.getPageTitle(page);
+          await expect(pageTitle).to.contains(ordersPage.pageTitle);
         });
 
         it('should go to the created order page', async function () {
-          await testContext.addContextItem(
-            this,
-            'testIdentifier',
-            `goToCreatedOrderPageToCheck${test.args.action}ProductImage`,
-            baseContext,
-          );
+          await testContext.addContextItem(this, 'testIdentifier', `goToCreatedOrderPage${index}`, baseContext);
 
-          await this.pageObjects.ordersPage.goToOrder(1);
-          const pageTitle = await this.pageObjects.viewOrderPage.getPageTitle();
-          await expect(pageTitle).to.contains(this.pageObjects.viewOrderPage.pageTitle);
+          await ordersPage.goToOrder(page, 1);
+          const pageTitle = await orderPageTabListBlock.getPageTitle(page);
+          await expect(pageTitle).to.contains(orderPageTabListBlock.pageTitle);
         });
 
         it(`should change the order status to '${Statuses.shipped.status}' and check it`, async function () {
-          await testContext.addContextItem(
-            this,
-            'testIdentifier',
-            `updateOrderStatusToCheck${test.args.action}ProductImage`,
-            baseContext,
-          );
+          await testContext.addContextItem(this, 'testIdentifier', `updateOrderStatus${index}`, baseContext);
 
-          const result = await this.pageObjects.viewOrderPage.modifyOrderStatus(Statuses.shipped.status);
+          const result = await orderPageTabListBlock.modifyOrderStatus(page, Statuses.shipped.status);
           await expect(result).to.equal(Statuses.shipped.status);
         });
 
         it('should download the invoice', async function () {
-          await testContext.addContextItem(
-            this,
-            'testIdentifier',
-            `downloadInvoiceToCheck${test.args.action}ProductImage`,
-            baseContext,
-          );
+          await testContext.addContextItem(this, 'testIdentifier', `downloadInvoice${index}`, baseContext);
 
           // Download invoice
-          filePath = await this.pageObjects.viewOrderPage.downloadInvoice();
+          filePath = await orderPageTabListBlock.downloadInvoice(page);
 
           const exist = await files.doesFileExist(filePath);
           await expect(exist).to.be.true;
         });
 
         it('should check the product images in the PDF File', async function () {
-          await testContext.addContextItem(
-            this,
-            'testIdentifier',
-            `checkProductImages${test.args.action}`,
-            baseContext,
-          );
+          await testContext.addContextItem(this, 'testIdentifier', `checkProductImages${index}`, baseContext);
 
           const imageNumber = await files.getImageNumberInPDF(filePath);
           await expect(imageNumber).to.be.equal(test.args.imageNumber);

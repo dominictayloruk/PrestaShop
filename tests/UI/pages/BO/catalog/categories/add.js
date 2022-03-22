@@ -1,25 +1,26 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class AddCategory extends BOBasePage {
-  constructor(page) {
-    super(page);
+class AddCategory extends BOBasePage {
+  constructor() {
+    super();
 
     this.pageTitleCreate = 'Add new';
     this.pageTitleEdit = 'Edit: ';
 
     // Selectors
     this.nameInput = '#category_name_1';
-    this.displayed = id => `label[for='category_active_${id}']`;
+    this.displayedToggleInput = toggle => `#category_active_${toggle}`;
     this.descriptionIframe = '#category_description_1_ifr';
     this.categoryCoverImage = '#category_cover_image';
     this.metaTitleInput = '#category_meta_title_1';
     this.metaDescriptionTextarea = '#category_meta_description_1';
-    this.selectAllGroupAccessCheckbox = '.choice-table .table-bordered label';
+    this.selectAllGroupAccessCheckbox = '.js-choice-table-select-all';
     this.saveCategoryButton = '#save-button';
+
     // Selectors fo root category
     this.rootCategoryNameInput = '#root_category_name_1';
-    this.rootCategoryDisplayed = id => `label[for='root_category_active_${id}']`;
+    this.rootCategoryDisplayedToggleInput = toggle => `#root_category_active_${toggle}`;
     this.rootCategoryDescriptionIframe = '#root_category_description_1_ifr';
     this.rootCategoryCoverImage = '#root_category_cover_image';
     this.rootCategoryMetaTitleInput = '#root_category_meta_title_1';
@@ -31,38 +32,55 @@ module.exports = class AddCategory extends BOBasePage {
    */
 
   /**
+   * Select all groups
+   * @param page
+   * @return {Promise<void>}
+   */
+  async selectAllGroups(page) {
+    if (!(await page.isChecked(this.selectAllGroupAccessCheckbox))) {
+      const parentElement = await this.getParentElement(page, this.selectAllGroupAccessCheckbox);
+      await parentElement.click();
+    }
+  }
+
+  /**
    * Fill form for add/edit category
-   * @param categoryData
+   * @param page {Page} Browser tab
+   * @param categoryData {CategoryData} Data to set on new/edit category form
    * @returns {Promise<string>}
    */
-  async createEditCategory(categoryData) {
-    await this.setValue(this.nameInput, categoryData.name);
-    await this.page.click(this.displayed(categoryData.displayed ? 1 : 0));
-    await this.setValueOnTinymceInput(this.descriptionIframe, categoryData.description);
-    await this.generateAndUploadImage(this.categoryCoverImage, `${categoryData.name}.jpg`);
-    await this.setValue(this.metaTitleInput, categoryData.metaTitle);
-    await this.setValue(this.metaDescriptionTextarea, categoryData.metaDescription);
-    await this.page.click(this.selectAllGroupAccessCheckbox);
+  async createEditCategory(page, categoryData) {
+    await this.setValue(page, this.nameInput, categoryData.name);
+    await this.setChecked(page, this.displayedToggleInput(categoryData.displayed ? 1 : 0));
+    await this.setValueOnTinymceInput(page, this.descriptionIframe, categoryData.description);
+    await this.uploadFile(page, this.categoryCoverImage, `${categoryData.name}.jpg`);
+    await this.setValue(page, this.metaTitleInput, categoryData.metaTitle);
+    await this.setValue(page, this.metaDescriptionTextarea, categoryData.metaDescription);
+    await this.selectAllGroups(page);
+
     // Save Category
-    await this.clickAndWaitForNavigation(this.saveCategoryButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, this.saveCategoryButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Edit home category
-   * @param categoryData
+   * @param page {Page} Browser tab
+   * @param categoryData {CategoryData} Data to set on edit home category form
    * @returns {Promise<string>}
    */
-  async editHomeCategory(categoryData) {
-    await this.setValue(this.rootCategoryNameInput, categoryData.name);
-    await this.page.click(this.rootCategoryDisplayed(categoryData.displayed ? 1 : 0));
-    await this.setValueOnTinymceInput(this.rootCategoryDescriptionIframe, categoryData.description);
-    await this.generateAndUploadImage(this.rootCategoryCoverImage, `${categoryData.name}.jpg`);
-    await this.setValue(this.rootCategoryMetaTitleInput, categoryData.metaTitle);
-    await this.setValue(this.rootCategoryMetaDescriptionTextarea, categoryData.metaDescription);
-    await this.page.click(this.selectAllGroupAccessCheckbox);
+  async editHomeCategory(page, categoryData) {
+    await this.setValue(page, this.rootCategoryNameInput, categoryData.name);
+    await this.setChecked(page, this.rootCategoryDisplayedToggleInput(categoryData.displayed ? 1 : 0));
+    await this.setValueOnTinymceInput(page, this.rootCategoryDescriptionIframe, categoryData.description);
+    await this.uploadFile(page, this.rootCategoryCoverImage, `${categoryData.name}.jpg`);
+    await this.setValue(page, this.rootCategoryMetaTitleInput, categoryData.metaTitle);
+    await this.setValue(page, this.rootCategoryMetaDescriptionTextarea, categoryData.metaDescription);
+    await this.selectAllGroups(page);
     // Save Category
-    await this.clickAndWaitForNavigation(this.saveCategoryButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, this.saveCategoryButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new AddCategory();

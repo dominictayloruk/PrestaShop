@@ -1,9 +1,18 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class AddTax extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Add tax page, contains functions that can be used on the page
+ * @class
+ * @extends BOBasePage
+ */
+class AddTax extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on add tax page
+   */
+  constructor() {
+    super();
 
     this.pageTitleCreate = 'Taxes •';
     this.pageTitleEdit = 'Edit: ';
@@ -12,46 +21,52 @@ module.exports = class AddTax extends BOBasePage {
     // Selectors
     this.nameEnInput = '#tax_name_1';
     this.nameFrInput = '#tax_name_2';
-    this.inputLangDropdownButton = 'button#tax_name';
+    this.inputLangDropdownButton = 'button#tax_name_dropdown';
     this.inputLangChoiceSpan = lang => `div.dropdown-menu span[data-locale='${lang}']`;
     this.rateInput = '#tax_rate';
-    this.enabledSwitchLabel = id => `label[for='tax_is_enabled_${id}']`;
+    this.statusToggleInput = toggle => `#tax_is_enabled_${toggle}`;
     this.saveTaxButton = '#save-button';
   }
+
   /*
   Methods
    */
 
   /**
    * Change language for input name
-   * @param lang
+   * @param page {Page} Browser tab
+   * @param lang {string} Value of language to change
    * @return {Promise<void>}
    */
-  async changeInputLanguage(lang) {
+  async changeInputLanguage(page, lang) {
     await Promise.all([
-      this.page.click(this.inputLangDropdownButton),
-      this.waitForVisibleSelector(`${this.inputLangDropdownButton}[aria-expanded='true']`),
+      page.click(this.inputLangDropdownButton),
+      this.waitForVisibleSelector(page, `${this.inputLangDropdownButton}[aria-expanded='true']`),
     ]);
     await Promise.all([
-      this.page.click(this.inputLangChoiceSpan(lang)),
-      this.waitForVisibleSelector(`${this.inputLangDropdownButton}[aria-expanded='false']`),
+      page.click(this.inputLangChoiceSpan(lang)),
+      this.waitForVisibleSelector(page, `${this.inputLangDropdownButton}[aria-expanded='false']`),
     ]);
   }
 
   /**
    * Fill form for add/edit tax
-   * @param taxData
+   * @param page {Page} Browser tab
+   * @param taxData {TaxData} Data to set on new/edit tax page
    * @returns {Promise<string>}
    */
-  async createEditTax(taxData) {
-    await this.changeInputLanguage('en');
-    await this.setValue(this.nameEnInput, taxData.name);
-    await this.changeInputLanguage('fr');
-    await this.setValue(this.nameFrInput, taxData.frName);
-    await this.setValue(this.rateInput, taxData.rate);
-    await this.page.click(this.enabledSwitchLabel(taxData.enabled ? 1 : 0));
+  async createEditTax(page, taxData) {
+    await this.changeInputLanguage(page, 'en');
+    await this.setValue(page, this.nameEnInput, taxData.name);
+    await this.changeInputLanguage(page, 'fr');
+    await this.setValue(page, this.nameFrInput, taxData.frName);
+    await this.setValue(page, this.rateInput, taxData.rate);
+    await this.setChecked(page, this.statusToggleInput(taxData.enabled ? 1 : 0));
     // Save Tax
-    await this.clickAndWaitForNavigation(this.saveTaxButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, this.saveTaxButton);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new AddTax();

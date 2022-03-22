@@ -52,7 +52,7 @@ final class GetCustomerForEditingHandler implements GetCustomerForEditingHandler
         $customer = new Customer($customerId->getValue());
 
         if ($customer->id !== $customerId->getValue()) {
-            throw new CustomerNotFoundException($customerId, sprintf('Customer with id "%s" was not found', $customerId->getValue()));
+            throw new CustomerNotFoundException(sprintf('Customer with id "%d" was not found', $customerId->getValue()));
         }
 
         $birthday = null === $customer->birthday ?
@@ -62,7 +62,7 @@ final class GetCustomerForEditingHandler implements GetCustomerForEditingHandler
 
         return new EditableCustomer(
             $customerId,
-            $customer->id_gender,
+            (int) $customer->id_gender,
             new FirstName($customer->firstname),
             new LastName($customer->lastname),
             new Email($customer->email),
@@ -78,7 +78,8 @@ final class GetCustomerForEditingHandler implements GetCustomerForEditingHandler
             (string) $customer->website,
             (float) $customer->outstanding_allow_amount,
             (int) $customer->max_payment_days,
-            (int) $customer->id_risk
+            (int) $customer->id_risk,
+            (bool) $customer->isGuest()
         );
     }
 }

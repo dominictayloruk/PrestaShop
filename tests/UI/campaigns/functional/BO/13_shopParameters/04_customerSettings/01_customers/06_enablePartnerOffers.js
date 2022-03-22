@@ -4,63 +4,60 @@ const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
-
-// Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const CustomerSettingsPage = require('@pages/BO/shopParameters/customerSettings');
-const {options} = require('@pages/BO/shopParameters/customerSettings/options');
-const FOHomePage = require('@pages/FO/home');
-const LoginFOPage = require('@pages/FO/login');
-
-// Import test context
 const testContext = require('@utils/testContext');
 
-const baseContext = 'functional_BO_shopParameters_customerSettings_customers_askForBirthDate';
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
+
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const customerSettingsPage = require('@pages/BO/shopParameters/customerSettings');
+const {options} = require('@pages/BO/shopParameters/customerSettings/options');
+
+// Import FO pages
+const foHomePage = require('@pages/FO/home');
+const loginFOPage = require('@pages/FO/login');
+const foCreateAccountPage = require('@pages/FO/myAccount/add');
+
+const baseContext = 'functional_BO_shopParameters_customerSettings_customers_enablePartnerOffers';
 
 let browserContext;
 let page;
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    customerSettingsPage: new CustomerSettingsPage(page),
-    foHomePage: new FOHomePage(page),
-    loginFOPage: new LoginFOPage(page),
-  };
-};
-
-describe('Enable partner offer', async () => {
+/*
+Enable partner offer
+Go to FO > create account and check that partner offer checkbox is visible
+Disable partner offer
+Go to FO > create account and check that partner offer checkbox is not visible
+ */
+describe('BO - Shop Parameters - Customer Settings : Enable/Disable partner offer', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO and go to customer settings page
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
   it('should go to \'Shop parameters > Customer Settings\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToCustomerSettingsPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.shopParametersParentLink,
-      this.pageObjects.dashboardPage.customerSettingsLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.shopParametersParentLink,
+      dashboardPage.customerSettingsLink,
     );
 
-    await this.pageObjects.customerSettingsPage.closeSfToolBar();
+    await customerSettingsPage.closeSfToolBar(page);
 
-    const pageTitle = await this.pageObjects.customerSettingsPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.customerSettingsPage.pageTitle);
+    const pageTitle = await customerSettingsPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(customerSettingsPage.pageTitle);
   });
 
   const tests = [
@@ -68,44 +65,45 @@ describe('Enable partner offer', async () => {
     {args: {action: 'enable', enable: true}},
   ];
 
-  tests.forEach((test) => {
+  tests.forEach((test, index) => {
     it(`should ${test.args.action} partner offer`, async function () {
-      await testContext.addContextItem(this, 'testIdentifier', `${test.args.action}PartnerOffer`, baseContext);
+      await testContext.addContextItem(this, 'testIdentifier', `partnerOffer${index}`, baseContext);
 
-      const result = await this.pageObjects.customerSettingsPage.setOptionStatus(
+      const result = await customerSettingsPage.setOptionStatus(
+        page,
         options.OPTION_PARTNER_OFFER,
         test.args.enable,
       );
 
-      await expect(result).to.contains(this.pageObjects.customerSettingsPage.successfulUpdateMessage);
+      await expect(result).to.contains(customerSettingsPage.successfulUpdateMessage);
     });
 
     it('should go to create customer account in FO and check partner offer checkbox', async function () {
-      await testContext.addContextItem(
-        this,
-        'testIdentifier',
-        `checkIsPartnerOffer${this.pageObjects.customerSettingsPage.uppercaseFirstCharacter(test.args.action)}`,
-        baseContext,
-      );
+      await testContext.addContextItem(this, 'testIdentifier', `checkIsPartnerOffer${index}`, baseContext);
 
       // Go to FO
-      page = await this.pageObjects.customerSettingsPage.viewMyShop();
-      this.pageObjects = await init();
+      page = await customerSettingsPage.viewMyShop(page);
 
       // Change language in FO
-      await this.pageObjects.foHomePage.changeLanguage('en');
+      await foHomePage.changeLanguage(page, 'en');
 
       // Go to create account page
-      await this.pageObjects.foHomePage.goToLoginPage();
-      await this.pageObjects.loginFOPage.goToCreateAccountPage();
+      await foHomePage.goToLoginPage(page);
+      await loginFOPage.goToCreateAccountPage(page);
 
       // Check partner offer
-      const isPartnerOfferVisible = await this.pageObjects.loginFOPage.isPartnerOfferVisible();
+      const isPartnerOfferVisible = await foCreateAccountPage.isPartnerOfferVisible(page);
       await expect(isPartnerOfferVisible).to.be.equal(test.args.enable);
+    });
+
+    it('should go back to BO', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', `goBackToBO${index}`, baseContext);
 
       // Go back to BO
-      page = await this.pageObjects.loginFOPage.closePage(browserContext, 0);
-      this.pageObjects = await init();
+      page = await foCreateAccountPage.closePage(browserContext, page, 0);
+
+      const pageTitle = await customerSettingsPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(customerSettingsPage.pageTitle);
     });
   });
 });

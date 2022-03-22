@@ -27,6 +27,7 @@
 namespace Tests\Integration\Behaviour\Features\Context;
 
 use Address;
+use Behat\Behat\Context\Environment\InitializedContextEnvironment;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Carrier;
 use CartRule;
@@ -36,6 +37,7 @@ use Country;
 use Group;
 use RangePrice;
 use RangeWeight;
+use RuntimeException;
 use State;
 use Zone;
 
@@ -86,7 +88,12 @@ class CarrierFeatureContext extends AbstractPrestaShopFeatureContext
     /** @BeforeScenario */
     public function before(BeforeScenarioScope $scope)
     {
-        $this->customerFeatureContext = $scope->getEnvironment()->getContext(CustomerFeatureContext::class);
+        /** @var InitializedContextEnvironment $environment */
+        $environment = $scope->getEnvironment();
+        /** @var CustomerFeatureContext $customerFeatureContext */
+        $customerFeatureContext = $environment->getContext(CustomerFeatureContext::class);
+
+        $this->customerFeatureContext = $customerFeatureContext;
     }
 
     /**
@@ -101,9 +108,9 @@ class CarrierFeatureContext extends AbstractPrestaShopFeatureContext
     }
 
     /**
-     * @param $zoneName
+     * @param string $zoneName
      */
-    public function checkZoneWithNameExists($zoneName)
+    public function checkZoneWithNameExists(string $zoneName): void
     {
         $this->checkFixtureExists($this->zones, 'Zone', $zoneName);
     }
@@ -123,30 +130,30 @@ class CarrierFeatureContext extends AbstractPrestaShopFeatureContext
         $this->previousCountries[$countryName] = clone $country;
         $this->countries[$countryName] = $country;
         $country->id_zone = $this->zones[$zoneName]->id;
-        $country->active = 1;
+        $country->active = true;
         $country->save();
     }
 
     /**
-     * @param $countryName
+     * @param string $countryName
      *
      * @return Country
      */
-    public function getCountryWithName($countryName)
+    public function getCountryWithName($countryName): Country
     {
         return $this->countries[$countryName];
     }
 
     /**
-     * @param $countryName
+     * @param string $countryName
      */
-    public function checkCountryWithNameExists($countryName)
+    public function checkCountryWithNameExists(string $countryName): void
     {
         $this->checkFixtureExists($this->countries, 'Country', $countryName);
     }
 
     /**
-     * @Given /^there is a state named "(.+)" with iso code "(.+)" in country"(.+)" and zone "(.+)"$/
+     * @Given /^there is a state named "(.+)" with iso code "(.+)" in country "(.+)" and zone "(.+)"$/
      */
     public function createState($stateName, $stateIsoCode, $countryName, $zoneName)
     {
@@ -162,19 +169,19 @@ class CarrierFeatureContext extends AbstractPrestaShopFeatureContext
     }
 
     /**
-     * @param $stateName
+     * @param string $stateName
      *
      * @return State
      */
-    public function getStateWithName($stateName)
+    public function getStateWithName(string $stateName): State
     {
         return $this->states[$stateName];
     }
 
     /**
-     * @param $stateName
+     * @param string $stateName
      */
-    public function checkStateWithNameExists($stateName)
+    public function checkStateWithNameExists(string $stateName): void
     {
         $this->checkFixtureExists($this->states, 'State', $stateName);
     }
@@ -212,9 +219,9 @@ class CarrierFeatureContext extends AbstractPrestaShopFeatureContext
     }
 
     /**
-     * @param $addressName
+     * @param string $addressName
      */
-    public function checkAddressWithNameExists($addressName)
+    public function checkAddressWithNameExists(string $addressName): void
     {
         $this->checkFixtureExists($this->addresses, 'Address', $addressName);
     }
@@ -224,13 +231,14 @@ class CarrierFeatureContext extends AbstractPrestaShopFeatureContext
      */
     public function createCarrier($carrierName)
     {
-        $carrier = new Carrier(null, Configuration::get('PS_LANG_DEFAULT'));
+        $carrier = new Carrier(null, (int) Configuration::get('PS_LANG_DEFAULT'));
         $carrier->name = $carrierName;
         $carrier->shipping_method = Carrier::SHIPPING_METHOD_PRICE;
         $carrier->delay = '28 days later';
-        $carrier->active = 1;
+        $carrier->active = true;
         $carrier->add();
         $this->carriers[$carrierName] = $carrier;
+        SharedStorage::getStorage()->set($carrierName, $carrier->id);
 
         $groups = Group::getGroups(Context::getContext()->language->id);
         $groupIds = [];
@@ -257,19 +265,30 @@ class CarrierFeatureContext extends AbstractPrestaShopFeatureContext
     }
 
     /**
-     * @param $carrierName
+     * @Given /^the carrier "(.+)" uses "(.+)" as tracking url$/
      */
-    public function checkCarrierWithNameExists($carrierName)
+    public function setCarrierTrackingUrl(string $carrierName, string $url): void
+    {
+        $this->checkCarrierWithNameExists($carrierName);
+        $carrier = $this->carriers[$carrierName];
+        $carrier->url = $url;
+        $carrier->save();
+    }
+
+    /**
+     * @param string $carrierName
+     */
+    public function checkCarrierWithNameExists(string $carrierName): void
     {
         $this->checkFixtureExists($this->carriers, 'Carrier', $carrierName);
     }
 
     /**
-     * @param $carrierName
+     * @param string $carrierName
      *
      * @return Carrier
      */
-    public function getCarrierWithName($carrierName)
+    public function getCarrierWithName(string $carrierName): Carrier
     {
         return $this->carriers[$carrierName];
     }
@@ -370,5 +389,58 @@ class CarrierFeatureContext extends AbstractPrestaShopFeatureContext
     {
         $this->checkAddressWithNameExists($addresssName);
         $this->getCurrentCart()->id_address_delivery = $this->addresses[$addresssName]->id;
+        Context::getContext()->country = new Country((int) $this->addresses[$addresssName]->id_country);
+    }
+
+    /**
+     * @Given a carrier :carrierReference with name :carrierName exists
+     *
+     * @param string $carrierReference
+     * @param string $carrierName
+     */
+    public function checkExistingCarrier(string $carrierReference, string $carrierName)
+    {
+        $carriers = Carrier::getCarriers((int) Configuration::get('PS_LANG_DEFAULT'));
+        foreach ($carriers as $carrier) {
+            if ($carrier['name'] === $carrierName) {
+                SharedStorage::getStorage()->set($carrierReference, (int) $carrier['id_carrier']);
+
+                return;
+            }
+        }
+
+        throw new RuntimeException(sprintf(
+            'Could not find carrier with name %s',
+            $carrierName
+        ));
+    }
+
+    /**
+     * @Given I enable carrier :carrierReference
+     *
+     * @param string $carrierReference
+     */
+    public function enableCarrier(string $carrierReference)
+    {
+        $carrierId = SharedStorage::getStorage()->get($carrierReference);
+        $carrier = new Carrier($carrierId);
+        $carrier->active = true;
+        $carrier->save();
+        // Reset cache so that the carrier becomes selectable
+        Carrier::resetStaticCache();
+    }
+
+    /**
+     * @Then I associate the tax rule group :taxRulesGroupReference to carrier :carrierReference
+     *
+     * @param string $taxRulesGroupReference
+     * @param string $carrierReference
+     */
+    public function associateCarrierTaxRulesGroup(string $taxRulesGroupReference, string $carrierReference)
+    {
+        $carrierId = SharedStorage::getStorage()->get($carrierReference);
+        $taxRulesGroupId = SharedStorage::getStorage()->get($taxRulesGroupReference);
+        $carrier = new Carrier($carrierId);
+        $carrier->setTaxRulesGroup($taxRulesGroupId);
     }
 }

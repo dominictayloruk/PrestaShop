@@ -43,7 +43,7 @@ class SystemInformationController extends FrameworkBundleAdminController
      *
      * @param Request $request
      *
-     * @return \Symfony\Component\HttpFoundation\Response
+     * @return array<string, array|bool|string|null>
      */
     public function indexAction(Request $request)
     {
@@ -54,7 +54,6 @@ class SystemInformationController extends FrameworkBundleAdminController
         return [
             'layoutHeaderToolbarBtn' => [],
             'layoutTitle' => $this->trans('Information', 'Admin.Navigation.Menu'),
-            'requireAddonsSearch' => true,
             'requireBulkActions' => false,
             'showContentHeader' => true,
             'enableSidebar' => true,

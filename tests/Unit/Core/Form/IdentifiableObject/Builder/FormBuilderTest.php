@@ -30,8 +30,13 @@ use PHPUnit\Framework\TestCase;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Builder\FormBuilder;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\Builder\FormBuilderInterface;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\DataProvider\FormDataProviderInterface;
+use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\OptionProvider\FormOptionsProviderInterface;
 use PrestaShop\PrestaShop\Core\Hook\HookDispatcherInterface;
+use Symfony\Component\Form\FormBuilderInterface as SymfonyFormBuilderInterface;
 use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\FormRegistryInterface;
+use Symfony\Component\Form\ResolvedFormTypeInterface;
 
 class FormBuilderTest extends TestCase
 {
@@ -41,7 +46,8 @@ class FormBuilderTest extends TestCase
             $this->createMock(FormFactoryInterface::class),
             $this->createMock(HookDispatcherInterface::class),
             $this->createMock(FormDataProviderInterface::class),
-            'a'
+            'a',
+            $this->createMockFormRegistryInterface('')
         );
 
         $this->assertInstanceOf(FormBuilderInterface::class, $builder);
@@ -49,48 +55,16 @@ class FormBuilderTest extends TestCase
 
     public function testGetFormToCreateModel()
     {
-        // constructor mocks
-        $formFactoryMock = $this->createMock(FormFactoryInterface::class);
-        $hookDispatcherMock = $this->createMock(HookDispatcherInterface::class);
-        $dataProviderMock = $this->createMock(FormDataProviderInterface::class);
-
-        // mocks behavior configuration
-        $dataProviderMock
-            ->method('getDefaultData')
-            ->will($this->returnValue([]));
-
-        $formBuilderMock = $this->createMock(\Symfony\Component\Form\FormBuilderInterface::class);
-        $formFactoryMock
-            ->method('createBuilder')
-            ->will($this->returnValue($formBuilderMock));
-
-        $formMock = $this->createMock(\Symfony\Component\Form\FormInterface::class);
-        $formBuilderMock
-            ->method('getForm')
-            ->will($this->returnValue($formMock));
-        $formBuilderMock
-            ->method('getName')
-            ->will($this->returnValue('Bbcd'));
-
-        $hookDispatcherMock->expects($this->once())
-            ->method('dispatchWithParameters');
-
-        $hookDispatcherMock->expects($this->once())
-            ->method('dispatchWithParameters')
-            ->with(
-                $this->equalTo('actionBbcdFormBuilderModifier'),
-                $this->equalTo([
-                    'form_builder' => $formBuilderMock,
-                    'data' => [],
-                    'id' => null,
-                ])
-            );
+        $formMock = $this->createMock(FormInterface::class);
+        $formBuilderMock = $this->createSymfonyFormBuilderMock($formMock, 'Bbcd');
+        $formFactoryMock = $this->createFormFactoryMock($formBuilderMock);
 
         $builder = new FormBuilder(
             $formFactoryMock,
-            $hookDispatcherMock,
-            $dataProviderMock,
-            'a'
+            $this->createHookDispatcherMock($formBuilderMock, 'Bbcd'),
+            $this->createDefaultDataProviderMock(),
+            'a',
+            $this->createMockFormRegistryInterface('Bbcd')
         );
 
         $form = $builder->getForm([], []);
@@ -100,49 +74,235 @@ class FormBuilderTest extends TestCase
 
     public function testGetFormToEditModel()
     {
-        // constructor mocks
-        $formFactoryMock = $this->createMock(FormFactoryInterface::class);
-        $hookDispatcherMock = $this->createMock(HookDispatcherInterface::class);
-        $dataProviderMock = $this->createMock(FormDataProviderInterface::class);
-
-        // mocks behavior configuration
-        $dataProviderMock
-            ->method('getData')
-            ->will($this->returnValue([]));
-
-        $formBuilderMock = $this->createMock(\Symfony\Component\Form\FormBuilderInterface::class);
-        $formFactoryMock
-            ->method('createBuilder')
-            ->will($this->returnValue($formBuilderMock));
-
-        $formMock = $this->createMock(\Symfony\Component\Form\FormInterface::class);
-        $formBuilderMock
-            ->method('getForm')
-            ->will($this->returnValue($formMock));
-        $formBuilderMock
-            ->method('getName')
-            ->will($this->returnValue('Abcd'));
-
-        $hookDispatcherMock->expects($this->once())
-            ->method('dispatchWithParameters')
-            ->with(
-                $this->equalTo('actionAbcdFormBuilderModifier'),
-                $this->equalTo([
-                    'form_builder' => $formBuilderMock,
-                    'data' => [],
-                    'id' => 1,
-                ])
-            );
+        $formMock = $this->createMock(FormInterface::class);
+        $formBuilderMock = $this->createSymfonyFormBuilderMock($formMock, 'Abcd');
+        $formFactoryMock = $this->createFormFactoryMock($formBuilderMock);
 
         $builder = new FormBuilder(
             $formFactoryMock,
-            $hookDispatcherMock,
-            $dataProviderMock,
-            'a'
+            $this->createHookDispatcherMock($formBuilderMock, 'Abcd', 1),
+            $this->createDataProviderMock(),
+            'a',
+            $this->createMockFormRegistryInterface('Abcd')
         );
 
         $form = $builder->getFormFor(1, [], []);
 
         $this->assertEquals($formMock, $form);
+    }
+
+    public function testGetFormWithOptionsToCreateModel()
+    {
+        $formMock = $this->createMock(FormInterface::class);
+        $formBuilderMock = $this->createSymfonyFormBuilderMock($formMock, 'Bbcd');
+        $formFactoryMock = $this->createFormFactoryMock($formBuilderMock);
+
+        $options = ['option' => 'value'];
+        $builder = new FormBuilder(
+            $formFactoryMock,
+            $this->createHookDispatcherMock($formBuilderMock, 'Bbcd', null, $options),
+            $this->createDefaultDataProviderMock(),
+            'a',
+            $this->createMockFormRegistryInterface('Bbcd'),
+            $this->createDefaultOptionProviderMock($options)
+        );
+
+        $form = $builder->getForm([], []);
+
+        $this->assertEquals($formMock, $form);
+    }
+
+    public function testGetFormWithOptionsToEditModel()
+    {
+        $formMock = $this->createMock(FormInterface::class);
+        $formBuilderMock = $this->createSymfonyFormBuilderMock($formMock, 'Abcd');
+        $formFactoryMock = $this->createFormFactoryMock($formBuilderMock);
+
+        $options = ['option' => 'value'];
+        $builder = new FormBuilder(
+            $formFactoryMock,
+            $this->createHookDispatcherMock($formBuilderMock, 'Abcd', 1, $options),
+            $this->createDataProviderMock(),
+            'a',
+            $this->createMockFormRegistryInterface('Abcd'),
+            $this->createOptionProviderMock($options)
+        );
+
+        $form = $builder->getFormFor(1, [], []);
+
+        $this->assertEquals($formMock, $form);
+    }
+
+    private function createMockFormRegistryInterface(string $formName): FormRegistryInterface
+    {
+        $mockResolvedFormTypeInterface = $this->createMock(ResolvedFormTypeInterface::class);
+        $mockResolvedFormTypeInterface->method('getBlockPrefix')->willReturn($formName);
+
+        $mockFormRegistryInterface = $this->createMock(FormRegistryInterface::class);
+        $mockFormRegistryInterface->method('getType')->willReturn($mockResolvedFormTypeInterface);
+
+        return $mockFormRegistryInterface;
+    }
+
+    /**
+     * @param SymfonyFormBuilderInterface $formBuilder
+     *
+     * @return FormFactoryInterface
+     */
+    private function createFormFactoryMock(SymfonyFormBuilderInterface $formBuilder): FormFactoryInterface
+    {
+        $formFactoryMock = $this->createMock(FormFactoryInterface::class);
+
+        $formFactoryMock
+            ->method('createBuilder')
+            ->will($this->returnValue($formBuilder));
+
+        return $formFactoryMock;
+    }
+
+    /**
+     * @param FormInterface $form
+     *
+     * @return SymfonyFormBuilderInterface
+     */
+    private function createSymfonyFormBuilderMock(FormInterface $form, string $formName): SymfonyFormBuilderInterface
+    {
+        $formBuilderMock = $this->createMock(SymfonyFormBuilderInterface::class);
+        $formBuilderMock
+            ->method('getForm')
+            ->will($this->returnValue($form));
+        $formBuilderMock
+            ->method('getName')
+            ->will($this->returnValue($formName));
+
+        return $formBuilderMock;
+    }
+
+    /**
+     * @param SymfonyFormBuilderInterface $formBuilder
+     * @param string $formName
+     * @param int|null $expectedId
+     * @param array $expectedOptions
+     *
+     * @return HookDispatcherInterface
+     */
+    private function createHookDispatcherMock(
+        SymfonyFormBuilderInterface $formBuilder,
+        string $formName,
+        ?int $expectedId = null,
+        array $expectedOptions = []
+    ): HookDispatcherInterface {
+        if ($expectedId) {
+            $hookNameEnd = 'FormDataProviderData';
+            $hookOptions = [
+                'data' => [],
+                'options' => $expectedOptions,
+                'id' => $expectedId,
+            ];
+        } else {
+            $hookNameEnd = 'FormDataProviderDefaultData';
+            $hookOptions = [
+                'data' => [],
+                'options' => $expectedOptions,
+            ];
+        }
+
+        $hookDispatcherMock = $this->createMock(HookDispatcherInterface::class);
+        $hookDispatcherMock->expects($this->exactly(2))
+            ->method('dispatchWithParameters')
+            ->withConsecutive(
+                [
+                    $this->equalTo('action' . $formName . $hookNameEnd),
+                    $this->equalTo($hookOptions),
+                ],
+                [
+                    $this->equalTo('action' . $formName . 'FormBuilderModifier'),
+                    $this->equalTo([
+                        'form_builder' => $formBuilder,
+                        'data' => [],
+                        'options' => $expectedOptions,
+                        'id' => $expectedId,
+                    ]),
+                ]
+            );
+
+        return $hookDispatcherMock;
+    }
+
+    /**
+     * @return FormDataProviderInterface
+     */
+    private function createDataProviderMock(): FormDataProviderInterface
+    {
+        $dataProviderMock = $this->createMock(FormDataProviderInterface::class);
+        $dataProviderMock
+            ->expects($this->once())
+            ->method('getData')
+            ->will($this->returnValue([]));
+
+        $dataProviderMock
+            ->expects($this->never())
+            ->method('getDefaultData');
+
+        return $dataProviderMock;
+    }
+
+    /**
+     * @return FormDataProviderInterface
+     */
+    private function createDefaultDataProviderMock(): FormDataProviderInterface
+    {
+        $dataProviderMock = $this->createMock(FormDataProviderInterface::class);
+        $dataProviderMock
+            ->expects($this->once())
+            ->method('getDefaultData')
+            ->will($this->returnValue([]));
+
+        $dataProviderMock
+            ->expects($this->never())
+            ->method('getData');
+
+        return $dataProviderMock;
+    }
+
+    /**
+     * @param array $options
+     *
+     * @return FormOptionsProviderInterface
+     */
+    private function createDefaultOptionProviderMock(array $options): FormOptionsProviderInterface
+    {
+        $optionProviderMock = $this->createMock(FormOptionsProviderInterface::class);
+        $optionProviderMock
+            ->expects($this->once())
+            ->method('getDefaultOptions')
+            ->will($this->returnValue($options));
+
+        $optionProviderMock
+            ->expects($this->never())
+            ->method('getOptions');
+
+        return $optionProviderMock;
+    }
+
+    /**
+     * @param array $options
+     *
+     * @return FormOptionsProviderInterface
+     */
+    private function createOptionProviderMock(array $options): FormOptionsProviderInterface
+    {
+        $optionProviderMock = $this->createMock(FormOptionsProviderInterface::class);
+        $optionProviderMock
+            ->expects($this->once())
+            ->method('getOptions')
+            ->will($this->returnValue($options));
+
+        $optionProviderMock
+            ->expects($this->never())
+            ->method('getDefaultOptions')
+            ;
+
+        return $optionProviderMock;
     }
 }

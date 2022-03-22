@@ -1,11 +1,12 @@
 <?php
 /**
- * 2007-2020 PrestaShop SA and Contributors
+ * Copyright since 2007 PrestaShop SA and Contributors
+ * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
  * NOTICE OF LICENSE
  *
  * This source file is subject to the Open Software License (OSL 3.0)
- * that is bundled with this package in the file LICENSE.txt.
+ * that is bundled with this package in the file LICENSE.md.
  * It is also available through the world-wide-web at this URL:
  * https://opensource.org/licenses/OSL-3.0
  * If you did not receive a copy of the license and are unable to
@@ -16,12 +17,11 @@
  *
  * Do not edit or add to this file if you wish to upgrade PrestaShop to newer
  * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to https://www.prestashop.com for more information.
+ * needs please refer to https://devdocs.prestashop.com/ for more information.
  *
- * @author    PrestaShop SA <contact@prestashop.com>
- * @copyright 2007-2020 PrestaShop SA and Contributors
+ * @author    PrestaShop SA and Contributors <contact@prestashop.com>
+ * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
- * International Registered Trademark & Property of PrestaShop SA
  */
 
 declare(strict_types=1);
@@ -38,20 +38,20 @@ class NumberExtractorException extends CoreException
     /**
      * When provided property path is not valid
      */
-    const INVALID_PROPERTY_PATH = 10;
+    public const INVALID_PROPERTY_PATH = 10;
 
     /**
      * When the resource/property from which value is being extracted is of invalid type
      */
-    const INVALID_RESOURCE_TYPE = 20;
+    public const INVALID_RESOURCE_TYPE = 20;
 
     /**
      * When property is not accessible or doesn't exist
      */
-    const NOT_ACCESSIBLE = 30;
+    public const NOT_ACCESSIBLE = 30;
 
     /**
      * When property type is not numeric therefore it cannot be converted to number
      */
-    const NON_NUMERIC_PROPERTY = 40;
+    public const NON_NUMERIC_PROPERTY = 40;
 }

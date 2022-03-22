@@ -23,6 +23,8 @@
  * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
+
+use PrestaShopBundle\Translation\TranslatorComponent;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
@@ -140,7 +142,7 @@ abstract class ControllerCore
     public $php_self;
 
     /**
-     * @var PrestaShopBundle\Translation\Translator
+     * @var TranslatorComponent
      */
     protected $translator;
 
@@ -162,13 +164,31 @@ abstract class ControllerCore
     abstract public function viewAccess();
 
     /**
+     * Errors displayed after post processing
+     *
+     * @var array<string|int, string|bool>
+     */
+    public $errors = [];
+
+    /** @var string */
+    public $layout;
+
+    /**
      * Initialize the page.
      *
      * @throws Exception
      */
     public function init()
     {
-        if (_PS_MODE_DEV_ && $this->controller_type == 'admin') {
+        Hook::exec(
+            'actionControllerInitBefore',
+            [
+                'controller' => $this,
+            ]
+        );
+
+        /* @phpstan-ignore-next-line */
+        if (_PS_MODE_DEV_ && $this->controller_type == 'admin' && !($this instanceof AdminLegacyLayoutControllerCore)) {
             set_error_handler([__CLASS__, 'myErrorHandler']);
         }
 
@@ -187,6 +207,13 @@ abstract class ControllerCore
         $localeRepo = $this->get(self::SERVICE_LOCALE_REPOSITORY);
         $this->context->currentLocale = $localeRepo->getLocale(
             $this->context->language->getLocale()
+        );
+
+        Hook::exec(
+            'actionControllerInitAfter',
+            [
+                'controller' => $this,
+            ]
         );
     }
 
@@ -345,7 +372,7 @@ abstract class ControllerCore
     }
 
     /**
-     * Sets page header display.
+     * Sets page footer display.
      *
      * @param bool $display
      */
@@ -405,7 +432,7 @@ abstract class ControllerCore
      * @param int|null $offset
      * @param bool $check_path
      *
-     * @return true
+     * @return void
      */
     public function addCSS($css_uri, $css_media_type = 'all', $offset = null, $check_path = true)
     {
@@ -562,7 +589,7 @@ abstract class ControllerCore
 
         foreach ($component as $ui) {
             $ui_path = Media::getJqueryUIPath($ui, $theme, $check_dependencies);
-            $this->addCSS($ui_path['css'], 'all', false);
+            $this->addCSS($ui_path['css'], 'all');
             $this->addJS($ui_path['js'], false);
         }
     }
@@ -571,7 +598,7 @@ abstract class ControllerCore
      * Adds jQuery plugin(s) to queued JS file list.
      *
      * @param string|array $name
-     * @param string null $folder
+     * @param string|null $folder
      * @param bool $css
      */
     public function addJqueryPlugin($name, $folder = null, $css = true)
@@ -661,7 +688,7 @@ abstract class ControllerCore
     /**
      * Custom error handler.
      *
-     * @param string $errno
+     * @param int $errno
      * @param string $errstr
      * @param string $errfile
      * @param int $errline
@@ -670,7 +697,13 @@ abstract class ControllerCore
      */
     public static function myErrorHandler($errno, $errstr, $errfile, $errline)
     {
-        if (error_reporting() === 0) {
+        /**
+         * Prior to PHP 8.0.0, the $errno value was always 0 if the expression which caused the diagnostic was prepended by the @ error-control operator.
+         *
+         * @see https://www.php.net/manual/fr/function.set-error-handler.php
+         * @see https://www.php.net/manual/en/language.operators.errorcontrol.php
+         */
+        if (!(error_reporting() & $errno)) {
             return false;
         }
 
@@ -678,8 +711,6 @@ abstract class ControllerCore
             case E_USER_ERROR:
             case E_ERROR:
                 die('Fatal error: ' . $errstr . ' in ' . $errfile . ' on line ' . $errline);
-
-                break;
             case E_USER_WARNING:
             case E_WARNING:
                 $type = 'Warning';
@@ -725,9 +756,9 @@ abstract class ControllerCore
     }
 
     /**
-     * @param null $value
-     * @param null $controller
-     * @param null $method
+     * @param string|null $value
+     * @param string|null $controller
+     * @param string|null $method
      *
      * @throws PrestaShopException
      */
@@ -794,7 +825,7 @@ abstract class ControllerCore
     /**
      * Gets the dependency container.
      *
-     * @return ContainerBuilder
+     * @return ContainerBuilder|null
      */
     public function getContainer()
     {

@@ -26,19 +26,21 @@
 
 namespace PrestaShop\PrestaShop\Core\Feature;
 
+use Configuration;
+
 /**
  * Defines if token in urls are disabled.
  */
 final class TokenInUrls
 {
-    const DISABLED = 'disabled';
-    const ENV_VAR = '_TOKEN_';
+    public const DISABLED = 'disabled';
+    public const ENV_VAR = '_TOKEN_';
 
     /**
      * @return bool
      */
     public static function isDisabled()
     {
-        return getenv(self::ENV_VAR) === self::DISABLED;
+        return (bool) Configuration::get('PS_SECURITY_TOKEN') === false || getenv(self::ENV_VAR) === self::DISABLED;
     }
 }

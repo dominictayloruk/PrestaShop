@@ -1,11 +1,20 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class LinkWidgets extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Link list page, contains functions that can be used on the page
+ * @class
+ * @extends BOBasePage
+ */
+class LinkList extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on link list page
+   */
+  constructor() {
+    super();
 
-    this.pageTitle = 'Link Widget •';
+    this.pageTitle = 'Link List •';
 
     // Header Selectors
     this.newBlockLink = '#page-header-desc-configuration-add';
@@ -17,41 +26,47 @@ module.exports = class LinkWidgets extends BOBasePage {
     this.actionsColumn = (hookName, row) => `${this.tableRow(hookName, row)} td.column-actions`;
     this.dropdownToggleButton = (hookName, row) => `${this.actionsColumn(hookName, row)} a.dropdown-toggle`;
     this.dropdownToggleMenu = (hookName, row) => `${this.actionsColumn(hookName, row)} div.dropdown-menu`;
-    this.deleteRowLink = (hookName, row) => `${this.dropdownToggleMenu(hookName, row)} a[data-url*='/delete']`;
+    this.deleteRowLink = (hookName, row) => `${this.dropdownToggleMenu(hookName, row)} a.grid-delete-row-link`;
   }
 
   /* Header methods */
   /**
    * Go to new Block page
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async goToNewLinkWidgetPage() {
-    await this.clickAndWaitForNavigation(this.newBlockLink);
+  async goToNewLinkWidgetPage(page) {
+    await this.clickAndWaitForNavigation(page, this.newBlockLink);
   }
 
   /* Table methods */
   /**
-   * Get Number of element in grid
-   * @param hookName, table to get number from
+   * Get number of element in grid
+   * @param page {Page} Browser tab
+   * @param hookName {string} Table name to get number of elements
    * @returns {Promise<number>}
    */
-  async getNumberOfElementInGrid(hookName) {
-    return this.getNumberFromText(this.gridHeaderTitle(hookName));
+  async getNumberOfElementInGrid(page, hookName) {
+    return this.getNumberFromText(page, this.gridHeaderTitle(hookName));
   }
 
   /**
    * Delete link widget
-   * @param hookName, table to delete from
-   * @param row, row to delete
+   * @param page {Page} Browser tab
+   * @param hookName {string} Table name to delete from
+   * @param row {number} Row on table to delete
    * @returns {Promise<string>}
    */
-  async deleteLinkWidget(hookName, row) {
-    this.dialogListener(true);
+  async deleteLinkWidget(page, hookName, row) {
+    this.dialogListener(page, true);
     await Promise.all([
-      this.page.click(this.dropdownToggleButton(hookName, row)),
-      this.waitForVisibleSelector(`${this.dropdownToggleButton(hookName, row)}[aria-expanded='true']`),
+      page.click(this.dropdownToggleButton(hookName, row)),
+      this.waitForVisibleSelector(page, `${this.dropdownToggleButton(hookName, row)}[aria-expanded='true']`),
     ]);
-    await this.clickAndWaitForNavigation(this.deleteRowLink(hookName, row));
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, this.deleteRowLink(hookName, row));
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new LinkList();

@@ -100,7 +100,7 @@ class AddressCore extends ObjectModel
     public $date_upd;
 
     /** @var bool True if address has been deleted (staying in database as deleted) */
-    public $deleted = 0;
+    public $deleted = false;
 
     /** @var array Zone IDs cache */
     protected static $_idZones = [];
@@ -276,11 +276,11 @@ class AddressCore extends ObjectModel
      *
      * @param int $id_address Address ID for which we want to get the Zone ID
      *
-     * @return int Zone ID
+     * @return int|bool Zone ID
      */
     public static function getZoneById($id_address)
     {
-        if (!isset($id_address) || empty($id_address)) {
+        if (empty($id_address)) {
             return false;
         }
 
@@ -303,7 +303,13 @@ class AddressCore extends ObjectModel
 			LEFT JOIN `' . _DB_PREFIX_ . 'state` s ON s.`id_state` = a.`id_state`
 			WHERE a.`id_address` = ' . (int) $id_address);
 
-        self::$_idZones[$id_address] = (int) ((int) $result['id_zone_state'] ? $result['id_zone_state'] : $result['id_zone']);
+        if (empty($result['id_zone_state']) && empty($result['id_zone'])) {
+            return false;
+        }
+
+        self::$_idZones[$id_address] = !empty($result['id_zone_state'])
+            ? (int) $result['id_zone_state']
+            : (int) $result['id_zone'];
 
         return self::$_idZones[$id_address];
     }
@@ -313,11 +319,11 @@ class AddressCore extends ObjectModel
      *
      * @param int $id_address Address ID for which we want to get the Country status
      *
-     * @return int Country status
+     * @return int|bool Country status
      */
     public static function isCountryActiveById($id_address)
     {
-        if (!isset($id_address) || empty($id_address)) {
+        if (empty($id_address)) {
             return false;
         }
 
@@ -386,7 +392,7 @@ class AddressCore extends ObjectModel
     /**
      * Check if Address is used (at least one order placed).
      *
-     * @return int Order count for this Address
+     * @return int|bool Order count for this Address
      */
     public function isUsed()
     {
@@ -436,15 +442,16 @@ class AddressCore extends ObjectModel
      */
     public static function addressExists($id_address)
     {
-        $key = 'address_exists_' . (int) $id_address;
-        if (!Cache::isStored($key)) {
-            $id_address = Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('SELECT `id_address` FROM ' . _DB_PREFIX_ . 'address a WHERE a.`id_address` = ' . (int) $id_address);
-            Cache::store($key, (bool) $id_address);
-
-            return (bool) $id_address;
+        if ($id_address <= 0) {
+            return false;
         }
 
-        return Cache::retrieve($key);
+        return (bool) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+            'SELECT `id_address`
+            FROM ' . _DB_PREFIX_ . 'address a
+            WHERE a.`id_address` = ' . (int) $id_address,
+            false
+        );
     }
 
     /**
@@ -515,7 +522,7 @@ class AddressCore extends ObjectModel
             $context_hash = md5((int) $context->customer->geoloc_id_country . '-' . (int) $context->customer->id_state . '-' .
                                 $context->customer->postcode);
         } else {
-            $context_hash = md5((int) $context->country->id);
+            $context_hash = md5((string) $context->country->id);
         }
 
         $cache_id = 'Address::initialize_' . $context_hash;
@@ -537,19 +544,19 @@ class AddressCore extends ObjectModel
                 $address = new Address();
                 $address->id_country = (int) $context->country->id;
                 $address->id_state = 0;
-                $address->postcode = 0;
+                $address->postcode = '0';
             } elseif ((int) Configuration::get('PS_SHOP_COUNTRY_ID')) {
                 // set the default address
                 $address = new Address();
-                $address->id_country = Configuration::get('PS_SHOP_COUNTRY_ID');
-                $address->id_state = Configuration::get('PS_SHOP_STATE_ID');
+                $address->id_country = (int) Configuration::get('PS_SHOP_COUNTRY_ID');
+                $address->id_state = (int) Configuration::get('PS_SHOP_STATE_ID');
                 $address->postcode = Configuration::get('PS_SHOP_CODE');
             } else {
                 // set the default address
                 $address = new Address();
-                $address->id_country = Configuration::get('PS_COUNTRY_DEFAULT');
+                $address->id_country = (int) Configuration::get('PS_COUNTRY_DEFAULT');
                 $address->id_state = 0;
-                $address->postcode = 0;
+                $address->postcode = '0';
             }
             Cache::store($cache_id, $address);
 
@@ -579,7 +586,7 @@ class AddressCore extends ObjectModel
         $query->where('id_manufacturer = 0');
         $query->where('id_warehouse = 0');
 
-        return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($query);
+        return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($query);
     }
 
     /**
@@ -602,7 +609,7 @@ class AddressCore extends ObjectModel
         $query->where('id_customer = ' . (int) $id_customer);
         $query->where('deleted = 0');
 
-        return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($query);
+        return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($query, false);
     }
 
     /**

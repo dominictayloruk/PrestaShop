@@ -1,9 +1,18 @@
 require('module-alias/register');
 const FOBasePage = require('@pages/FO/FObasePage');
 
-module.exports = class Login extends FOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Login page, contains functions that can be used on the page
+ * @class
+ * @extends FOBasePage
+ */
+class Login extends FOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on login page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Login';
 
@@ -12,20 +21,8 @@ module.exports = class Login extends FOBasePage {
     this.emailInput = `${this.loginForm} input[name='email']`;
     this.passwordInput = `${this.loginForm} input[name='password']`;
     this.signInButton = `${this.loginForm} button#submit-login`;
-    this.displayRegisterFormLink = '#content a[data-link-action=\'display-register-form\']';
-    // Selectors for create account form
-    this.createAccountForm = '#customer-form';
-    this.genderRadioButton = id => `${this.createAccountForm} input[name='id_gender'][value='${id}']`;
-    this.firstNameInput = `${this.createAccountForm} input[name='firstname']`;
-    this.lastNameInput = `${this.createAccountForm} input[name='lastname']`;
-    this.newEmailInput = `${this.createAccountForm} input[name='email']`;
-    this.newPasswordInput = `${this.createAccountForm} input[name='password']`;
-    this.birthdateInput = `${this.createAccountForm} input[name='birthday']`;
-    this.customerPrivacyCheckbox = `${this.createAccountForm} input[name='customer_privacy']`;
-    this.psgdprCheckbox = `${this.createAccountForm} input[name='psgdpr']`;
-    this.partnerOfferCheckbox = `${this.createAccountForm} input[name='optin']`;
-    this.companyInput = `${this.createAccountForm} input[name='company']`;
-    this.saveButton = `${this.createAccountForm} .form-control-submit`;
+    this.displayRegisterFormLink = 'div.no-account a[data-link-action=\'display-register-form\']';
+    this.passwordReminderLink = '.forgot-password a';
   }
 
   /*
@@ -34,72 +31,33 @@ module.exports = class Login extends FOBasePage {
 
   /**
    * Login in FO
-   * @param customer
+   * @param page {Page} Browser tab
+   * @param customer {object} Customer's information (email and password)
    * @return {Promise<void>}
    */
-  async customerLogin(customer) {
-    await this.setValue(this.emailInput, customer.email);
-    await this.setValue(this.passwordInput, customer.password);
-    await this.clickAndWaitForNavigation(this.signInButton);
-  }
-
-  /**
-   * Create new customer account
-   * @param customer
-   * @returns {Promise<void>}
-   */
-  async createAccount(customer) {
-    await this.waitForSelectorAndClick(this.displayRegisterFormLink);
-    await this.waitForSelectorAndClick(this.genderRadioButton(customer.socialTitle === 'Mr.' ? 1 : 2));
-    await this.setValue(this.firstNameInput, customer.firstName);
-    await this.setValue(this.lastNameInput, customer.lastName);
-    await this.setValue(this.newEmailInput, customer.email);
-    await this.setValue(this.newPasswordInput, customer.password);
-    await this.setValue(this.birthdateInput, `${customer.monthOfBirth}/${customer.dayOfBirth}/${customer.yearOfBirth}`);
-    await this.page.click(this.customerPrivacyCheckbox);
-    if (await this.elementVisible(this.psgdprCheckbox, 500)) {
-      await this.page.click(this.psgdprCheckbox);
-    }
-    await this.page.click(this.saveButton);
+  async customerLogin(page, customer) {
+    await this.setValue(page, this.emailInput, customer.email);
+    await this.setValue(page, this.passwordInput, customer.password);
+    await this.clickAndWaitForNavigation(page, this.signInButton);
   }
 
   /**
    * Go to create account page
+   * @param page {Page} Browser tab
    * @returns {Promise<void>}
    */
-  async goToCreateAccountPage() {
-    await this.waitForSelectorAndClick(this.displayRegisterFormLink);
+  async goToCreateAccountPage(page) {
+    await this.clickAndWaitForNavigation(page, this.displayRegisterFormLink);
   }
 
   /**
-   * Is partner offer required
-   * @returns {Promise<boolean>}
+   * Go to the password reminder page
+   * @param page {Page} Browser tab
+   * @returns {Promise<void>}
    */
-  async isPartnerOfferRequired() {
-    return this.elementVisible(`${this.partnerOfferCheckbox}:required`, 1000);
+  async goToPasswordReminderPage(page) {
+    await this.clickAndWaitForNavigation(page, this.passwordReminderLink);
   }
+}
 
-  /**
-   * Is birth date input visible
-   * @returns {Promise<boolean>}
-   */
-  async isBirthDateVisible() {
-    return this.elementVisible(this.birthdateInput, 1000);
-  }
-
-  /**
-   * Is partner offer visible
-   * @returns {Promise<boolean>}
-   */
-  async isPartnerOfferVisible() {
-    return this.elementVisible(this.partnerOfferCheckbox, 1000);
-  }
-
-  /**
-   * Is company input visible
-   * @returns {Promise<boolean>}
-   */
-  async isCompanyInputVisible() {
-    return this.elementVisible(this.companyInput, 1000);
-  }
-};
+module.exports = new Login();

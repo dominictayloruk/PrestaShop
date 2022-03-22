@@ -50,7 +50,7 @@ class AccessCore extends ObjectModel
     /**
      * Is access granted to this Role?
      *
-     * @param string $role Role name ("Superadministrator", "sales", "translator", etc.)
+     * @param string|array<string> $role Role name ("Superadministrator", "sales", "translator", etc.)
      * @param int $idProfile Profile ID
      *
      * @return bool Whether access is granted
@@ -175,7 +175,7 @@ class AccessCore extends ObjectModel
      *
      * @param int $idParentTab Tab ID
      *
-     * @return string Full module slug
+     * @return array<int, array<string, string>> Full module slug
      */
     public static function findSlugByIdParentTab($idParentTab)
     {
@@ -207,27 +207,27 @@ class AccessCore extends ObjectModel
     /**
      * Sluggify tab.
      *
-     * @param string $tab Tab class name
+     * @param array $tab Tab class name
      * @param string $authorization 'CREATE'|'READ'|'UPDATE'|'DELETE'
      *
      * @return string Full slug for tab
      */
     public static function sluggifyTab($tab, $authorization = '')
     {
-        return sprintf('ROLE_MOD_TAB_%s_%s', strtoupper($tab['class_name']), $authorization);
+        return sprintf('ROLE_MOD_TAB_%s_%s', strtoupper($tab['class_name'] ?? ''), $authorization);
     }
 
     /**
      * Sluggify module.
      *
-     * @param string $module Module name
+     * @param array $module Module name
      * @param string $authorization 'CREATE'|'READ'|'UPDATE'|'DELETE'
      *
      * @return string Full slug for module
      */
     public static function sluggifyModule($module, $authorization = '')
     {
-        return sprintf('ROLE_MOD_MODULE_%s_%s', strtoupper($module['name']), $authorization);
+        return sprintf('ROLE_MOD_MODULE_%s_%s', strtoupper($module['name'] ?? ''), $authorization);
     }
 
     /**
@@ -331,7 +331,7 @@ class AccessCore extends ObjectModel
      * @param int $idProfile Profile ID
      * @param int $idTab Tab ID
      * @param string $lgcAuth Legacy authorization
-     * @param int $enabled Whether access should be granted
+     * @param bool $enabled Whether access should be granted
      * @param int $addFromParent Child from parents
      *
      * @return string Whether legacy access has been successfully updated ("ok", "error")

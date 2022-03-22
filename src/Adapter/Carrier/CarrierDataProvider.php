@@ -52,12 +52,12 @@ class CarrierDataProvider
      * @param bool $delete
      * @param bool|int $id_zone
      * @param string|null $ids_group
-     * @param $modules_filters , possible values:
-     * PS_CARRIERS_ONLY
-     * CARRIERS_MODULE
-     * CARRIERS_MODULE_NEED_RANGE
-     * PS_CARRIERS_AND_CARRIER_MODULES_NEED_RANGE
-     * ALL_CARRIERS
+     * @param int $modules_filters Possible values:
+     *                             - PS_CARRIERS_ONLY
+     *                             - CARRIERS_MODULE
+     *                             - CARRIERS_MODULE_NEED_RANGE
+     *                             - PS_CARRIERS_AND_CARRIER_MODULES_NEED_RANGE
+     *                             - ALL_CARRIERS
      *
      * @return array Carriers
      */
@@ -83,7 +83,7 @@ class CarrierDataProvider
         $carriersChoices = [];
 
         foreach ($carriers as $carrier) {
-            $carriersChoices[$carrier['name']] = $carrier['id_carrier'];
+            $carriersChoices[$carrier['name']] = (int) $carrier['id_carrier'];
         }
 
         return $carriersChoices;

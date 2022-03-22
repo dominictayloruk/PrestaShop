@@ -51,13 +51,12 @@ class AdminRequestSqlControllerCore extends AdminController
         $this->table = 'request_sql';
         $this->className = 'RequestSql';
         $this->lang = false;
-        $this->export = true;
 
         parent::__construct();
 
         $this->fields_list = [
             'id_request_sql' => ['title' => $this->trans('ID', [], 'Admin.Global'), 'class' => 'fixed-width-xs'],
-            'name' => ['title' => $this->trans('SQL query Name', [], 'Admin.Advparameters.Feature')],
+            'name' => ['title' => $this->trans('SQL query name', [], 'Admin.Advparameters.Feature')],
             'sql' => [
                 'title' => $this->trans('SQL query', [], 'Admin.Advparameters.Feature'),
                 'filter_key' => 'a!sql',
@@ -179,6 +178,7 @@ class AdminRequestSqlControllerCore extends AdminController
     public function postProcess()
     {
         /* PrestaShop demo mode */
+        /* @phpstan-ignore-next-line */
         if (_PS_MODE_DEMO_) {
             $this->errors[] = $this->trans('This functionality has been disabled.', [], 'Admin.Notifications.Error');
 
@@ -196,6 +196,7 @@ class AdminRequestSqlControllerCore extends AdminController
     public function ajaxProcess()
     {
         /* PrestaShop demo mode */
+        /* @phpstan-ignore-next-line  */
         if (_PS_MODE_DEMO_) {
             die($this->trans('This functionality has been disabled.', [], 'Admin.Notifications.Error'));
         }
@@ -216,13 +217,13 @@ class AdminRequestSqlControllerCore extends AdminController
 
     public function renderView()
     {
-        /** @var RequestSql $obj */
         if (!($obj = $this->loadObject(true))) {
             return;
         }
-
+        /** @var RequestSql $obj */
         $view = [];
         if ($results = Db::getInstance()->executeS($obj->sql)) {
+            $tab_key = [];
             foreach (array_keys($results[0]) as $key) {
                 $tab_key[] = $key;
             }
@@ -262,7 +263,7 @@ class AdminRequestSqlControllerCore extends AdminController
     /**
      * Display export action link.
      *
-     * @param $token
+     * @param string $token
      * @param int $id
      *
      * @return string
@@ -331,12 +332,12 @@ class AdminRequestSqlControllerCore extends AdminController
     }
 
     /**
-     * Genrating a export file.
+     * Generating an export file.
      */
     public function processExport($textDelimiter = '"')
     {
         $id = Tools::getValue($this->identifier);
-        $export_dir = defined('_PS_HOST_MODE_') ? _PS_ROOT_DIR_ . '/export/' : _PS_ADMIN_DIR_ . '/export/';
+        $export_dir = _PS_ADMIN_DIR_ . '/export/';
         if (!Validate::isFileName($id)) {
             die(Tools::displayError());
         }
@@ -346,6 +347,7 @@ class AdminRequestSqlControllerCore extends AdminController
 
             if ($sql) {
                 $results = Db::getInstance()->executeS($sql[0]['sql']);
+                $tab_key = [];
                 foreach (array_keys($results[0]) as $key) {
                     $tab_key[] = $key;
                     fwrite($csv, $key . ';');
@@ -383,7 +385,7 @@ class AdminRequestSqlControllerCore extends AdminController
     /**
      * Display all errors.
      *
-     * @param $e : array of errors
+     * @param array $e Array of errors
      */
     public function displayError($e)
     {

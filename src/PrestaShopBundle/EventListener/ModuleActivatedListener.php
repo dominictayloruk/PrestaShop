@@ -29,13 +29,12 @@ namespace PrestaShopBundle\EventListener;
 use Doctrine\Common\Annotations\AnnotationException;
 use Doctrine\Common\Annotations\Reader;
 use Doctrine\Common\Util\ClassUtils;
-use PrestaShop\PrestaShop\Adapter\Module\Module;
 use PrestaShop\PrestaShop\Core\Addon\Module\ModuleRepository;
 use PrestaShopBundle\Security\Annotation\ModuleActivated;
 use ReflectionClass;
 use ReflectionObject;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Translation\TranslatorInterface;
@@ -57,7 +56,7 @@ class ModuleActivatedListener
     private $translator;
 
     /**
-     * @var SessionInterface
+     * @var Session
      */
     private $session;
 
@@ -74,14 +73,14 @@ class ModuleActivatedListener
     /**
      * @param RouterInterface $router
      * @param TranslatorInterface $translator
-     * @param SessionInterface $session
+     * @param Session $session
      * @param Reader $annotationReader
      * @param ModuleRepository $moduleRepository
      */
     public function __construct(
         RouterInterface $router,
         TranslatorInterface $translator,
-        SessionInterface $session,
+        Session $session,
         Reader $annotationReader,
         ModuleRepository $moduleRepository
     ) {
@@ -117,12 +116,7 @@ class ModuleActivatedListener
             return;
         }
 
-        /** @var Module $module */
         $module = $this->moduleRepository->getModule($moduleActivated->getModuleName());
-        if (null === $module) {
-            return;
-        }
-
         if (!$module->isActive()) {
             $this->showNotificationMessage($moduleActivated);
             $url = $this->router->generate($moduleActivated->getRedirectRoute());

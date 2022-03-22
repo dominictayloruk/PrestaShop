@@ -1,9 +1,18 @@
 require('module-alias/register');
 const FOBasePage = require('@pages/FO/FObasePage');
 
-module.exports = class SiteMap extends FOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Site map page, contains functions that can be used on the page
+ * @class
+ * @extends FOBasePage
+ */
+class SiteMap extends FOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on site map page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Sitemap';
 
@@ -19,44 +28,51 @@ module.exports = class SiteMap extends FOBasePage {
    */
   /**
    * Get category name
-   * @param categoryID
+   * @param page {Page} Browser tab
+   * @param categoryID {number} ID of the category
    * @return {Promise<string>}
    */
-  async getCategoryName(categoryID) {
-    return this.getTextContent(this.categoryNameSelect(categoryID));
+  async getCategoryName(page, categoryID) {
+    return this.getTextContent(page, this.categoryNameSelect(categoryID));
   }
 
   /**
    * Check if category is visible
-   * @param categoryID
+   * @param page {Page} Browser tab
+   * @param categoryID {number} ID of the category
    * @return {Promise<boolean>}
    */
-  async isVisibleCategory(categoryID) {
-    return this.elementVisible(this.categoryNameSelect(categoryID));
+  async isVisibleCategory(page, categoryID) {
+    return this.elementVisible(page, this.categoryNameSelect(categoryID));
   }
 
   /**
    * Get page category name
-   * @param pageCategoryID
+   * @param page {Page} Browser tab
+   * @param pageCategoryID {number} Id of the page category
    * @return {Promise<string>}
    */
-  async getPageCategoryName(pageCategoryID) {
-    return this.getTextContent(this.categoryPageNameSelect(pageCategoryID));
+  async getPageCategoryName(page, pageCategoryID) {
+    return this.getTextContent(page, this.categoryPageNameSelect(pageCategoryID));
   }
 
   /**
    * Is suppliers link visible
-   * @returns {boolean}
+   * @param page {Page} Browser tab
+   * @returns {Promise<boolean>}
    */
-  isSuppliersLinkVisible() {
-    return this.elementVisible(this.suppliersPageLink, 2000);
+  isSuppliersLinkVisible(page) {
+    return this.elementVisible(page, this.suppliersPageLink, 2000);
   }
 
   /**
    * Is brands link visible
-   * @returns {boolean}
+   * @param page {Page} Browser tab
+   * @returns {Promise<boolean>}
    */
-  isBrandsLinkVisible() {
-    return this.elementVisible(this.brandsPageLink, 2000);
+  isBrandsLinkVisible(page) {
+    return this.elementVisible(page, this.brandsPageLink, 2000);
   }
-};
+}
+
+module.exports = new SiteMap();

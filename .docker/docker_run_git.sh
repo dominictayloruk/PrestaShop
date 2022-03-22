@@ -1,10 +1,12 @@
 #!/bin/sh
 
-echo "\n* Running composer ...";
-runuser -g www-data -u www-data -- /usr/local/bin/composer install --no-interaction
+if [ "${DISABLE_MAKE}" != "1" ]; then
+  echo "\n* Running composer ...";
+  runuser -g www-data -u www-data -- /usr/local/bin/composer install --no-interaction
 
-echo "\n* Build assets ...";
-runuser -g www-data -u www-data -- /usr/bin/make assets
+  echo "\n* Build assets ...";
+  runuser -g www-data -u www-data -- /usr/bin/make assets
+fi
 
 if [ "$DB_SERVER" = "<to be defined>" -a $PS_INSTALL_AUTO = 1 ]; then
     echo >&2 'error: You requested automatic PrestaShop installation but MySQL server address is not provided '
@@ -27,6 +29,11 @@ fi
 
 # From now, stop at error
 set -e
+
+if [ $PS_DEV_MODE -ne 1 ]; then
+  echo "\n* Disabling DEV mode ...";
+  sed -ie "s/define('_PS_MODE_DEV_', true);/define('_PS_MODE_DEV_',\ false);/g" /var/www/html/config/defines.inc.php
+fi
 
 if [ ! -f ./config/settings.inc.php ]; then
     if [ $PS_INSTALL_AUTO = 1 ]; then
@@ -55,7 +62,7 @@ if [ ! -f ./config/settings.inc.php ]; then
         echo "\n* Launching the installer script..."
         runuser -g www-data -u www-data -- php /var/www/html/$PS_FOLDER_INSTALL/index_cli.php \
         --domain="$PS_DOMAIN" --db_server=$DB_SERVER:$DB_PORT --db_name="$DB_NAME" --db_user=$DB_USER \
-        --db_password=$DB_PASSWD --prefix="$DB_PREFIX" --firstname="John" --lastname="Doe" \
+        --db_password=$DB_PASSWD --prefix="$DB_PREFIX" --firstname="Marc" --lastname="Beier" \
         --password=$ADMIN_PASSWD --email="$ADMIN_MAIL" --language=$PS_LANGUAGE --country=$PS_COUNTRY \
         --all_languages=$PS_ALL_LANGUAGES --newsletter=0 --send_email=0 --ssl=$PS_ENABLE_SSL
 
@@ -64,7 +71,7 @@ if [ ! -f ./config/settings.inc.php ]; then
         fi
     fi
 else
-    echo "\n* Pretashop Core already installed...";
+    echo "\n* PrestaShop Core already installed...";
 fi
 
 if [ $PS_DEMO_MODE -ne 0 ]; then

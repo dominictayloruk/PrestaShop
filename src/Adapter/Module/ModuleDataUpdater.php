@@ -27,7 +27,6 @@
 namespace PrestaShop\PrestaShop\Adapter\Module;
 
 use Module as LegacyModule;
-use PrestaShopBundle\Service\DataProvider\Admin\AddonsInterface;
 use Symfony\Component\Filesystem\Exception\IOException;
 use Symfony\Component\Filesystem\Filesystem;
 
@@ -37,41 +36,7 @@ use Symfony\Component\Filesystem\Filesystem;
 class ModuleDataUpdater
 {
     /**
-     * @var AddonsInterface
-     */
-    private $addonsDataProvider;
-
-    /**
-     * @var AdminModuleDataProvider
-     */
-    private $adminModuleDataProvider;
-
-    public function __construct(AddonsInterface $addonsDataProvider, AdminModuleDataProvider $adminModuleDataProvider)
-    {
-        $this->addonsDataProvider = $addonsDataProvider;
-        $this->adminModuleDataProvider = $adminModuleDataProvider;
-    }
-
-    /**
-     * @param $name
-     *
-     * @return bool
-     */
-    public function setModuleOnDiskFromAddons($name)
-    {
-        // Note : Data caching should be handled by the addons data provider
-        // Check if the module can be downloaded from addons
-        foreach ($this->adminModuleDataProvider->getCatalogModules(['name' => $name]) as $catalog_module) {
-            if ($catalog_module->name == $name && in_array($catalog_module->origin, ['native', 'native_all', 'must-have', 'customer'])) {
-                return $this->addonsDataProvider->downloadModule($catalog_module->id);
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * @param $name
+     * @param string $name
      *
      * @return bool
      */
@@ -89,7 +54,7 @@ class ModuleDataUpdater
     }
 
     /**
-     * @param $name
+     * @param string $name
      *
      * @return bool
      */

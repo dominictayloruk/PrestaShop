@@ -1,9 +1,18 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class Brands extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Brands page, contains selectors and functions for the page
+ * @class
+ * @extends BOBasePage
+ */
+class Brands extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up titles and selectors to use on brands page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Brands •';
     this.successfulUpdateStatusMessage = 'The status has been successfully updated.';
@@ -17,24 +26,29 @@ module.exports = class Brands extends BOBasePage {
     this.gridPanel = table => `#${table}_grid_panel`;
     this.gridTable = table => `#${table}_grid_table`;
     this.gridHeaderTitle = table => `${this.gridPanel(table)} h3.card-header-title`;
+
     // Bulk Actions
     this.selectAllRowsLabel = table => `${this.gridPanel(table)} tr.column-filters .grid_bulk_action_select_all`;
     this.bulkActionsToggleButton = table => `${this.gridPanel(table)} button.js-bulk-actions-btn`;
     this.confirmDeleteModal = table => `#${table}_grid_confirm_modal`;
     this.confirmDeleteButton = 'button.btn-confirm-submit';
+
     // Filters
     this.filterColumn = (table, filterBy) => `${this.gridTable(table)} #${table}_${filterBy}`;
     this.filterSearchButton = table => `${this.gridTable(table)} .grid-search-button`;
     this.filterResetButton = table => `${this.gridTable(table)} .grid-reset-button`;
+
     // Table rows and columns
     this.tableBody = table => `${this.gridTable(table)} tbody`;
     this.tableRow = (table, row) => `${this.tableBody(table)} tr:nth-child(${row})`;
     this.tableColumn = (table, row, column) => `${this.tableRow(table, row)} td.column-${column}`;
+
     // Actions buttons in Row
     this.actionsColumn = (table, row) => `${this.tableRow(table, row)} td.column-actions`;
     this.dropdownToggleButton = (table, row) => `${this.actionsColumn(table, row)} a.dropdown-toggle`;
     this.dropdownToggleMenu = (table, row) => `${this.actionsColumn(table, row)} div.dropdown-menu`;
     this.deleteRowLink = (table, row) => `${this.dropdownToggleMenu(table, row)} a.grid-delete-row-link`;
+
     // Sort Selectors
     this.tableHead = table => `${this.gridTable(table)} thead`;
     this.sortColumnDiv = (table, column) => `${this.tableHead(table)
@@ -52,9 +66,8 @@ module.exports = class Brands extends BOBasePage {
 
     // Brands list Selectors
     this.brandsTableColumnLogoImg = row => `${this.tableColumn('manufacturer', row, 'logo')} img`;
-    this.brandsTableEnableColumn = row => `${this.tableColumn('manufacturer', row, 'active')}`;
-    this.brandsEnableColumnValidIcon = row => `${this.brandsTableEnableColumn(row)} i.grid-toggler-icon-valid`;
-    this.brandsEnableColumnNotValidIcon = row => `${this.brandsTableEnableColumn(row)} i.grid-toggler-icon-not-valid`;
+    this.brandsTableColumnStatus = row => `${this.tableColumn('manufacturer', row, 'active')} .ps-switch`;
+    this.brandsTableColumnStatusToggleInput = row => `${this.brandsTableColumnStatus(row)} input`;
     this.viewBrandLink = row => `${this.actionsColumn('manufacturer', row)} a.grid-view-row-link`;
     this.editBrandLink = row => `${this.dropdownToggleMenu('manufacturer', row)} a.grid-edit-row-link`;
     this.bulkActionsEnableButton = `${this.gridPanel('manufacturer')} #manufacturer_grid_bulk_action_enable_selection`;
@@ -67,6 +80,7 @@ module.exports = class Brands extends BOBasePage {
     } a.grid-edit-row-link`;
     this.deleteAddressesButton = `${this.gridPanel('manufacturer_address')
     } #manufacturer_address_grid_bulk_action_delete_selection`;
+
     // Pagination selectors
     this.paginationLimitSelect = '#paginator_select_page_limit';
     this.paginationLabel = table => `${this.gridPanel(table)} .col-form-label`;
@@ -79,441 +93,486 @@ module.exports = class Brands extends BOBasePage {
    */
 
   /**
-   * Go to Tab Suppliers
+   * Go to sub tab Suppliers
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async goToSubTabSuppliers() {
-    await this.clickAndWaitForNavigation(this.suppliersNavItemLink);
+  async goToSubTabSuppliers(page) {
+    await this.clickAndWaitForNavigation(page, this.suppliersNavItemLink);
   }
 
   /**
    * Reset filters in table
-   * @param table, what table to reset
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to reset
    * @return {Promise<void>}
    */
-  async resetFilter(table) {
-    if (await this.elementVisible(this.filterResetButton(table), 2000)) {
-      await this.clickAndWaitForNavigation(this.filterResetButton(table));
+  async resetFilter(page, tableName) {
+    if (await this.elementVisible(page, this.filterResetButton(tableName), 2000)) {
+      await this.clickAndWaitForNavigation(page, this.filterResetButton(tableName));
     }
   }
 
   /**
    * Get number of elements in grid
-   * @param table
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to get number of element
    * @return {Promise<number>}
    */
-  async getNumberOfElementInGrid(table) {
-    return this.getNumberFromText(this.gridHeaderTitle(table));
+  async getNumberOfElementInGrid(page, tableName) {
+    return this.getNumberFromText(page, this.gridHeaderTitle(tableName));
   }
 
   /**
-   * Reset Filter And get number of elements in list
-   * @param table, what table to reset
+   * Reset Filter and get number of elements in list
+   * @param page {Page} Browser tab
+   * @param tableName {string} tableName name to reset
    * @return {Promise<number>}
    */
-  async resetAndGetNumberOfLines(table) {
-    await this.resetFilter(table);
-    return this.getNumberOfElementInGrid(table);
+  async resetAndGetNumberOfLines(page, tableName) {
+    await this.resetFilter(page, tableName);
+    return this.getNumberOfElementInGrid(page, tableName);
   }
 
   /**
    * Filter Table
-   * @param table, table to filter
-   * @param filterType, input / Select
-   * @param filterBy, which column
-   * @param value, value to put in filter
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to filter
+   * @param filterType {string} Type of filter (input/Select)
+   * @param filterBy {string} Column name to filter by
+   * @param value {string} Value to put in filter
    * @return {Promise<void>}
    */
-  async filterTable(table, filterType, filterBy, value = '') {
+  async filterTable(page, tableName, filterType, filterBy, value = '') {
     switch (filterType) {
       case 'input':
-        await this.setValue(this.filterColumn(table, filterBy), value);
+        await this.setValue(page, this.filterColumn(tableName, filterBy), value);
         break;
       case 'select':
-        await this.selectByVisibleText(this.filterColumn(table, filterBy), value);
+        await this.selectByVisibleText(page, this.filterColumn(tableName, filterBy), value);
         break;
       default:
         throw new Error(`Filter ${filterBy} was not found`);
     }
     // click on search
-    await this.clickAndWaitForNavigation(this.filterSearchButton(table));
+    await this.clickAndWaitForNavigation(page, this.filterSearchButton(tableName));
   }
 
   /**
    * Filter Brands
-   * @param filterType, input / Select
-   * @param filterBy, which column
-   * @param value, value to put in filter
+   * @param page {Page} Browser tab
+   * @param filterType {string} Type of filter (input/Select)
+   * @param filterBy {string} Column name to filter by
+   * @param value {string} Value to put in filter
    * @return {Promise<void>}
    */
-  async filterBrands(filterType, filterBy, value = '') {
-    await this.filterTable('manufacturer', filterType, filterBy, value);
+  async filterBrands(page, filterType, filterBy, value = '') {
+    await this.filterTable(page, 'manufacturer', filterType, filterBy, value);
   }
 
   /**
    * Filter Brands column active
-   * @param value
+   * @param page {Page} Browser tab
+   * @param value {string} Value to put in filter
    * @return {Promise<void>}
    */
-  async filterBrandsEnabled(value) {
-    await this.filterTable('manufacturer', 'select', 'active', value ? 'Yes' : 'No');
+  async filterBrandsEnabled(page, value) {
+    await this.filterTable(page, 'manufacturer', 'select', 'active', value ? 'Yes' : 'No');
   }
 
   /**
    * Filter Addresses
-   * @param filterType, input / Select
-   * @param filterBy, which column
-   * @param value, value to put in filter
+   * @param page {Page} Browser tab
+   * @param filterType {string} Type of filter (input/Select)
+   * @param filterBy {string} Column name to filter by
+   * @param value {string} Value to put in filter
    * @return {Promise<void>}
    */
-  async filterAddresses(filterType, filterBy, value = '') {
-    await this.filterTable('manufacturer_address', filterType, filterBy, value);
+  async filterAddresses(page, filterType, filterBy, value = '') {
+    await this.filterTable(page, 'manufacturer_address', filterType, filterBy, value);
   }
 
   /**
-   * Get toggle column value for a row (Brands list)
-   * @param row
-   * @return {Promise<string>}
+   * Get brand status
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to get status
+   * @return {Promise<boolean>}
    */
-  async getToggleColumnValue(row) {
-    return this.elementVisible(this.brandsEnableColumnValidIcon(row), 100);
+  async getBrandStatus(page, row) {
+    // Get value of the check input
+    const inputValue = await this.getAttributeContent(
+      page,
+      `${this.brandsTableColumnStatusToggleInput(row)}:checked`,
+      'value',
+    );
+
+    // Return status=false if value='0' and true otherwise
+    return (inputValue !== '0');
   }
 
   /**
    * Update Enable column for the value wanted in Brands list
-   * @param row
-   * @param valueWanted
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to update status
+   * @param valueWanted {boolean} Status to set for the brand
    * @return {Promise<boolean>}, true if click has been performed
    */
-  async updateEnabledValue(row, valueWanted = true) {
-    await this.waitForVisibleSelector(this.brandsTableEnableColumn(row), 2000);
-    if (await this.getToggleColumnValue(row) !== valueWanted) {
-      await this.clickAndWaitForNavigation(this.brandsTableEnableColumn(row));
+  async setBrandStatus(page, row, valueWanted = true) {
+    if (await this.getBrandStatus(page, row) !== valueWanted) {
+      await this.clickAndWaitForNavigation(page, this.brandsTableColumnStatus(row));
       return true;
     }
+
     return false;
   }
 
   /**
-   * Go to New Brand Page
+   * Go to new Brand Page
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async goToAddNewBrandPage() {
-    await this.clickAndWaitForNavigation(this.newBrandLink);
+  async goToAddNewBrandPage(page) {
+    await this.clickAndWaitForNavigation(page, this.newBrandLink);
   }
 
   /**
    * Go to new Brand Address Page
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async goToAddNewBrandAddressPage() {
-    await this.clickAndWaitForNavigation(this.newBrandAddressLink);
+  async goToAddNewBrandAddressPage(page) {
+    await this.clickAndWaitForNavigation(page, this.newBrandAddressLink);
   }
 
   /**
    * View Brand
-   * @param row, Which row of the list
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to view
    * @return {Promise<void>}
    */
-  async viewBrand(row = '1') {
-    await this.clickAndWaitForNavigation(this.viewBrandLink(row));
-  }
-
-  async goToEditBrandPage(row = '1') {
-    await Promise.all([
-      this.page.click(this.dropdownToggleButton('manufacturer', row)),
-      this.waitForVisibleSelector(`${this.dropdownToggleButton('manufacturer', row)}[aria-expanded='true']`),
-    ]);
-    await this.clickAndWaitForNavigation(this.editBrandLink(row));
+  async viewBrand(page, row = 1) {
+    await this.clickAndWaitForNavigation(page, this.viewBrandLink(row));
   }
 
   /**
-   *
-   * @param row
+   * Go to edit Brand page
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to edit
+   * @returns {Promise<void>}
+   */
+  async goToEditBrandPage(page, row = 1) {
+    await Promise.all([
+      page.click(this.dropdownToggleButton('manufacturer', row)),
+      this.waitForVisibleSelector(page, `${this.dropdownToggleButton('manufacturer', row)}[aria-expanded='true']`),
+    ]);
+    await this.clickAndWaitForNavigation(page, this.editBrandLink(row));
+  }
+
+  /**
+   * Go to edit brand address page
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to edit
    * @return {Promise<void>}
    */
-  async goToEditBrandAddressPage(row = '1') {
-    await this.clickAndWaitForNavigation(this.editBrandAddressLink(row));
+  async goToEditBrandAddressPage(page, row = 1) {
+    await this.clickAndWaitForNavigation(page, this.editBrandAddressLink(row));
   }
 
   /**
    * Delete Row in table
-   * @param table, brand or address
-   * @param row, row to delete
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to delete row from it
+   * @param row {number} Row in table to delete
    * @return {Promise<string>}
    */
-  async deleteRowInTable(table, row = 1) {
+  async deleteRowInTable(page, tableName, row = 1) {
     await Promise.all([
-      this.page.click(this.dropdownToggleButton(table, row)),
-      this.waitForVisibleSelector(`${this.dropdownToggleButton(table, row)}[aria-expanded='true']`),
+      page.click(this.dropdownToggleButton(tableName, row)),
+      this.waitForVisibleSelector(page, `${this.dropdownToggleButton(tableName, row)}[aria-expanded='true']`),
     ]);
     // Click on delete and wait for modal
     await Promise.all([
-      this.page.click(this.deleteRowLink(table, row)),
-      this.waitForVisibleSelector(`${this.confirmDeleteModal(table)}.show`),
+      page.click(this.deleteRowLink(tableName, row)),
+      this.waitForVisibleSelector(page, `${this.confirmDeleteModal(tableName)}.show`),
     ]);
-    await this.confirmDelete(table);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.confirmDelete(page, tableName);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Confirm delete with modal
-   * @param table, brand or address
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to confirm deletion
    * @return {Promise<void>}
    */
-  async confirmDelete(table) {
-    await this.clickAndWaitForNavigation(this.confirmDeleteButton(table));
+  async confirmDelete(page, tableName) {
+    await this.clickAndWaitForNavigation(page, this.confirmDeleteButton(tableName));
   }
 
   /**
    * Delete Brand
-   * @param row, row to delete
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to delete
    * @return {Promise<string>}
    */
-  async deleteBrand(row = '1') {
-    return this.deleteRowInTable('manufacturer', row);
+  async deleteBrand(page, row = 1) {
+    return this.deleteRowInTable(page, 'manufacturer', row);
   }
 
   /**
    * Delete Brand Address
-   * @param row, row to delete
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to delete
    * @return {Promise<string>}
    */
-  async deleteBrandAddress(row = '1') {
-    return this.deleteRowInTable('manufacturer_address', row);
+  async deleteBrandAddress(page, row = 1) {
+    return this.deleteRowInTable(page, 'manufacturer_address', row);
   }
 
   /**
-   * Enable / disable brands by Bulk Actions
-   * @param enable
+   * Enable/disable brands by Bulk Actions
+   * @param page {Page} Browser tab
+   * @param enable {boolean} Status to select in bulk actions
    * @return {Promise<string>}
    */
-  async changeBrandsEnabledColumnBulkActions(enable = true) {
+  async bulkSetBrandsStatus(page, enable = true) {
     // Click on Select All
     await Promise.all([
-      this.page.$eval(this.selectAllRowsLabel('manufacturer'), el => el.click()),
-      this.waitForVisibleSelector(`${this.bulkActionsToggleButton('manufacturer')}:not([disabled])`, 40000),
+      page.$eval(this.selectAllRowsLabel('manufacturer'), el => el.click()),
+      this.waitForVisibleSelector(page, `${this.bulkActionsToggleButton('manufacturer')}:not([disabled])`, 40000),
     ]);
+
     // Click on Button Bulk actions
     await Promise.all([
-      this.page.click(this.bulkActionsToggleButton('manufacturer')),
-      this.waitForVisibleSelector(`${this.bulkActionsToggleButton('manufacturer')}[aria-expanded='true']`),
+      page.click(this.bulkActionsToggleButton('manufacturer')),
+      this.waitForVisibleSelector(page, `${this.bulkActionsToggleButton('manufacturer')}[aria-expanded='true']`),
     ]);
+
     // Click on delete and wait for modal
-    await this.clickAndWaitForNavigation(enable ? this.bulkActionsEnableButton : this.bulkActionsDisableButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, enable ? this.bulkActionsEnableButton : this.bulkActionsDisableButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Delete with bulk actions
-   * @param table, in which table
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to bulk delete
    * @return {Promise<string>}
    */
-  async deleteWithBulkActions(table) {
+  async deleteWithBulkActions(page, tableName) {
     // Click on Select All
     await Promise.all([
-      this.page.$eval(this.selectAllRowsLabel(table), el => el.click()),
-      this.waitForVisibleSelector(`${this.bulkActionsToggleButton(table)}:not([disabled])`),
+      page.$eval(this.selectAllRowsLabel(tableName), el => el.click()),
+      this.waitForVisibleSelector(page, `${this.bulkActionsToggleButton(tableName)}:not([disabled])`),
     ]);
+
     // Click on Button Bulk actions
     await Promise.all([
-      this.page.click(this.bulkActionsToggleButton(table)),
-      this.waitForVisibleSelector(`${this.bulkActionsToggleButton(table)}[aria-expanded='true']`),
+      page.click(this.bulkActionsToggleButton(tableName)),
+      this.waitForVisibleSelector(page, `${this.bulkActionsToggleButton(tableName)}[aria-expanded='true']`),
     ]);
+
     // Click on delete and wait for modal
-    if (table === 'manufacturer') {
-      this.page.click(this.deleteBrandsButton);
-      await this.waitForVisibleSelector(`${this.confirmDeleteModal(table)}.show`);
-    } else if (table === 'manufacturer_address') {
-      this.page.click(this.deleteAddressesButton);
-      await this.waitForVisibleSelector(`${this.confirmDeleteModal('manufacturer_address')}.show`);
+    if (tableName === 'manufacturer') {
+      await page.click(this.deleteBrandsButton);
+      await this.waitForVisibleSelector(page, `${this.confirmDeleteModal(tableName)}.show`);
+    } else if (tableName === 'manufacturer_address') {
+      await page.click(this.deleteAddressesButton);
+      await this.waitForVisibleSelector(page, `${this.confirmDeleteModal('manufacturer_address')}.show`);
     }
-    await this.confirmDelete(table);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.confirmDelete(page, tableName);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Get text from a column
-   * @param table, manufacturer or address
-   * @param row, row in table
-   * @param column, which column
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to get text column from it
+   * @param row {number} Row in table to get text column
+   * @param column {string} Column to get text content
    * @return {Promise<string>}
    */
-  async getTextColumnFromTable(table, row, column) {
-    return this.getTextContent(this.tableColumn(table, row, column));
+  async getTextColumnFromTable(page, tableName, row, column) {
+    return this.getTextContent(page, this.tableColumn(tableName, row, column));
   }
 
   /**
    * Get text from a column from table brand
-   * @param row
-   * @param column
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to get logo link
+   * @param column {string} Column to get text content
    * @return {Promise<string>}
    */
-  async getTextColumnFromTableBrands(row, column) {
-    return this.getTextColumnFromTable('manufacturer', row, column);
+  async getTextColumnFromTableBrands(page, row, column) {
+    return this.getTextColumnFromTable(page, 'manufacturer', row, column);
   }
 
   /**
    * Get logo link from brands table row
-   * @param row
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to get logo link
    * @return {Promise<string>}
    */
-  async getLogoLinkFromBrandsTable(row) {
-    return this.getAttributeContent(this.brandsTableColumnLogoImg(row), 'src');
+  async getLogoLinkFromBrandsTable(page, row) {
+    return this.getAttributeContent(page, this.brandsTableColumnLogoImg(row), 'src');
   }
 
   /**
-   * Get all information from categories table
-   * @param row
-   * @return {Promise<{addresses: string, name: string, logo: string, id: string, products: string, status: string}>}
+   * Get all information from brands table
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to get text column
+   * @return {Promise<object>}
    */
-  async getBrandFromTable(row) {
+  async getBrandFromTable(page, row) {
     return {
-      id: await this.getTextColumnFromTableBrands(row, 'id_manufacturer'),
-      logo: await this.getLogoLinkFromBrandsTable(row),
-      name: await this.getTextColumnFromTableBrands(row, 'name'),
-      addresses: await this.getTextColumnFromTableBrands(row, 'addresses_count'),
-      products: await this.getTextColumnFromTableBrands(row, 'products_count'),
-      status: await this.getToggleColumnValue(row),
+      id: await this.getTextColumnFromTableBrands(page, row, 'id_manufacturer'),
+      logo: await this.getLogoLinkFromBrandsTable(page, row),
+      name: await this.getTextColumnFromTableBrands(page, row, 'name'),
+      addresses: await this.getTextColumnFromTableBrands(page, row, 'addresses_count'),
+      products: await this.getTextColumnFromTableBrands(page, row, 'products_count'),
+      status: await this.getBrandStatus(page, row),
     };
   }
 
   /**
    * Get text from a column from table addresses
-   * @param row
-   * @param column
+   * @param page {Page} Browser tab
+   * @param row {number} Row in table to get text column
+   * @param column {string} Column to get text content
    * @return {Promise<string>}
    */
-  async getTextColumnFromTableAddresses(row, column) {
-    return this.getTextColumnFromTable('manufacturer_address', row, column);
+  async getTextColumnFromTableAddresses(page, row, column) {
+    return this.getTextColumnFromTable(page, 'manufacturer_address', row, column);
   }
 
   /**
    * Get content from all rows
-   * @param table
-   * @param column
-   * @return {Promise<[]>}
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to get all rows content
+   * @param column {string} Column to get all rows content
+   * @return {Promise<Array<string>>}
    */
-  async getAllRowsColumnContent(table, column) {
-    const rowsNumber = await this.getNumberOfElementInGrid(table);
+  async getAllRowsColumnContent(page, tableName, column) {
+    const rowsNumber = await this.getNumberOfElementInGrid(page, tableName);
     const allRowsContentTable = [];
     let rowContent;
+
     for (let i = 1; i <= rowsNumber; i++) {
-      switch (table) {
+      switch (tableName) {
         case 'manufacturer':
-          rowContent = await this.getTextColumnFromTableBrands(i, column);
+          rowContent = await this.getTextColumnFromTableBrands(page, i, column);
           break;
         case 'manufacturer_address':
-          rowContent = await this.getTextColumnFromTableAddresses(i, column);
+          rowContent = await this.getTextColumnFromTableAddresses(page, i, column);
           break;
         default:
         // Nothing to do
       }
-      await allRowsContentTable.push(rowContent);
+      allRowsContentTable.push(rowContent);
     }
+
     return allRowsContentTable;
   }
 
   /**
    * Get content from all rows table brands
-   * @param column
-   * @return {Promise<[]>}
+   * @param page {Page} Browser tab
+   * @param column {string} Column to get all rows content
+   * @return {Promise<Array<string>>}
    */
-  async getAllRowsColumnContentBrandsTable(column) {
-    return this.getAllRowsColumnContent('manufacturer', column);
+  async getAllRowsColumnContentBrandsTable(page, column) {
+    return this.getAllRowsColumnContent(page, 'manufacturer', column);
   }
 
   /**
    * Get content from all rows table addresses
-   * @param column
-   * @return {Promise<[]>}
+   * @param page {Page} Browser tab
+   * @param column {string} Column to get all rows content
+   * @return {Promise<Array<string>>}
    */
-  async getAllRowsColumnContentAddressesTable(column) {
-    return this.getAllRowsColumnContent('manufacturer_address', column);
+  async getAllRowsColumnContentAddressesTable(page, column) {
+    return this.getAllRowsColumnContent(page, 'manufacturer_address', column);
   }
 
   /* Sort methods */
   /**
    * Sort table by clicking on column name
-   * @param table, table to sort
-   * @param sortBy, column to sort with
-   * @param sortDirection, asc or desc
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to sort
+   * @param sortBy {string} Column to sort with
+   * @param sortDirection {string} Sort direction (asc/desc)
    * @return {Promise<void>}
    */
-  async sortTable(table, sortBy, sortDirection = 'asc') {
-    const sortColumnDiv = `${this.sortColumnDiv(table, sortBy)}[data-sort-direction='${sortDirection}']`;
-    const sortColumnSpanButton = this.sortColumnSpanButton(table, sortBy);
+  async sortTable(page, tableName, sortBy, sortDirection = 'asc') {
+    const sortColumnDiv = `${this.sortColumnDiv(tableName, sortBy)}[data-sort-direction='${sortDirection}']`;
+    const sortColumnSpanButton = this.sortColumnSpanButton(tableName, sortBy);
+
     let i = 0;
-    while (await this.elementNotVisible(sortColumnDiv, 1000) && i < 2) {
-      await this.clickAndWaitForNavigation(sortColumnSpanButton);
+    while (await this.elementNotVisible(page, sortColumnDiv, 2000) && i < 2) {
+      await this.clickAndWaitForNavigation(page, sortColumnSpanButton);
       i += 1;
     }
-    await this.waitForVisibleSelector(sortColumnDiv);
+
+    await this.waitForVisibleSelector(page, sortColumnDiv, 20000);
   }
 
   /**
    * Sort table brands
-   * @param sortBy
-   * @param sortDirection
+   * @param page {Page} Browser tab
+   * @param sortBy {string} Column to sort with
+   * @param sortDirection {string} Sort direction (asc/desc)
    * @return {Promise<void>}
    */
-  async sortTableBrands(sortBy, sortDirection = 'asc') {
-    return this.sortTable('manufacturer', sortBy, sortDirection);
+  async sortTableBrands(page, sortBy, sortDirection = 'asc') {
+    return this.sortTable(page, 'manufacturer', sortBy, sortDirection);
   }
 
   /**
    * Sort table addresses
-   * @param sortBy
-   * @param sortDirection
+   * @param page {Page} Browser tab
+   * @param sortBy {string} Column to sort with
+   * @param sortDirection {string} Sort direction (asc/desc)
    * @return {Promise<void>}
    */
-  async sortTableAddresses(sortBy, sortDirection = 'asc') {
-    return this.sortTable('manufacturer_address', sortBy, sortDirection);
-  }
-
-  /**
-   * Get alert text message
-   * @return {Promise<string>}
-   */
-  getAlertTextMessage() {
-    return this.getTextContent(this.alertTextBlock);
+  async sortTableAddresses(page, sortBy, sortDirection = 'asc') {
+    return this.sortTable(page, 'manufacturer_address', sortBy, sortDirection);
   }
 
   // Export methods
   /**
    * Click on lint to export categories to a csv file
-   * @param table, which table to export
-   * @return {Promise<*>}
+   * @param page {Page} Browser tab
+   * @param table {string} Which table to export
+   * @return {Promise<string>}
    */
-  async exportDataToCsv(table) {
+  async exportDataToCsv(page, table) {
     await Promise.all([
-      this.page.click(this.gridActionButton(table)),
-      this.waitForVisibleSelector(`${this.gridActionDropDownMenu(table)}.show`),
+      page.click(this.gridActionButton(table)),
+      this.waitForVisibleSelector(page, `${this.gridActionDropDownMenu(table)}.show`),
     ]);
 
-    const [download] = await Promise.all([
-      this.page.waitForEvent('download'), // wait for download to start
-      this.page.click(this.gridActionExportLink(table)),
-    ]);
-
-    return download.path();
+    return this.clickAndWaitForDownload(page, this.gridActionExportLink(table));
   }
 
   /**
    * Export brands data to csv file
+   * @param page {Page} Browser tab
    * @return {Promise<*>}
    */
-  async exportBrandsDataToCsv() {
-    return this.exportDataToCsv('manufacturer');
+  async exportBrandsDataToCsv(page) {
+    return this.exportDataToCsv(page, 'manufacturer');
   }
 
   /**
    * Get category from table in csv format
-   * @param row
+   * @param page {Page} Browser tab
+   * @param row {number} Row on table to get on csv file
    * @return {Promise<string>}
    */
-  async getBrandInCsvFormat(row) {
-    const brand = await this.getBrandFromTable(row);
+  async getBrandInCsvFormat(page, row) {
+    const brand = await this.getBrandFromTable(page, row);
+
     return `${brand.id};`
       + `${brand.logo};`
       + `"${brand.name}";`
@@ -525,40 +584,50 @@ module.exports = class Brands extends BOBasePage {
   /* Pagination methods */
   /**
    * Get pagination label
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to get pagination label
    * @return {Promise<string>}
    */
-  getPaginationLabel(table) {
-    return this.getTextContent(this.paginationLabel(table));
+  getPaginationLabel(page, tableName) {
+    return this.getTextContent(page, this.paginationLabel(tableName));
   }
 
   /**
    * Select pagination limit
-   * @param table
-   * @param number
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to select pagination limit
+   * @param number {string} Pagination limit per page to choose
    * @return {Promise<string>}
    */
-  async selectPaginationLimit(table, number) {
-    await this.selectByVisibleText(this.paginationLimitSelect, number);
-    return this.getPaginationLabel(table);
+  async selectPaginationLimit(page, tableName, number) {
+    await this.selectByVisibleText(page, this.paginationLimitSelect, number);
+
+    return this.getPaginationLabel(page, tableName);
   }
 
   /**
    * Click on next
-   * @param table
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to select next pagination
    * @return {Promise<string>}
    */
-  async paginationNext(table) {
-    await this.clickAndWaitForNavigation(this.paginationNextLink(table));
-    return this.getPaginationLabel(table);
+  async paginationNext(page, tableName) {
+    await this.clickAndWaitForNavigation(page, this.paginationNextLink(tableName));
+
+    return this.getPaginationLabel(page, tableName);
   }
 
   /**
    * Click on previous
-   * @param table
+   * @param page {Page} Browser tab
+   * @param tableName {string} Table name to select previous pagination
    * @return {Promise<string>}
    */
-  async paginationPrevious(table) {
-    await this.clickAndWaitForNavigation(this.paginationPreviousLink(table));
-    return this.getPaginationLabel(table);
+  async paginationPrevious(page, tableName) {
+    await this.clickAndWaitForNavigation(page, this.paginationPreviousLink(tableName));
+
+    return this.getPaginationLabel(page, tableName);
   }
-};
+}
+
+module.exports = new Brands();

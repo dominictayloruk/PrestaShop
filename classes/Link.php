@@ -24,7 +24,6 @@
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
 use PrestaShop\PrestaShop\Adapter\SymfonyContainer;
-use PrestaShop\PrestaShop\Core\Addon\Module\ModuleManagerBuilder;
 use PrestaShop\PrestaShop\Core\Exception\CoreException;
 use PrestaShop\PrestaShop\Core\Feature\TokenInUrls;
 use PrestaShopBundle\Routing\Converter\LegacyUrlConverter;
@@ -57,7 +56,7 @@ class LinkCore
      */
     public function __construct($protocolLink = null, $protocolContent = null)
     {
-        $this->allow = (int) Configuration::get('PS_REWRITING_SETTINGS');
+        $this->allow = (bool) Configuration::get('PS_REWRITING_SETTINGS');
         $this->url = $_SERVER['SCRIPT_NAME'];
         $this->protocol_link = $protocolLink;
         $this->protocol_content = $protocolContent;
@@ -123,17 +122,18 @@ class LinkCore
     /**
      * Create a link to a product.
      *
-     * @param Product|array|int $product Product object (can be an ID product, but deprecated)
+     * @param ProductCore|array|int $product Product object (can be an ID product, but deprecated)
      * @param string|null $alias
      * @param string|null $category
      * @param string|null $ean13
      * @param int|null $idLang
      * @param int|null $idShop (since 1.5.0) ID shop need to be used when we generate a product link for a product in a cart
-     * @param int|null $ipa ID product attribute
+     * @param int|null $idProductAttribute ID product attribute
      * @param bool $force_routes
      * @param bool $relativeProtocol
-     * @param bool $addAnchor
+     * @param bool $withIdInAnchor
      * @param array $extraParams
+     * @param bool $addAnchor
      *
      * @return string
      *
@@ -146,11 +146,12 @@ class LinkCore
         $ean13 = null,
         $idLang = null,
         $idShop = null,
-        $ipa = null,
+        $idProductAttribute = null,
         $force_routes = false,
         $relativeProtocol = false,
-        $addAnchor = false,
-        $extraParams = []
+        $withIdInAnchor = false,
+        $extraParams = [],
+        bool $addAnchor = true
     ) {
         $dispatcher = Dispatcher::getInstance();
 
@@ -176,10 +177,10 @@ class LinkCore
         }
 
         //Attribute equal to 0 or empty is useless, so we force it to null so that it won't be inserted in query parameters
-        if (empty($ipa)) {
-            $ipa = null;
+        if (empty($idProductAttribute)) {
+            $idProductAttribute = null;
         }
-        $params['id_product_attribute'] = $ipa;
+        $params['id_product_attribute'] = $idProductAttribute;
         if (!$alias) {
             $product = $this->getProductObject($product, $idLang, $idShop);
         }
@@ -241,10 +242,11 @@ class LinkCore
             }
             $params['categories'] = implode('/', $cats);
         }
-        if ($ipa) {
+        if ($idProductAttribute) {
             $product = $this->getProductObject($product, $idLang, $idShop);
         }
-        $anchor = $ipa ? $product->getAnchor((int) $ipa, (bool) $addAnchor) : '';
+
+        $anchor = $addAnchor && $idProductAttribute ? $product->getAnchor((int) $idProductAttribute, (bool) $withIdInAnchor) : '';
 
         return $url . $dispatcher->createUrl('product_rule', $idLang, array_merge($params, $extraParams), $force_routes, $anchor, $idShop);
     }
@@ -394,8 +396,8 @@ class LinkCore
     public function getCategoryObject($category, $idLang)
     {
         if (!is_object($category)) {
-            if (is_array($category) && isset($category['id_category'])) {
-                $category = new Category($category, $idLang);
+            if (isset($category['id_category'])) {
+                $category = new Category($category['id_category'], $idLang);
             } elseif ((int) $category) {
                 $category = new Category((int) $category, $idLang);
             } else {
@@ -409,7 +411,7 @@ class LinkCore
     /**
      * Create a link to a category.
      *
-     * @param Category|array|int $category Category object (can be an ID category, but deprecated)
+     * @param CategoryCore|array|int $category Category object (can be an ID category, but deprecated)
      * @param string|null $alias
      * @param int|null $idLang
      * @param string|null $selectedFilters Url parameter to autocheck filters of the module blocklayered
@@ -436,22 +438,17 @@ class LinkCore
 
         // Set available keywords
         $params = [];
-
-        if (!is_object($category)) {
-            $params['id'] = $category;
-        } else {
+        if (Validate::isLoadedObject($category)) {
             $params['id'] = $category->id;
-        }
-
-        // Selected filters is used by the module ps_facetedsearch
-        $selectedFilters = null === $selectedFilters ? '' : $selectedFilters;
-
-        if (empty($selectedFilters)) {
-            $rule = 'category_rule';
+        } elseif (isset($category['id_category'])) {
+            $params['id'] = $category['id_category'];
+        } elseif (is_int($category) or ctype_digit($category)) {
+            $params['id'] = (int) $category;
         } else {
-            $rule = 'layered_rule';
-            $params['selected_filters'] = $selectedFilters;
+            throw new \InvalidArgumentException('Invalid category parameter');
         }
+
+        $rule = 'category_rule';
 
         if (!$alias) {
             $category = $this->getCategoryObject($category, $idLang);
@@ -922,7 +919,7 @@ class LinkCore
             if (null !== $idShop) {
                 $shop = new Shop($idShop);
             } else {
-                $shop = new Shop(Configuration::get('PS_SHOP_DEFAULT'));
+                $shop = new Shop((int) Configuration::get('PS_SHOP_DEFAULT'));
             }
         } else {
             $shop = Context::getContext()->shop;
@@ -988,31 +985,14 @@ class LinkCore
     public function getImageLink($name, $ids, $type = null)
     {
         $notDefault = false;
-        $moduleManagerBuilder = ModuleManagerBuilder::getInstance();
-        $moduleManager = $moduleManagerBuilder->build();
-        static $watermarkLogged = null;
-        static $watermarkHash = null;
-        static $psLegacyImages = null;
-        if ($watermarkLogged === null) {
-            $watermarkLogged = Configuration::get('WATERMARK_LOGGED');
-            $watermarkHash = Configuration::get('WATERMARK_HASH');
-            $psLegacyImages = Configuration::get('PS_LEGACY_IMAGES');
-        }
-
-        // Check if module is installed, enabled, customer is logged in and watermark logged option is on
-        if (!empty($type) && $watermarkLogged &&
-            ($moduleManager->isInstalled('watermark') && $moduleManager->isEnabled('watermark')) &&
-            isset(Context::getContext()->customer->id)
-        ) {
-            $type .= '-' . $watermarkHash;
-        }
+        $psLegacyImages = Configuration::get('PS_LEGACY_IMAGES');
 
         // legacy mode or default image
-        $theme = ((Shop::isFeatureActive() && file_exists(_PS_PROD_IMG_DIR_ . $ids . ($type ? '-' . $type : '') . '-' . Context::getContext()->shop->theme_name . '.jpg')) ? '-' . Context::getContext()->shop->theme_name : '');
+        $theme = ((Shop::isFeatureActive() && file_exists(_PS_PRODUCT_IMG_DIR_ . $ids . ($type ? '-' . $type : '') . '-' . Context::getContext()->shop->theme_name . '.jpg')) ? '-' . Context::getContext()->shop->theme_name : '');
         if (($psLegacyImages
-                && (file_exists(_PS_PROD_IMG_DIR_ . $ids . ($type ? '-' . $type : '') . $theme . '.jpg')))
+                && (file_exists(_PS_PRODUCT_IMG_DIR_ . $ids . ($type ? '-' . $type : '') . $theme . '.jpg')))
             || ($notDefault = strpos($ids, 'default') !== false)) {
-            if ($this->allow == 1 && !$notDefault) {
+            if ($this->allow && !$notDefault) {
                 $uriPath = __PS_BASE_URI__ . $ids . ($type ? '-' . $type : '') . $theme . '/' . $name . '.jpg';
             } else {
                 $uriPath = _THEME_PROD_DIR_ . $ids . ($type ? '-' . $type : '') . $theme . '.jpg';
@@ -1021,8 +1001,8 @@ class LinkCore
             // if ids if of the form id_product-id_image, we want to extract the id_image part
             $splitIds = explode('-', $ids);
             $idImage = (isset($splitIds[1]) ? $splitIds[1] : $splitIds[0]);
-            $theme = ((Shop::isFeatureActive() && file_exists(_PS_PROD_IMG_DIR_ . Image::getImgFolderStatic($idImage) . $idImage . ($type ? '-' . $type : '') . '-' . (int) Context::getContext()->shop->theme_name . '.jpg')) ? '-' . Context::getContext()->shop->theme_name : '');
-            if ($this->allow == 1) {
+            $theme = ((Shop::isFeatureActive() && file_exists(_PS_PRODUCT_IMG_DIR_ . Image::getImgFolderStatic($idImage) . $idImage . ($type ? '-' . $type : '') . '-' . (int) Context::getContext()->shop->theme_name . '.jpg')) ? '-' . Context::getContext()->shop->theme_name : '');
+            if ($this->allow) {
                 $uriPath = __PS_BASE_URI__ . $idImage . ($type ? '-' . $type : '') . $theme . '/' . $name . '.jpg';
             } else {
                 $uriPath = _THEME_PROD_DIR_ . Image::getImgFolderStatic($idImage) . $idImage . ($type ? '-' . $type : '') . $theme . '.jpg';
@@ -1181,7 +1161,7 @@ class LinkCore
      */
     public function getCatImageLink($name, $idCategory, $type = null)
     {
-        if ($this->allow == 1 && $type) {
+        if ($this->allow && $type) {
             $uriPath = __PS_BASE_URI__ . 'c/' . $idCategory . '-' . $type . '/' . $name . '.jpg';
         } else {
             $uriPath = _THEME_CAT_DIR_ . $idCategory . ($type ? '-' . $type : '') . '.jpg';
@@ -1300,9 +1280,9 @@ class LinkCore
                 if (Configuration::get('PS_REWRITING_SETTINGS') && ($k == 'isolang' || $k == 'id_lang')) {
                     continue;
                 }
-                $ifNb = (!$nb || ($nb && !in_array($k, $varsNb)));
-                $ifSort = (!$sort || ($sort && !in_array($k, $varsSort)));
-                $ifPagination = (!$pagination || ($pagination && !in_array($k, $varsPagination)));
+                $ifNb = (!$nb || !in_array($k, $varsNb));
+                $ifSort = (!$sort || !in_array($k, $varsSort));
+                $ifPagination = (!$pagination || !in_array($k, $varsPagination));
                 if ($ifNb && $ifSort && $ifPagination) {
                     if (!is_array($value)) {
                         $vars[urlencode($k)] = $value;
@@ -1318,7 +1298,7 @@ class LinkCore
 
         if (!$array) {
             if (count($vars)) {
-                return $url . (!strstr($url, '?') && ($this->allow == 1 || $url == $this->url) ? '?' : '&') . http_build_query($vars, '', '&');
+                return $url . (!strstr($url, '?') && ($this->allow || $url == $this->url) ? '?' : '&') . http_build_query($vars, '', '&');
             } else {
                 return $url;
             }
@@ -1330,7 +1310,7 @@ class LinkCore
             $vars['id_' . $type] = (is_object($idObject) ? (int) $idObject->id : (int) $idObject);
         }
 
-        if (!$this->allow == 1) {
+        if (!$this->allow) {
             $vars['controller'] = Dispatcher::getInstance()->getController();
         }
 
@@ -1449,7 +1429,7 @@ class LinkCore
     {
         $quickLink = $this->getQuickLink($url);
 
-        return isset($quickLink) && $quickLink === ($this->getQuickLink($_SERVER['REQUEST_URI']));
+        return $quickLink === ($this->getQuickLink($_SERVER['REQUEST_URI']));
     }
 
     /**
@@ -1479,6 +1459,9 @@ class LinkCore
             'alias' => null,
             'ssl' => null,
             'relative_protocol' => true,
+            'with_id_in_anchor' => false,
+            'extra_params' => [],
+            'add_anchor' => true,
         ];
         $params = array_merge($default, $params);
 
@@ -1499,7 +1482,10 @@ class LinkCore
                     $params['id_shop'],
                     (isset($params['ipa']) ? (int) $params['ipa'] : 0),
                     false,
-                    $params['relative_protocol']
+                    $params['relative_protocol'],
+                    $params['with_id_in_anchor'],
+                    $params['extra_params'],
+                    $params['add_anchor']
                 );
 
                 break;
@@ -1520,6 +1506,20 @@ class LinkCore
                 $link = $context->link->getCatImageLink(
                     $params['name'],
                     $params['id'],
+                    $params['type'] = (isset($params['type']) ? $params['type'] : null)
+                );
+
+                break;
+            case 'manufacturerImage':
+                $link = $context->link->getManufacturerImageLink(
+                    (int) $params['id'],
+                    $params['type'] = (isset($params['type']) ? $params['type'] : null)
+                );
+
+                break;
+            case 'supplierImage':
+                $link = $context->link->getSupplierImageLink(
+                    (int) $params['id'],
                     $params['type'] = (isset($params['type']) ? $params['type'] : null)
                 );
 

@@ -1,9 +1,18 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class Invoice extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Invoices page, contains functions that can be used on invoices page
+ * @class
+ * @extends BOBasePage
+ */
+class Invoice extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on invoices page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Invoices';
     this.errorMessageWhenGenerateFileByDate = 'No invoice has been found for this period.';
@@ -26,17 +35,16 @@ module.exports = class Invoice extends BOBasePage {
 
     // Invoice options form
     this.invoiceOptionsForm = '#form-invoices-options';
-    this.invoiceOptionsEnable = id => `${this.invoiceOptionsForm} label[for='form_enable_invoices_${id}']`;
-    this.taxBreakdownEnable = id => `${this.invoiceOptionsForm} label[for='form_enable_tax_breakdown_${id}']`;
-    this.invoiceOptionEnableProductImage = id => `${this.invoiceOptionsForm}`
-      + ` label[for='form_enable_product_images_${id}']`;
+    this.invoiceOptionsStatusToggleInput = toggle => `#form_enable_invoices_${toggle}`;
+    this.taxBreakdownStatusToggleInput = toggle => `#form_enable_tax_breakdown_${toggle}`;
+    this.invoiceOptionStatusToggleInput = toggle => `#form_enable_product_images_${toggle}`;
     this.invoiceNumberInput = '#form_invoice_number';
     this.legalFreeTextInput = '#form_legal_free_text_1';
     this.footerTextInput = '#form_footer_text_1';
     this.saveInvoiceOptionsButton = `${this.invoiceOptionsForm} #save-invoices-options-button`;
     this.invoicePrefixInput = '#form_invoice_prefix_1';
-    this.invoiceAddCurrentYear = id => `${this.invoiceOptionsForm} label[for='form_add_current_year_${id}']`;
-    this.optionYearPositionRadioButton = id => `#form_year_position_${id}`;
+    this.invoiceAddCurrentYearToggleInput = toggle => `#form_add_current_year_${toggle}`;
+    this.optionYearPositionRadioButton = id => `#form_year_position_${id} + i`;
   }
 
   /*
@@ -45,151 +53,161 @@ module.exports = class Invoice extends BOBasePage {
 
   /**
    * Generate PDF by date and download it
-   * @param dateFrom
-   * @param dateTo
-   * @returns {Promise<*>}
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on date from input
+   * @param dateTo {string} Value to set on date to input
+   * @returns {Promise<string>}
    */
-  async generatePDFByDateAndDownload(dateFrom = '', dateTo = '') {
-    await this.setValuesForGeneratingPDFByDate(dateFrom, dateTo);
-    const [download] = await Promise.all([
-      this.page.waitForEvent('download'),
-      this.page.click(this.generatePdfByDateButton),
-    ]);
-    return download.path();
+  async generatePDFByDateAndDownload(page, dateFrom = '', dateTo = '') {
+    await this.setValuesForGeneratingPDFByDate(page, dateFrom, dateTo);
+
+    return this.clickAndWaitForDownload(page, this.generatePdfByDateButton);
   }
 
   /**
    * Get message error after generate invoice by status fail
-   * @param dateFrom
-   * @param dateTo
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on filter date from input
+   * @param dateTo {string} Value to set on filter date to input
    * @returns {Promise<string>}
    */
-  async generatePDFByDateAndFail(dateFrom = '', dateTo = '') {
-    await this.setValuesForGeneratingPDFByDate(dateFrom, dateTo);
-    await this.page.click(this.generatePdfByDateButton);
+  async generatePDFByDateAndFail(page, dateFrom = '', dateTo = '') {
+    await this.setValuesForGeneratingPDFByDate(page, dateFrom, dateTo);
+    await page.click(this.generatePdfByDateButton);
 
-    return this.getTextContent(
-      this.alertTextBlock,
-    );
+    return this.getAlertDangerBlockParagraphContent(page);
   }
 
   /**
    * Set values to generate pdf by date
-   * @param dateFrom
-   * @param dateTo
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on filter date from input
+   * @param dateTo {string} Value to set on filter date to input
    * @returns {Promise<void>}
    */
-  async setValuesForGeneratingPDFByDate(dateFrom = '', dateTo = '') {
+  async setValuesForGeneratingPDFByDate(page, dateFrom = '', dateTo = '') {
     if (dateFrom) {
-      await this.page.fill(this.dateFromInput, dateFrom);
-      await this.page.fill(this.dateToInput, dateTo);
+      await page.fill(this.dateFromInput, dateFrom);
+      await page.fill(this.dateToInput, dateTo);
     }
   }
 
   /**
-   * Click on the Status
-   * @param statusName
-   * @return {Promise<void>}
+   * Choose order status to generate
+   * @param page {Page} Browser tab
+   * @param statusName {string} Status name to select
+   * @returns {Promise<void>}
    */
-  async chooseStatus(statusName) {
-    const statusElements = await this.page.$$(this.statusOrderStateSpan);
+  async chooseStatus(page, statusName) {
+    const statusElements = await page.$$(this.statusOrderStateSpan);
+
     for (let i = 0; i < statusElements.length; i++) {
-      if (await this.page.evaluate(element => element.textContent, statusElements[i]) === statusName) {
+      if (await page.evaluate(element => element.textContent, statusElements[i]) === statusName) {
         await statusElements[i].click();
         break;
       }
     }
-    //
   }
 
-  /** Generate PDF by status
-   * @return {Promise<void>}
+  /**
+   * Generate PDF by status
+   * @param page {Page} Browser tab
+   * @returns {Promise<void>}
    */
-  async generatePDFByStatusAndDownload() {
-    const [download] = await Promise.all([
-      this.page.waitForEvent('download'), // wait for download to start
-      this.page.click(this.generatePdfByStatusButton),
-    ]);
-    return download.path();
+  generatePDFByStatusAndDownload(page) {
+    return this.clickAndWaitForDownload(page, this.generatePdfByStatusButton);
   }
 
   /**
    * Get message error after generate invoice by status fail
-   * @return {Promise<string>}
+   * @param page {Page} Browser tab
+   * @returns {Promise<string>}
    */
-  async generatePDFByStatusAndFail() {
-    await this.page.click(this.generatePdfByStatusButton);
-    return this.getTextContent(this.alertTextBlock);
+  async generatePDFByStatusAndFail(page) {
+    await page.click(this.generatePdfByStatusButton);
+    return this.getAlertDangerBlockParagraphContent(page);
   }
 
   /**
    * Enable disable invoices
-   * @param enable
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param enable {boolean} True if we need to enable invoices
+   * @returns {Promise<void>}
    */
-  async enableInvoices(enable = true) {
-    await this.page.click(this.invoiceOptionsEnable(enable ? 1 : 0));
+  async enableInvoices(page, enable = true) {
+    await this.setChecked(page, this.invoiceOptionsStatusToggleInput(enable ? 1 : 0));
   }
 
-  /** Save invoice options
-   * @return {Promise<void>}
+  /**
+   * Save invoice options
+   * @param page {Page} Browser tab
+   * @returns {Promise<void>}
    */
-  async saveInvoiceOptions() {
-    await this.clickAndWaitForNavigation(this.saveInvoiceOptionsButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+  async saveInvoiceOptions(page) {
+    await this.clickAndWaitForNavigation(page, this.saveInvoiceOptionsButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Enable disable product image
-   * @param enable
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param enable {boolean} True if we need to enable product image in the invoice
+   * @returns {Promise<void>}
    */
-  async enableProductImage(enable = true) {
-    await this.page.click(this.invoiceOptionEnableProductImage(enable ? 1 : 0));
+  async enableProductImage(page, enable = true) {
+    await this.setChecked(page, this.invoiceOptionStatusToggleInput(enable ? 1 : 0));
   }
 
   /**
    * Enable tax breakdown
-   * @param enable
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param enable {boolean} True if we need to enable tax breakdown in the invoice
+   * @returns {Promise<void>}
    */
-  async enableTaxBreakdown(enable = true) {
-    await this.page.click(this.taxBreakdownEnable(enable ? 1 : 0));
+  async enableTaxBreakdown(page, enable = true) {
+    await this.setChecked(page, this.taxBreakdownStatusToggleInput(enable ? 1 : 0));
   }
 
   /**
    * Set invoiceNumber, LegalFreeText, footerText
-   * @param data
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param data {object} Values to set on invoice option inputs
+   * @returns {Promise<void>}
    */
-  async setInputOptions(data) {
-    await this.setValue(this.invoiceNumberInput, data.invoiceNumber);
-    await this.setValue(this.footerTextInput, data.footerText);
+  async setInputOptions(page, data) {
+    await this.setValue(page, this.invoiceNumberInput, data.invoiceNumber);
+    await this.setValue(page, this.footerTextInput, data.footerText);
   }
 
   /**
    * Enable add current year to invoice
-   * @param enable
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param enable {boolean} True if we need to enable add current year to invoice
+   * @returns {Promise<void>}
    */
-  async enableAddCurrentYearToInvoice(enable = true) {
-    await this.page.click(this.invoiceAddCurrentYear(enable ? 1 : 0));
+  async enableAddCurrentYearToInvoice(page, enable = true) {
+    await this.setChecked(page, this.invoiceAddCurrentYearToggleInput(enable ? 1 : 0));
   }
 
   /**
    * Choose the position of the year
-   * @param id
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param id {number} Radio button id for position of the year date
+   * @returns {Promise<void>}
    */
-  async chooseInvoiceOptionsYearPosition(id) {
-    await this.page.click(this.optionYearPositionRadioButton(id));
+  async chooseInvoiceOptionsYearPosition(page, id) {
+    await page.click(this.optionYearPositionRadioButton(id));
   }
 
-  /** Edit invoice Prefix
-   * @param prefix
-   * @return {Promise<void>}
+  /**
+   * Edit invoice Prefix
+   * @param page {Page} Browser tab
+   * @param prefix {string} Prefix value to change
+   * @returns {Promise<void>}
    */
-  async changePrefix(prefix) {
-    await this.setValue(this.invoicePrefixInput, prefix);
+  async changePrefix(page, prefix) {
+    await this.setValue(page, this.invoicePrefixInput, prefix);
   }
-};
+}
+
+module.exports = new Invoice();

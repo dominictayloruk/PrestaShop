@@ -1,38 +1,28 @@
 require('module-alias/register');
 
 const {expect} = require('chai');
+
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
-
-// Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const ProductSettingsPage = require('@pages/BO/shopParameters/productSettings');
-const HomePageFO = require('@pages/FO/home');
-const CategoryPageFO = require('@pages/FO/category');
-
-// Import test context
 const testContext = require('@utils/testContext');
 
-const baseContext = 'functional_BO_shopParameters_productSettings_pagination_updateNumberOfProductsPerPage';
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
 
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const productSettingsPage = require('@pages/BO/shopParameters/productSettings');
+
+// Import FO pages
+const homePageFO = require('@pages/FO/home');
+const categoryPageFO = require('@pages/FO/category');
+
+const baseContext = 'functional_BO_shopParameters_productSettings_pagination_updateNumberOfProductsPerPage';
 
 let browserContext;
 let page;
 const updatedProductPerPage = 5;
 const defaultNumberOfProductsPerPage = 10;
-
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    productSettingsPage: new ProductSettingsPage(page),
-    homePageFO: new HomePageFO(page),
-    categoryPageFO: new CategoryPageFO(page),
-  };
-};
 
 /*
 Set number of products displayed to 5
@@ -40,21 +30,20 @@ Check the update in FO
 Set number of products displayed to default value 10
 Check the update in FO
  */
-describe('Update number of product displayed on FO', async () => {
+describe('BO - Shop Parameters - Product Settings : Update number of product displayed on FO', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO and go to product settings page
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
   const tests = [
     {args: {numberOfProductsPerPage: updatedProductPerPage}},
@@ -66,15 +55,16 @@ describe('Update number of product displayed on FO', async () => {
       it('should go to \'Shop parameters > Product Settings\' page', async function () {
         await testContext.addContextItem(this, 'testIdentifier', `goToProductSettingsPage${index + 1}`, baseContext);
 
-        await this.pageObjects.dashboardPage.goToSubMenu(
-          this.pageObjects.dashboardPage.shopParametersParentLink,
-          this.pageObjects.dashboardPage.productSettingsLink,
+        await dashboardPage.goToSubMenu(
+          page,
+          dashboardPage.shopParametersParentLink,
+          dashboardPage.productSettingsLink,
         );
 
-        await this.pageObjects.productSettingsPage.closeSfToolBar();
+        await productSettingsPage.closeSfToolBar(page);
 
-        const pageTitle = await this.pageObjects.productSettingsPage.getPageTitle();
-        await expect(pageTitle).to.contains(this.pageObjects.productSettingsPage.pageTitle);
+        const pageTitle = await productSettingsPage.getPageTitle(page);
+        await expect(pageTitle).to.contains(productSettingsPage.pageTitle);
       });
 
       it(
@@ -82,46 +72,52 @@ describe('Update number of product displayed on FO', async () => {
         async function () {
           await testContext.addContextItem(this, 'testIdentifier', `updateProductsPerPage${index + 1}`, baseContext);
 
-          const result = await this.pageObjects.productSettingsPage.setProductsDisplayedPerPage(
+          const result = await productSettingsPage.setProductsDisplayedPerPage(
+            page,
             test.args.numberOfProductsPerPage,
           );
 
-          await expect(result).to.contains(this.pageObjects.productSettingsPage.successfulUpdateMessage);
+          await expect(result).to.contains(productSettingsPage.successfulUpdateMessage);
         },
       );
 
       it('should view my shop', async function () {
         await testContext.addContextItem(this, 'testIdentifier', `viewMyShop${index + 1}`, baseContext);
 
-        page = await this.pageObjects.productSettingsPage.viewMyShop();
-        this.pageObjects = await init();
+        page = await productSettingsPage.viewMyShop(page);
 
-        const isHomePage = await this.pageObjects.homePageFO.isHomePage();
+        const isHomePage = await homePageFO.isHomePage(page);
         await expect(isHomePage, 'Home page was not opened').to.be.true;
       });
 
       it('should go to all products page', async function () {
         await testContext.addContextItem(this, 'testIdentifier', `goToHomeCategory${index + 1}`, baseContext);
 
-        await this.pageObjects.homePageFO.changeLanguage('en');
-        await this.pageObjects.homePageFO.goToAllProductsPage();
+        await homePageFO.changeLanguage(page, 'en');
+        await homePageFO.goToAllProductsPage(page);
 
-        const isCategoryPage = await this.pageObjects.categoryPageFO.isCategoryPage();
+        const isCategoryPage = await categoryPageFO.isCategoryPage(page);
         await expect(isCategoryPage, 'Home category page was not opened');
       });
 
       it(`should check that number of products is equal to '${test.args.numberOfProductsPerPage}'`, async function () {
         await testContext.addContextItem(this, 'testIdentifier', `checkNumberOfProduct${index + 1}`, baseContext);
 
-        const numberOfProducts = await this.pageObjects.categoryPageFO.getNumberOfProductsDisplayed();
+        const numberOfProducts = await categoryPageFO.getNumberOfProductsDisplayed(page);
 
         await expect(
           numberOfProducts,
           'Number of product displayed is incorrect',
         ).to.equal(test.args.numberOfProductsPerPage);
+      });
 
-        page = await this.pageObjects.homePageFO.closePage(browserContext, 0);
-        this.pageObjects = await init();
+      it('should close the page and go back to BO', async function () {
+        await testContext.addContextItem(this, 'testIdentifier', `goBackToBO${index + 1}`, baseContext);
+
+        page = await homePageFO.closePage(browserContext, page, 0);
+
+        const pageTitle = await productSettingsPage.getPageTitle(page);
+        await expect(pageTitle).to.contains(productSettingsPage.pageTitle);
       });
     });
   });

@@ -63,7 +63,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
  */
 final class OrderGridDefinitionFactory extends AbstractFilterableGridDefinitionFactory
 {
-    const GRID_ID = 'order';
+    public const GRID_ID = 'order';
 
     /**
      * @var ConfigurationInterface
@@ -310,11 +310,9 @@ final class OrderGridDefinitionFactory extends AbstractFilterableGridDefinitionF
             ])
             ->setAssociatedColumn('reference')
             )
-            ->add((new Filter('new', YesAndNoChoiceType::class))
-            ->setTypeOptions([
-                'required' => false,
-            ])
-            ->setAssociatedColumn('new')
+            ->add(
+                (new Filter('new', YesAndNoChoiceType::class))
+                    ->setAssociatedColumn('new')
             )
             ->add((new Filter('customer', TextType::class))
             ->setTypeOptions([
@@ -463,8 +461,8 @@ final class OrderGridDefinitionFactory extends AbstractFilterableGridDefinitionF
      */
     private function getRowActions(): RowActionCollection
     {
-        return (new RowActionCollection())
-            ->add(
+        $rowActionCollection = new RowActionCollection();
+        $rowActionCollection->add(
                 (new LinkRowAction('print_invoice'))
                     ->setName($this->trans('View invoice', [], 'Admin.Orderscustomers.Feature'))
                     ->setIcon('receipt')
@@ -501,5 +499,7 @@ final class OrderGridDefinitionFactory extends AbstractFilterableGridDefinitionF
                     ])
             )
         ;
+
+        return $rowActionCollection;
     }
 }

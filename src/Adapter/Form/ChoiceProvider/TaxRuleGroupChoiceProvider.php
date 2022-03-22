@@ -42,7 +42,7 @@ final class TaxRuleGroupChoiceProvider implements FormChoiceProviderInterface, F
     {
         $choices = [];
         foreach ($this->getRules() as $rule) {
-            $choices[$rule['name']] = $rule['id_tax_rules_group'];
+            $choices[$rule['name']] = (int) $rule['id_tax_rules_group'];
         }
 
         return $choices;
@@ -55,6 +55,11 @@ final class TaxRuleGroupChoiceProvider implements FormChoiceProviderInterface, F
     {
         $attrs = [];
         foreach ($this->getRules() as $rule) {
+            // Keep first one found
+            if (!empty($attrs[$rule['name']]['data-tax-rate'])) {
+                continue;
+            }
+
             $attrs[$rule['name']] = [
                 'data-tax-rate' => !empty($rule['rate']) ? $rule['rate'] : null,
             ];

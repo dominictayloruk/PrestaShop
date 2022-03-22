@@ -26,6 +26,7 @@
 
 namespace PrestaShopBundle\Entity\Repository;
 
+use Context;
 use Doctrine\DBAL\Driver\Connection;
 use Doctrine\DBAL\Driver\Statement;
 use Doctrine\ORM\EntityManager;
@@ -78,21 +79,6 @@ abstract class StockManagementRepository
     /**
      * @var int
      */
-    protected $languageId;
-
-    /**
-     * @var int
-     */
-    protected $shopId;
-
-    /**
-     * @var \Context
-     */
-    protected $context;
-
-    /**
-     * @var int
-     */
     protected $foundRows = 0;
 
     /**
@@ -105,7 +91,7 @@ abstract class StockManagementRepository
      * @param Connection $connection
      * @param ContextAdapter $contextAdapter
      * @param ImageManager $imageManager
-     * @param $tablePrefix
+     * @param string $tablePrefix
      *
      * @throws NotImplementedException
      */
@@ -123,26 +109,65 @@ abstract class StockManagementRepository
         $this->contextAdapter = $contextAdapter;
         $this->imageManager = $imageManager;
         $this->tablePrefix = $tablePrefix;
+    }
 
-        $this->context = $contextAdapter->getContext();
+    /**
+     * Returns the current context
+     */
+    protected function getCurrentContext(): Context
+    {
+        return $this->contextAdapter->getContext();
+    }
 
-        if (!$this->context->employee instanceof Employee) {
+    /**
+     * Returns the employee set in current context
+     */
+    protected function getCurrentEmployee(): Employee
+    {
+        $employee = $this->getCurrentContext()->employee;
+
+        if (!$employee instanceof Employee) {
             throw new RuntimeException('Determining the active language requires a contextual employee instance.');
         }
 
-        $languageId = $this->context->employee->id_lang;
-        $this->languageId = (int) $languageId;
+        return $employee;
+    }
 
-        if (!$this->context->shop instanceof Shop) {
+    /**
+     * Returns the language ID of the employee in current context
+     */
+    protected function getCurrentLanguageId(): int
+    {
+        return (int) $this->getCurrentEmployee()->id_lang;
+    }
+
+    /**
+     * Returns the shop set in current context
+     *
+     * @throws NotImplementedException
+     */
+    protected function getCurrentShop(): Shop
+    {
+        $shop = $this->getCurrentContext()->shop;
+
+        if (!$shop instanceof Shop) {
             throw new RuntimeException('Determining the active shop requires a contextual shop instance.');
         }
-
-        $shop = $this->context->shop;
-        if ($shop->getContextType() !== $shop::CONTEXT_SHOP) {
+        if ($shop->getContextType() !== Shop::CONTEXT_SHOP) {
             throw new NotImplementedException('Shop context types other than "single shop" are not supported');
         }
 
-        $this->shopId = $shop->getContextualShopId();
+        return $shop;
+    }
+
+    /**
+     * Returns the contextual ID of the shop in current context
+     *
+     * @throws NotImplementedException
+     */
+    protected function getContextualShopId(): int
+    {
+        return $this->getCurrentShop()->getContextualShopId();
     }
 
     /**
@@ -214,7 +239,7 @@ abstract class StockManagementRepository
     /**
      * @param string $andWhereClause
      * @param string $having
-     * @param null $orderByClause
+     * @param string|null $orderByClause
      *
      * @return mixed
      */
@@ -229,7 +254,7 @@ abstract class StockManagementRepository
     /**
      * @param QueryParamsCollection $queryParams
      *
-     * @return bool|string
+     * @return int
      */
     public function countPages(QueryParamsCollection $queryParams)
     {
@@ -342,18 +367,21 @@ abstract class StockManagementRepository
         QueryParamsCollection $queryParams = null,
         ProductIdentity $productIdentity = null
     ) {
-        $statement->bindValue('shop_id', $this->shopId, PDO::PARAM_INT);
-        $statement->bindValue('language_id', $this->languageId, PDO::PARAM_INT);
+        $shop = $this->getCurrentShop();
+        $shopId = $shop->getContextualShopId();
+        $shopGroup = $shop->getGroup();
+        $languageId = $this->getCurrentLanguageId();
+
+        $statement->bindValue('shop_id', $shopId, PDO::PARAM_INT);
+        $statement->bindValue('language_id', $languageId, PDO::PARAM_INT);
         $statement->bindValue('state', Product::STATE_SAVED, PDO::PARAM_INT);
 
         // if quantities are shared between shops of the group
-        $shop = $this->context->shop;
-        $shopGroup = $shop->getGroup();
         if ($shopGroup->share_stock) {
             $stockShopId = 0;
             $stockGroupId = $shopGroup->id;
         } else {
-            $stockShopId = $shop->getContextualShopId();
+            $stockShopId = $shopId;
             $stockGroupId = 0;
         }
 
@@ -415,6 +443,35 @@ abstract class StockManagementRepository
     }
 
     /**
+     * Get the attribute name subquery to be used in the select field of the main query.
+     *
+     * @return string
+     */
+    protected function getAttributeNameSubquery()
+    {
+        return '(SELECT GROUP_CONCAT(
+                        DISTINCT CONCAT(agl.name)
+                        SEPARATOR ", "
+                    )
+                    FROM ' . $this->tablePrefix . 'product_attribute pa2
+                    JOIN ' . $this->tablePrefix . 'product_attribute_combination pac ON (
+                        pac.id_product_attribute = pa2.id_product_attribute
+                    )
+                    JOIN ' . $this->tablePrefix . 'attribute a ON (
+                        a.id_attribute = pac.id_attribute
+                    )
+                    JOIN ' . $this->tablePrefix . 'attribute_group ag ON (
+                        ag.id_attribute_group = a.id_attribute_group
+                    )
+                    JOIN ' . $this->tablePrefix . 'attribute_group_lang agl ON (
+                        ag.id_attribute_group = agl.id_attribute_group
+                        AND agl.id_lang = :language_id
+                    )
+                    WHERE pa2.id_product=p.id_product AND pa2.id_product_attribute=pa.id_product_attribute)
+                    AS attribute_name';
+    }
+
+    /**
      * Get the combination name subquery to be used in the select field of the main query.
      *
      * @return string
@@ -428,7 +485,7 @@ abstract class StockManagementRepository
                     FROM ' . $this->tablePrefix . 'product_attribute pa2
                     JOIN ' . $this->tablePrefix . 'product_attribute_combination pac ON (
                         pac.id_product_attribute = pa2.id_product_attribute
-                    )                    
+                    )
                     JOIN ' . $this->tablePrefix . 'attribute a ON (
                         a.id_attribute = pac.id_attribute
                     )
@@ -442,7 +499,7 @@ abstract class StockManagementRepository
                     JOIN ' . $this->tablePrefix . 'attribute_group_lang agl ON (
                         ag.id_attribute_group = agl.id_attribute_group
                         AND agl.id_lang = :language_id
-                    )                    
+                    )
                     WHERE pa2.id_product=p.id_product AND pa2.id_product_attribute=pa.id_product_attribute)
                     AS combination_name';
     }
@@ -474,7 +531,7 @@ abstract class StockManagementRepository
                         WHERE fv.custom = 0 AND fp.id_product=:id_product';
             $statement = $this->connection->prepare($query);
             $statement->bindValue('id_product', (int) $row['product_id'], \PDO::PARAM_INT);
-            $statement->bindValue('shop_id', $this->shopId, \PDO::PARAM_INT);
+            $statement->bindValue('shop_id', $this->getContextualShopId(), \PDO::PARAM_INT);
             $statement->execute();
             $this->productFeatures[$row['product_id']] = $statement->fetchColumn(0);
             $statement->closeCursor();
@@ -490,7 +547,7 @@ abstract class StockManagementRepository
      */
     protected function getCombinationCoverId(array $row)
     {
-        $query = 'SELECT id_image 
+        $query = 'SELECT id_image
                   FROM ' . $this->tablePrefix . 'product_attribute_image pai
                   WHERE id_product_attribute=:id_product_attribute
                   LIMIT 1';
@@ -520,7 +577,7 @@ abstract class StockManagementRepository
                         )
                         JOIN ' . $this->tablePrefix . 'attribute_group ag ON (
                             ag.id_attribute_group = a.id_attribute_group
-                        )                    
+                        )
                     WHERE pac.id_product_attribute=:id_product_attribute';
         $statement = $this->connection->prepare($query);
         $statement->bindValue('id_product_attribute', (int) $row['combination_id'], \PDO::PARAM_INT);

@@ -4,20 +4,19 @@ const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
-
-// Import
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const OrderSettingsPage = require('@pages/BO/shopParameters/orderSettings');
-const FOLoginPage = require('@pages/FO/login');
-const ProductPage = require('@pages/FO/product');
-const FOBasePage = require('@pages/FO/FObasePage');
-const HomePage = require('@pages/FO/home');
-const CartPage = require('@pages/FO/cart');
-
-// Import test context
 const testContext = require('@utils/testContext');
+
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
+
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const orderSettingsPage = require('@pages/BO/shopParameters/orderSettings');
+
+// Import FO pages
+const productPage = require('@pages/FO/product');
+const homePage = require('@pages/FO/home');
+const cartPage = require('@pages/FO/cart');
 
 const baseContext = 'functional_BO_shopParameters_orderSettings_general_minimumPurchaseTotalRequired';
 
@@ -28,50 +27,41 @@ const newPurchaseTotalRequired = 100;
 const defaultPurchaseTotalRequired = 0;
 
 const alertMessage = `A minimum shopping cart total of €${newPurchaseTotalRequired}.00 (tax excl.)`
-+ ' is required to validate your order.';
+  + ' is required to validate your order.';
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    orderSettingsPage: new OrderSettingsPage(page),
-    foLoginPage: new FOLoginPage(page),
-    productPage: new ProductPage(page),
-    foBasePage: new FOBasePage(page),
-    homePage: new HomePage(page),
-    cartPage: new CartPage(page),
-  };
-};
-
-describe('Test minimum purchase total required in order to validate the order', async () => {
+/*
+Update minimum purchase total value
+Go to FO and check the alert message
+ */
+describe('BO - Shop Parameters - Order Settings : Test minimum purchase total required in order '
+  + 'to validate the order', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO and go to Shop Parameters > Order Settings page
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
   it('should go to \'Shop Parameters > Order Settings\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToOrderSettingsPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.shopParametersParentLink,
-      this.pageObjects.dashboardPage.orderSettingsLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.shopParametersParentLink,
+      dashboardPage.orderSettingsLink,
     );
 
-    await this.pageObjects.orderSettingsPage.closeSfToolBar();
+    await orderSettingsPage.closeSfToolBar(page);
 
-    const pageTitle = await this.pageObjects.orderSettingsPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.orderSettingsPage.pageTitle);
+    const pageTitle = await orderSettingsPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(orderSettingsPage.pageTitle);
   });
 
   const tests = [
@@ -83,21 +73,20 @@ describe('Test minimum purchase total required in order to validate the order', 
     it('should update Minimum purchase total required in order to validate the order value', async function () {
       await testContext.addContextItem(this, 'testIdentifier', `updateMinimumPurchaseTotal_${index}`, baseContext);
 
-      const result = await this.pageObjects.orderSettingsPage.setMinimumPurchaseRequiredTotal(test.args.value);
-      await expect(result).to.contains(this.pageObjects.orderSettingsPage.successfulUpdateMessage);
+      const result = await orderSettingsPage.setMinimumPurchaseRequiredTotal(page, test.args.value);
+      await expect(result).to.contains(orderSettingsPage.successfulUpdateMessage);
     });
 
     it('should view my shop', async function () {
       await testContext.addContextItem(this, 'testIdentifier', `viewMyShop${index}`, baseContext);
 
       // Click on view my shop
-      page = await this.pageObjects.orderSettingsPage.viewMyShop();
-      this.pageObjects = await init();
+      page = await orderSettingsPage.viewMyShop(page);
 
       // Change Fo language
-      await this.pageObjects.homePage.changeLanguage('en');
+      await homePage.changeLanguage(page, 'en');
 
-      const isHomePage = await this.pageObjects.homePage.isHomePage();
+      const isHomePage = await homePage.isHomePage(page);
       await expect(isHomePage, 'Home page is not displayed').to.be.true;
     });
 
@@ -110,21 +99,21 @@ describe('Test minimum purchase total required in order to validate the order', 
       );
 
       // Go to the first product page
-      await this.pageObjects.homePage.goToProductPage(1);
+      await homePage.goToProductPage(page, 1);
 
       // Add the created product to the cart
-      await this.pageObjects.productPage.addProductToTheCart();
+      await productPage.addProductToTheCart(page);
 
       // Check proceed to checkout button enable/disable
-      const isDisabled = await this.pageObjects.cartPage.isProceedToCheckoutButtonDisabled();
+      const isDisabled = await cartPage.isProceedToCheckoutButtonDisabled(page);
       await expect(isDisabled).to.equal(test.args.disable);
 
       // Check alert message
-      const isAlertVisible = await this.pageObjects.cartPage.isAlertWarningForMinimumPurchaseVisible();
+      const isAlertVisible = await cartPage.isAlertWarningForMinimumPurchaseVisible(page);
       await expect(isAlertVisible).to.equal(test.args.alertMessage);
 
       if (isAlertVisible) {
-        const alertText = await this.pageObjects.cartPage.getAlertWarning();
+        const alertText = await cartPage.getAlertWarning(page);
         await expect(alertText).to.contains(alertMessage);
       }
     });
@@ -132,11 +121,10 @@ describe('Test minimum purchase total required in order to validate the order', 
     it('should go back to BO', async function () {
       await testContext.addContextItem(this, 'testIdentifier', `BackToBO${index}`, baseContext);
 
-      page = await this.pageObjects.cartPage.closePage(browserContext, 0);
-      this.pageObjects = await init();
+      page = await cartPage.closePage(browserContext, page, 0);
 
-      const pageTitle = await this.pageObjects.orderSettingsPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.orderSettingsPage.pageTitle);
+      const pageTitle = await orderSettingsPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(orderSettingsPage.pageTitle);
     });
   });
 });

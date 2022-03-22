@@ -23,24 +23,27 @@
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
 const path = require('path');
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const keepLicense = require('uglify-save-license');
-const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const CleanWebpackPlugin = require('clean-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const FontPreloadPlugin = require('webpack-font-preload-plugin');
+const CssoWebpackPlugin = require('csso-webpack-plugin').default;
 
 module.exports = (env, argv) => {
   const devMode = argv.mode === 'development';
 
   const config = {
     entry: [
-      './js/theme.js'
+      './js/theme.js',
     ],
     output: {
       path: path.resolve(__dirname, 'public'),
-      filename: 'bundle.js'
+      publicPath: '',
+      filename: 'bundle.js',
     },
-    //devtool: 'source-map', // uncomment me to build source maps (really slow)
     module: {
       rules: [{
         test: path.join(__dirname, 'js'),
@@ -48,42 +51,43 @@ module.exports = (env, argv) => {
           loader: 'babel-loader',
           options: {
             presets: [
-              ['@babel/preset-env', {modules: false}]
-            ]
-          }
-        }]
+              ['@babel/preset-env', {modules: false}],
+            ],
+          },
+        }],
       }, {
         test: /\.(scss|sass|css)$/,
         use: [
-          MiniCssExtractPlugin.loader,
+          {
+            loader: MiniCssExtractPlugin.loader,
+          },
           {
             loader: 'css-loader',
-            options: {
-              //sourceMap: true, // uncomment me to generate source maps
-            }
           },
           {
             loader: 'postcss-loader',
-            options: {
-              //sourceMap: true, // uncomment me to generate source maps
-            }
           },
           {
             loader: 'sass-loader',
-            options: {
-              //sourceMap: true, // uncomment me to generate source maps
-            }
-          }
-        ]
-      }, {
-        test: /.(gif|png|woff(2)?|eot|ttf|svg)(\?[a-z0-9=\.]+)?$/,
-        use: [{
-          loader: 'file-loader',
-          options: {
-            name: '[hash].[ext]'
-          }
-        }]
-      }]
+          },
+        ],
+      },
+      {
+        test: /\.(jpg|png|woff2?|eot|otf|ttf|svg|gif)$/,
+        loader: 'file-loader',
+        options: {
+          name: '[hash].[ext]',
+        },
+        exclude: /MaterialIcons-Regular\.(woff2?|ttf)$/,
+      },
+      {
+        test: /MaterialIcons-Regular\.(woff2?|ttf)$/,
+        loader: 'file-loader',
+        options: {
+          name: '[hash].preload.[ext]',
+        },
+      },
+      ],
     },
     optimization: {
 
@@ -93,13 +97,28 @@ module.exports = (env, argv) => {
         root: path.resolve(__dirname),
         cleanOnceBeforeBuildPatterns: [
           '**/*', // required
-          '!theme.rtlfix' // exclusion
-        ]
+          '!theme.rtlfix', // exclusion
+        ],
       }),
       new MiniCssExtractPlugin({
-        filename: 'theme.css'
-      })
-    ]
+        filename: 'theme.css',
+      }),
+      new HtmlWebpackPlugin({
+        filename: 'preload.tpl',
+        templateContent: '{{{preloadLinks}}}',
+        inject: false,
+      }),
+      new FontPreloadPlugin({
+        index: 'preload.tpl',
+        extensions: ['woff2'],
+        filter: /preload/,
+        // eslint-disable-next-line
+        replaceCallback: ({indexSource, linksAsString}) => indexSource.replace('{{{preloadLinks}}}', linksAsString.replace(/href="auto/g, 'href="{"`$admin_dir`"}')),
+      }),
+      new CssoWebpackPlugin({
+        forceMediaMerge: true,
+      }),
+    ],
   };
 
   if (!devMode) {
@@ -108,14 +127,13 @@ module.exports = (env, argv) => {
         sourceMap: false,
         uglifyOptions: {
           compress: {
-            drop_console: true
+            drop_console: true,
           },
           output: {
-            comments: keepLicense
-          }
+            comments: keepLicense,
+          },
         },
       }),
-      new OptimizeCSSAssetsPlugin()
     ];
   }
 

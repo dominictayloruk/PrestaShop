@@ -28,7 +28,7 @@ namespace Tests\Integration\Behaviour\Features\Context;
 
 use Cart;
 use Context;
-use LegacyTests\Unit\Core\Cart\Calculation\CartOld;
+use Tests\Integration\Utility\CartOld;
 
 class CartFeatureContext extends AbstractPrestaShopFeatureContext
 {
@@ -129,7 +129,7 @@ class CartFeatureContext extends AbstractPrestaShopFeatureContext
     /**
      * @Then /^my cart total should be (precisely )?(\d+\.\d+) tax included$/
      */
-    public function totalCartWithTaxtShouldBe($precisely, $expectedTotal)
+    public function totalCartWithTaxShouldBe($precisely, $expectedTotal)
     {
         $this->expectsTotal($expectedTotal, 'v2', true, !empty($precisely));
     }
@@ -137,7 +137,7 @@ class CartFeatureContext extends AbstractPrestaShopFeatureContext
     /**
      * @Then /^my cart total using previous calculation method should be (precisely )?(\d+\.\d+) tax included$/
      */
-    public function totalCartWithTaxtOnPreviousCaclculationMethodShouldBe($precisely, $expectedTotal)
+    public function totalCartWithTaxOnPreviousCaclculationMethodShouldBe($precisely, $expectedTotal)
     {
         $this->expectsTotal($expectedTotal, 'v1', true, !empty($precisely));
     }
@@ -160,11 +160,14 @@ class CartFeatureContext extends AbstractPrestaShopFeatureContext
 
     protected function expectsTotal($expectedTotal, $method, $withTax = true, $precisely = false)
     {
-        $cart = $this->getCurrentCart();
-        $carrierId = (int) $cart->id_carrier <= 0 ? null : $cart->id_carrier;
         if ($method == 'v1') {
+            /** @var CartOld $cart */
+            $cart = $this->getCurrentCart();
+            $carrierId = (int) $cart->id_carrier <= 0 ? null : $cart->id_carrier;
             $total = $cart->getOrderTotalV1($withTax, Cart::BOTH, null, $carrierId);
         } else {
+            $cart = $this->getCurrentCart();
+            $carrierId = (int) $cart->id_carrier <= 0 ? null : $cart->id_carrier;
             $total = $cart->getOrderTotal($withTax, Cart::BOTH, null, $carrierId);
         }
         if (!$precisely) {

@@ -37,6 +37,7 @@ use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
+use Symfony\Component\Form\FormInterface;
 
 /**
  * Class ThemeLogosType is used to configure theme's logos.
@@ -80,25 +81,23 @@ class ShopLogosType extends AbstractType
     {
         $shopLogoSettings = new ShopLogoSettings();
 
-        $availableLogoFileTypes = implode(',', $shopLogoSettings->getLogoImageExtensionsWithDot());
-
         $builder
             ->add('header_logo', FileType::class, [
                 'required' => false,
                 'attr' => [
-                    'accept' => $availableLogoFileTypes,
+                    'accept' => implode(',', $shopLogoSettings->getLogoImageExtensionsWithDot()),
                 ],
             ])
             ->add('mail_logo', FileType::class, [
                 'required' => false,
                 'attr' => [
-                    'accept' => $availableLogoFileTypes,
+                    'accept' => implode(',', $shopLogoSettings->getLogoImageExtensionsWithDot('PS_LOGO_MAIL')),
                 ],
             ])
             ->add('invoice_logo', FileType::class, [
                 'required' => false,
                 'attr' => [
-                    'accept' => $availableLogoFileTypes,
+                    'accept' => implode(',', $shopLogoSettings->getLogoImageExtensionsWithDot('PS_LOGO_INVOICE')),
                 ],
             ])
             ->add('favicon', FileType::class, [
@@ -267,8 +266,8 @@ class ShopLogosType extends AbstractType
     /**
      * Gets the checkbox form fields which are the source of multi-store behavior.
      *
-     * @param $form
-     * @param $suffix
+     * @param FormInterface $form
+     * @param string $suffix
      *
      * @return array
      */

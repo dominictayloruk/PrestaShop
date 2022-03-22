@@ -27,9 +27,6 @@
 namespace PrestaShopBundle\Controller\Admin;
 
 use Context;
-use PrestaShop\PrestaShop\Adapter\Module\AdminModuleDataProvider;
-use PrestaShop\PrestaShop\Core\Addon\AddonsCollection;
-use PrestaShop\PrestaShop\Core\Addon\Module\ModuleManagerBuilder;
 use PrestaShop\PrestaShop\Core\Domain\Notification\Command\UpdateEmployeeNotificationLastElementCommand;
 use PrestaShop\PrestaShop\Core\Domain\Notification\Query\GetNotificationLastElements;
 use PrestaShop\PrestaShop\Core\Domain\Notification\QueryResult\NotificationsResults;
@@ -38,7 +35,6 @@ use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\FilterableGridDefinitionF
 use PrestaShop\PrestaShop\Core\Grid\Definition\Factory\GridDefinitionFactoryInterface;
 use PrestaShop\PrestaShop\Core\Kpi\Row\KpiRowInterface;
 use PrestaShopBundle\Security\Annotation\AdminSecurity;
-use PrestaShopBundle\Service\DataProvider\Admin\RecommendedModules;
 use PrestaShopBundle\Service\Grid\ControllerResponseBuilder;
 use PrestaShopBundle\Service\Grid\ResponseBuilder;
 use ReflectionClass;
@@ -76,7 +72,7 @@ class CommonController extends FrameworkBundleAdminController
      *
      * @param Request $request
      *
-     * @throws TypeException
+     * @return JsonResponse
      */
     public function notificationsAckAction(Request $request)
     {
@@ -203,54 +199,9 @@ class CommonController extends FrameworkBundleAdminController
     }
 
     /**
-     * This will allow you to retrieve an HTML code with a list of recommended modules depending on the domain.
-     *
-     * @Template("@PrestaShop/Admin/Common/recommendedModules.html.twig")
-     *
-     * @param string $domain
-     * @param int $limit
-     * @param int $randomize
-     *
-     * @return array Template vars
-     */
-    public function recommendedModulesAction($domain, $limit = 0, $randomize = 0)
-    {
-        $recommendedModules = $this->get('prestashop.data_provider.modules.recommended');
-        /** @var $recommendedModules RecommendedModules */
-        $moduleIdList = $recommendedModules->getRecommendedModuleIdList($domain, ($randomize == 1));
-
-        $modulesProvider = $this->get('prestashop.core.admin.data_provider.module_interface');
-        /** @var $modulesProvider AdminModuleDataProvider */
-        $modulesRepository = ModuleManagerBuilder::getInstance()->buildRepository();
-
-        $modules = [];
-        foreach ($moduleIdList as $id) {
-            try {
-                $module = $modulesRepository->getModule($id);
-            } catch (\Exception $e) {
-                continue;
-            }
-            $modules[] = $module;
-        }
-
-        if ($randomize == 1) {
-            shuffle($modules);
-        }
-
-        $modules = $recommendedModules->filterInstalledAndBadModules($modules);
-        $collection = AddonsCollection::createFrom($modules);
-        $modules = $modulesProvider->generateAddonsUrls($collection);
-
-        return [
-            'domain' => $domain,
-            'modules' => array_slice($modules, 0, $limit, true),
-        ];
-    }
-
-    /**
      * Render a right sidebar with content from an URL.
      *
-     * @param $url
+     * @param string $url
      * @param string $title
      * @param string $footer
      *
@@ -319,10 +270,10 @@ class CommonController extends FrameworkBundleAdminController
     /**
      * Specific action to render a specific field twice.
      *
-     * @param $formName the form name
-     * @param $formType the form type FQCN
-     * @param $fieldName the field name
-     * @param $fieldData the field data
+     * @param string $formName the form name
+     * @param string $formType the form type FQCN
+     * @param string $fieldName the field name
+     * @param array $fieldData the field data
      *
      * @return Response
      */
@@ -351,7 +302,7 @@ class CommonController extends FrameworkBundleAdminController
      * @param string $redirectRoute
      * @param array $redirectQueryParamsToKeep
      *
-     * @AdminSecurity("is_granted(['read'], request.get('_legacy_controller'))")
+     * @AdminSecurity("is_granted('read', request.get('_legacy_controller'))")
      *
      * @return RedirectResponse
      */
@@ -373,6 +324,7 @@ class CommonController extends FrameworkBundleAdminController
             // using ::GRID_ID (that has been replaced by AbstractFilterableGridDefinitionFactory)
             $reflect = new ReflectionClass($definitionFactory);
             if (array_key_exists('GRID_ID', $reflect->getConstants())) {
+                /* @phpstan-ignore-next-line Check of constant is done with ReflectionClass */
                 $filterId = $definitionFactory::GRID_ID;
             }
         }
@@ -391,7 +343,7 @@ class CommonController extends FrameworkBundleAdminController
         }
 
         // Legacy grid definition which use controller/action as filter keys (and no scope for parameters)
-        /** @var ControllerResponseBuilder $responseBuilder */
+        /** @var ControllerResponseBuilder $controllerResponseBuilder */
         $controllerResponseBuilder = $this->get('prestashop.bundle.grid.controller_response_builder');
 
         return $controllerResponseBuilder->buildSearchResponse(

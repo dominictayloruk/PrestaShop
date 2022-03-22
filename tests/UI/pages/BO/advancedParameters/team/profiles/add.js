@@ -1,9 +1,18 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class AddProfile extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Add profile page, contains functions that can be used on the page
+ * @class
+ * @extends BOBasePage
+ */
+class AddProfile extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on add profile page
+   */
+  constructor() {
+    super();
 
     this.pageTitleCreate = 'Add new profile';
     this.pageTitleEdit = 'Edit:';
@@ -19,12 +28,15 @@ module.exports = class AddProfile extends BOBasePage {
 
   /**
    * Fill form for add/edit page profile
-   * @param profileData
+   * @param page {Page} Browser tab
+   * @param profileData {ProfileData} Data to set on add/edit profile form
    * @return {Promise<string>}
    */
-  async createEditProfile(profileData) {
-    await this.setValue(this.nameInput, profileData.name);
-    await this.clickAndWaitForNavigation(this.saveButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+  async createEditProfile(page, profileData) {
+    await this.setValue(page, this.nameInput, profileData.name);
+    await this.clickAndWaitForNavigation(page, this.saveButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new AddProfile();

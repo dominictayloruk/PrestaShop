@@ -31,13 +31,12 @@ class AttributeGroupCore extends ObjectModel
 {
     /** @var string Name */
     public $name;
-    /** @var bool $is_color_group Whether the attribute group is a color group */
+    /** @var bool Whether the attribute group is a color group */
     public $is_color_group;
-    /** @var int $position Position */
+    /** @var int Position */
     public $position;
-    /** @var string $group_type Group type */
+    /** @var string Group type */
     public $group_type;
-
     /** @var string Public Name */
     public $public_name;
 
@@ -59,7 +58,7 @@ class AttributeGroupCore extends ObjectModel
         ],
     ];
 
-    /** @var array $webserviceParameters Web service parameters */
+    /** @var array Web service parameters */
     protected $webserviceParameters = [
         'objectsNodeName' => 'product_options',
         'objectNodeName' => 'product_option',
@@ -87,11 +86,7 @@ class AttributeGroupCore extends ObjectModel
      */
     public function add($autoDate = true, $nullValues = false)
     {
-        if ($this->group_type == 'color') {
-            $this->is_color_group = 1;
-        } else {
-            $this->is_color_group = 0;
-        }
+        $this->is_color_group = $this->group_type == 'color';
 
         if ($this->position <= 0) {
             $this->position = AttributeGroup::getHigherPosition() + 1;
@@ -115,11 +110,7 @@ class AttributeGroupCore extends ObjectModel
      */
     public function update($nullValues = false)
     {
-        if ($this->group_type == 'color') {
-            $this->is_color_group = 1;
-        } else {
-            $this->is_color_group = 0;
-        }
+        $this->is_color_group = $this->group_type == 'color';
 
         $return = parent::update($nullValues);
         Hook::exec('actionAttributeGroupSave', ['id_attribute_group' => $this->id]);
@@ -342,7 +333,7 @@ class AttributeGroupCore extends ObjectModel
      * Move a group attribute.
      *
      * @param bool $direction Up (1) or Down (0)
-     * @param int $position
+     * @param int|null $position
      *
      * @return bool Update result
      */

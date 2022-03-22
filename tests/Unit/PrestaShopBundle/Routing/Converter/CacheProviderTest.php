@@ -24,7 +24,7 @@
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
 
-namespace Tests\PrestaShopBundle\Routing\Converter;
+namespace Tests\Unit\PrestaShopBundle\Routing\Converter;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -55,7 +55,7 @@ class CacheProviderTest extends TestCase
      */
     private $legacyRoutes;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
         $this->expectedFlattenArray = [

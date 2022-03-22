@@ -36,12 +36,12 @@ class Password
     /**
      * @var string minimum required password length
      */
-    const MIN_LENGTH = 8;
+    public const MIN_LENGTH = 8;
 
     /**
      * @var string maximum allowed password length
      */
-    const MAX_LENGTH = 255;
+    public const MAX_LENGTH = 255;
 
     /**
      * @var string
@@ -71,7 +71,7 @@ class Password
      */
     private function assertPasswordIsWithinAllowedLength($password)
     {
-        $length = function_exists('mb_strlen') ? mb_strlen($password, 'UTF-8') : strlen($password);
+        $length = mb_strlen($password, 'UTF-8');
 
         if (self::MIN_LENGTH > $length || $length > self::MAX_LENGTH) {
             throw new EmployeeConstraintException(sprintf('Employee password length must be between %s and %s', self::MIN_LENGTH, self::MAX_LENGTH), EmployeeConstraintException::INVALID_PASSWORD);

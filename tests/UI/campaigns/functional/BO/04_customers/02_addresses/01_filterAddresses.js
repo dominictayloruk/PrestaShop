@@ -1,76 +1,68 @@
 require('module-alias/register');
 
+// Import expect from chai
 const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
+const testContext = require('@utils/testContext');
+
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
 
 // Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const AddressesPage = require('@pages/BO/customers/addresses');
+const dashboardPage = require('@pages/BO/dashboard');
+const addressesPage = require('@pages/BO/customers/addresses');
 
 // Import data
 const Address = require('@data/demo/address');
 
-// Import test context
-const testContext = require('@utils/testContext');
-
 const baseContext = 'functional_BO_customers_addresses_filterAddresses';
-
 
 let browserContext;
 let page;
 let numberOfAddresses = 0;
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    addressesPage: new AddressesPage(page),
-  };
-};
-
-// Filter addresses
-describe('Filter Addresses', async () => {
+/*
+Filter addresses table by Id, firstname, lastname, address, postcode, city and country
+ */
+describe('BO - Customers - Addresses : Filter Addresses table', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO and go to addresses page
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
-  it('should go to \'Customer>Addresses\' page', async function () {
+  it('should go to \'Customer > Addresses\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToAddressesPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.customersParentLink,
-      this.pageObjects.dashboardPage.addressesLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.customersParentLink,
+      dashboardPage.addressesLink,
     );
 
-    const pageTitle = await this.pageObjects.addressesPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.addressesPage.pageTitle);
+    const pageTitle = await addressesPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(addressesPage.pageTitle);
   });
 
   it('should reset all filters and get number of addresses in BO', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'resetFirst', baseContext);
 
-    numberOfAddresses = await this.pageObjects.addressesPage.resetAndGetNumberOfLines();
+    numberOfAddresses = await addressesPage.resetAndGetNumberOfLines(page);
     await expect(numberOfAddresses).to.be.above(0);
   });
 
   // Filter addresses with all inputs and selects in grid table
-  describe('Filter addresses', async () => {
+  describe('Filter addresses table', async () => {
     const tests = [
       {
         args:
@@ -141,17 +133,19 @@ describe('Filter Addresses', async () => {
       it(`should filter by ${test.args.filterBy} '${test.args.filterValue}'`, async function () {
         await testContext.addContextItem(this, 'testIdentifier', `${test.args.testIdentifier}`, baseContext);
 
-        await this.pageObjects.addressesPage.filterAddresses(
+        await addressesPage.filterAddresses(
+          page,
           test.args.filterType,
           test.args.filterBy,
           test.args.filterValue,
         );
 
-        const numberOfAddressesAfterFilter = await this.pageObjects.addressesPage.getNumberOfElementInGrid();
+        const numberOfAddressesAfterFilter = await addressesPage.getNumberOfElementInGrid(page);
         await expect(numberOfAddressesAfterFilter).to.be.at.most(numberOfAddresses);
 
         for (let i = 1; i <= numberOfAddressesAfterFilter; i++) {
-          const textColumn = await this.pageObjects.addressesPage.getTextColumnFromTableAddresses(
+          const textColumn = await addressesPage.getTextColumnFromTableAddresses(
+            page,
             i,
             test.args.filterBy === 'id_country' ? 'country_name' : test.args.filterBy,
           );
@@ -162,7 +156,7 @@ describe('Filter Addresses', async () => {
       it('should reset all filters', async function () {
         await testContext.addContextItem(this, 'testIdentifier', `${test.args.testIdentifier}Reset`, baseContext);
 
-        const numberOfAddressesAfterReset = await this.pageObjects.addressesPage.resetAndGetNumberOfLines();
+        const numberOfAddressesAfterReset = await addressesPage.resetAndGetNumberOfLines(page);
         await expect(numberOfAddressesAfterReset).to.equal(numberOfAddresses);
       });
     });

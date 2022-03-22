@@ -4,56 +4,50 @@ const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
+const testContext = require('@utils/testContext');
+
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
 
 // Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const EmailPage = require('@pages/BO/advancedParameters/email');
-
-// Import test context
-const testContext = require('@utils/testContext');
+const dashboardPage = require('@pages/BO/dashboard');
+const emailPage = require('@pages/BO/advancedParameters/email');
 
 const baseContext = 'functional_BO_advancedParameters_email_enableDisableLogEmails';
 
 let browserContext;
 let page;
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    emailPage: new EmailPage(page),
-  };
-};
-
-describe('Enable/Disable log emails', async () => {
+/*
+Enable/Disable log emails
+Check the existence of E-mail table
+ */
+describe('BO - Advanced Parameters - E-mail : Enable/Disable log emails', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
-  it('should go to \'Advanced parameters > E-mail\' page', async function () {
+  it('should go to \'Advanced Parameters > E-mail\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToEmailPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.advancedParametersLink,
-      this.pageObjects.dashboardPage.emailLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.advancedParametersLink,
+      dashboardPage.emailLink,
     );
 
-    const pageTitle = await this.pageObjects.emailPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.emailPage.pageTitle);
+    const pageTitle = await emailPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(emailPage.pageTitle);
   });
 
   const tests = [
@@ -65,14 +59,14 @@ describe('Enable/Disable log emails', async () => {
     it(`should ${test.args.action} log emails`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', `${test.args.action}LogEmails`, baseContext);
 
-      const result = await this.pageObjects.emailPage.setLogEmails(test.args.exist);
-      await expect(result).to.contains(this.pageObjects.emailPage.successfulUpdateMessage);
+      const result = await emailPage.setLogEmails(page, test.args.exist);
+      await expect(result).to.contains(emailPage.successfulUpdateMessage);
     });
 
-    it('should check the existence of log emails table', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', `checkLogEmailsTable${index}`, baseContext);
+    it('should check the existence of E-mail table', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', `checkEmailTable${index}`, baseContext);
 
-      const isVisible = await this.pageObjects.emailPage.isLogEmailsTableVisible();
+      const isVisible = await emailPage.isLogEmailsTableVisible(page);
       await expect(isVisible).to.equal(test.args.exist);
     });
   });

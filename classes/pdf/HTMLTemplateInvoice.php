@@ -56,6 +56,7 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
         $this->order_invoice = $order_invoice;
         $this->order = new Order((int) $this->order_invoice->id_order);
         $this->smarty = $smarty;
+        $this->smarty->assign('isTaxEnabled', (bool) Configuration::get('PS_TAX'));
 
         // If shop_address is null, then update it with current one.
         // But no DB save required here to avoid massive updates for bulk PDF generation case.
@@ -107,7 +108,7 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
                 'width' => 40,
             ],
             'quantity' => [
-                'width' => 8,
+                'width' => 12,
             ],
             'tax_code' => [
                 'width' => 8,
@@ -218,7 +219,7 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             foreach ($order_details as &$order_detail) {
                 if ($order_detail['image'] != null) {
                     $name = 'product_mini_' . (int) $order_detail['product_id'] . (isset($order_detail['product_attribute_id']) ? '_' . (int) $order_detail['product_attribute_id'] : '') . '.jpg';
-                    $path = _PS_PROD_IMG_DIR_ . $order_detail['image']->getExistingImgPath() . '.jpg';
+                    $path = _PS_PRODUCT_IMG_DIR_ . $order_detail['image']->getExistingImgPath() . '.jpg';
 
                     $order_detail['image_tag'] = preg_replace(
                         '/\.*' . preg_quote(__PS_BASE_URI__, '/') . '/',
@@ -237,7 +238,7 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             unset($order_detail); // don't overwrite the last order_detail later
         }
 
-        $cart_rules = $this->order->getCartRules($this->order_invoice->id);
+        $cart_rules = $this->order->getCartRules();
         $free_shipping = false;
         foreach ($cart_rules as $key => $cart_rule) {
             if ($cart_rule['free_shipping']) {
@@ -396,8 +397,6 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
                             && $address->id_country != Configuration::get('VATNUMBER_COUNTRY');
         $carrier = new Carrier($this->order->id_carrier);
 
-        $tax_breakdowns = $this->getTaxBreakdown();
-
         $data = [
             'tax_exempt' => $tax_exempt,
             'use_one_after_another_method' => $this->order_invoice->useOneAfterAnotherTaxComputationMethod(),
@@ -406,7 +405,7 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
             'shipping_tax_breakdown' => $this->order_invoice->getShippingTaxesBreakdown($this->order),
             'ecotax_tax_breakdown' => $this->order_invoice->getEcoTaxTaxesBreakdown(),
             'wrapping_tax_breakdown' => $this->order_invoice->getWrappingTaxesBreakdown(),
-            'tax_breakdowns' => $tax_breakdowns,
+            'tax_breakdowns' => $this->getTaxBreakdown(),
             'order' => $debug ? null : $this->order,
             'order_invoice' => $debug ? null : $this->order_invoice,
             'carrier' => $debug ? null : $carrier,
@@ -424,14 +423,14 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
     /**
      * Returns different tax breakdown elements.
      *
-     * @return array Different tax breakdown elements
+     * @return array|bool Different tax breakdown elements
      */
     protected function getTaxBreakdown()
     {
         $breakdowns = [
             'product_tax' => $this->order_invoice->getProductTaxesBreakdown($this->order),
             'shipping_tax' => $this->order_invoice->getShippingTaxesBreakdown($this->order),
-            'ecotax_tax' => $this->order_invoice->getEcoTaxTaxesBreakdown(),
+            'ecotax_tax' => Configuration::get('PS_USE_ECOTAX') ? $this->order_invoice->getEcoTaxTaxesBreakdown() : [],
             'wrapping_tax' => $this->order_invoice->getWrappingTaxesBreakdown(),
         ];
 
@@ -442,7 +441,7 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
         }
 
         if (empty($breakdowns)) {
-            $breakdowns = false;
+            return false;
         }
 
         if (isset($breakdowns['product_tax'])) {
@@ -460,28 +459,6 @@ class HTMLTemplateInvoiceCore extends HTMLTemplate
 
         return $breakdowns;
     }
-
-    /*
-    protected function getTaxLabel($tax_breakdowns)
-    {
-        $tax_label = '';
-        $all_taxes = array();
-
-        foreach ($tax_breakdowns as $type => $bd)
-            foreach ($bd as $line)
-                if(isset($line['id_tax']))
-                    $all_taxes[] = $line['id_tax'];
-
-        $taxes = array_unique($all_taxes);
-
-        foreach ($taxes as $id_tax) {
-            $tax = new Tax($id_tax);
-            $tax_label .= $tax->id.': '.$tax->name[$this->order->id_lang].' ('.$tax->rate.'%) ';
-        }
-
-        return $tax_label;
-    }
-    */
 
     /**
      * Returns the invoice template associated to the country iso_code.

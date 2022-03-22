@@ -1,11 +1,12 @@
 <?php
 /**
- * 2007-2020 PrestaShop SA and Contributors
+ * Copyright since 2007 PrestaShop SA and Contributors
+ * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
  * NOTICE OF LICENSE
  *
  * This source file is subject to the Open Software License (OSL 3.0)
- * that is bundled with this package in the file LICENSE.txt.
+ * that is bundled with this package in the file LICENSE.md.
  * It is also available through the world-wide-web at this URL:
  * https://opensource.org/licenses/OSL-3.0
  * If you did not receive a copy of the license and are unable to
@@ -16,25 +17,24 @@
  *
  * Do not edit or add to this file if you wish to upgrade PrestaShop to newer
  * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to https://www.prestashop.com for more information.
+ * needs please refer to https://devdocs.prestashop.com/ for more information.
  *
- * @author    PrestaShop SA <contact@prestashop.com>
- * @copyright 2007-2020 PrestaShop SA and Contributors
+ * @author    PrestaShop SA and Contributors <contact@prestashop.com>
+ * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
- * International Registered Trademark & Property of PrestaShop SA
  */
 
 declare(strict_types=1);
 
 namespace PrestaShop\PrestaShop\Core\Domain\Product\Command;
 
-use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\Ean13;
-use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\Isbn;
+use PrestaShop\PrestaShop\Core\Domain\Manufacturer\Exception\ManufacturerConstraintException;
+use PrestaShop\PrestaShop\Core\Domain\Manufacturer\ValueObject\ManufacturerId;
+use PrestaShop\PrestaShop\Core\Domain\Manufacturer\ValueObject\ManufacturerIdInterface;
+use PrestaShop\PrestaShop\Core\Domain\Manufacturer\ValueObject\NoManufacturerId;
 use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\ProductCondition;
 use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\ProductId;
 use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\ProductVisibility;
-use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\Reference;
-use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\Upc;
 
 class UpdateProductOptionsCommand
 {
@@ -69,29 +69,14 @@ class UpdateProductOptionsCommand
     private $condition;
 
     /**
-     * @var Isbn|null
+     * @var bool|null
      */
-    private $isbn;
+    private $showCondition;
 
     /**
-     * @var Upc|null
+     * @var ManufacturerIdInterface|null
      */
-    private $upc;
-
-    /**
-     * @var Ean13|null
-     */
-    private $ean13;
-
-    /**
-     * @var string|null
-     */
-    private $mpn;
-
-    /**
-     * @var Reference|null
-     */
-    private $reference;
+    private $manufacturerId;
 
     /**
      * @param int $productId
@@ -210,101 +195,46 @@ class UpdateProductOptionsCommand
     }
 
     /**
-     * @return Isbn|null
-     */
-    public function getIsbn(): ?Isbn
-    {
-        return $this->isbn;
-    }
-
-    /**
-     * @param string $isbn
+     * @param bool $showCondition
      *
-     * @return UpdateProductOptionsCommand
+     * @return $this
      */
-    public function setIsbn(string $isbn): UpdateProductOptionsCommand
+    public function setShowCondition(bool $showCondition): UpdateProductOptionsCommand
     {
-        $this->isbn = new Isbn($isbn);
+        $this->showCondition = $showCondition;
 
         return $this;
     }
 
     /**
-     * @return Upc|null
+     * @return bool|null
      */
-    public function getUpc(): ?Upc
+    public function showCondition(): ?bool
     {
-        return $this->upc;
+        return $this->showCondition;
     }
 
     /**
-     * @param string $upc
+     * @return ManufacturerIdInterface|null
+     */
+    public function getManufacturerId(): ?ManufacturerIdInterface
+    {
+        return $this->manufacturerId;
+    }
+
+    /**
+     * @param int $manufacturerId
      *
-     * @return UpdateProductOptionsCommand
-     */
-    public function setUpc(string $upc): UpdateProductOptionsCommand
-    {
-        $this->upc = new Upc($upc);
-
-        return $this;
-    }
-
-    /**
-     * @return Ean13|null
-     */
-    public function getEan13(): ?Ean13
-    {
-        return $this->ean13;
-    }
-
-    /**
-     * @param string $ean13
+     * @throws ManufacturerConstraintException
      *
-     * @return UpdateProductOptionsCommand
+     * @return $this
      */
-    public function setEan13(string $ean13): UpdateProductOptionsCommand
+    public function setManufacturerId(int $manufacturerId): UpdateProductOptionsCommand
     {
-        $this->ean13 = new Ean13($ean13);
-
-        return $this;
-    }
-
-    /**
-     * @return string|null
-     */
-    public function getMpn(): ?string
-    {
-        return $this->mpn;
-    }
-
-    /**
-     * @param string $mpn
-     *
-     * @return UpdateProductOptionsCommand
-     */
-    public function setMpn(string $mpn): UpdateProductOptionsCommand
-    {
-        $this->mpn = $mpn;
-
-        return $this;
-    }
-
-    /**
-     * @return Reference|null
-     */
-    public function getReference(): ?Reference
-    {
-        return $this->reference;
-    }
-
-    /**
-     * @param string $reference
-     *
-     * @return UpdateProductOptionsCommand
-     */
-    public function setReference(string $reference): UpdateProductOptionsCommand
-    {
-        $this->reference = new Reference($reference);
+        $this->manufacturerId = NoManufacturerId::NO_MANUFACTURER_ID === $manufacturerId ?
+            new NoManufacturerId() :
+            new ManufacturerId($manufacturerId)
+        ;
 
         return $this;
     }

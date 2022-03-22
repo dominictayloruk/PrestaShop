@@ -39,7 +39,7 @@ use PrestaShop\PrestaShop\Adapter\Supplier\SupplierDataProvider;
 use PrestaShop\PrestaShop\Adapter\Tax\TaxRuleDataProvider;
 use PrestaShop\PrestaShop\Adapter\Tools;
 use PrestaShop\PrestaShop\Adapter\Warehouse\WarehouseDataProvider;
-use PrestaShop\PrestaShop\Core\Product\ProductInterface;
+use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\RedirectType;
 use PrestaShopBundle\Utils\FloatParser;
 use Product;
 use ProductDownload;
@@ -56,7 +56,7 @@ class AdminModelAdapter extends \PrestaShopBundle\Model\AdminModelAdapter
     private $contextShop;
     /** @var AdminProductWrapper */
     private $adminProductWrapper;
-    /** @var array */
+    /** @var array<int|array> */
     private $locales;
     /** @var string */
     private $defaultLocale;
@@ -264,14 +264,14 @@ class AdminModelAdapter extends \PrestaShopBundle\Model\AdminModelAdapter
 
         // Product redirection
         $form_data['redirect_type'] = (string) $form_data['redirect_type'];
-        if ($form_data['redirect_type'] != ProductInterface::REDIRECT_TYPE_NOT_FOUND) {
+        if ($form_data['redirect_type'] != RedirectType::TYPE_NOT_FOUND) {
             if (isset($form_data['id_type_redirected']) && !empty($form_data['id_type_redirected']['data'])) {
                 $form_data['id_type_redirected'] = $form_data['id_type_redirected']['data'][0];
-            } elseif (ProductInterface::REDIRECT_TYPE_CATEGORY_MOVED_PERMANENTLY == $form_data['redirect_type'] || ProductInterface::REDIRECT_TYPE_CATEGORY_FOUND == $form_data['redirect_type']) {
+            } elseif (RedirectType::TYPE_CATEGORY_PERMANENT == $form_data['redirect_type'] || RedirectType::TYPE_CATEGORY_TEMPORARY == $form_data['redirect_type']) {
                 $form_data['id_type_redirected'] = 0;
             } else {
                 $form_data['id_type_redirected'] = 0;
-                $form_data['redirect_type'] = ProductInterface::REDIRECT_TYPE_CATEGORY_MOVED_PERMANENTLY;
+                $form_data['redirect_type'] = RedirectType::TYPE_CATEGORY_PERMANENT;
             }
         } else {
             $form_data['id_type_redirected'] = 0;
@@ -338,6 +338,12 @@ class AdminModelAdapter extends \PrestaShopBundle\Model\AdminModelAdapter
             );
             $form_data['combinations'][$k]['attribute_unity'] = abs(
                 $this->floatParser->fromString($combination['attribute_unity'])
+            );
+            $form_data['combinations'][$k]['attribute_quantity'] = abs(
+                $this->floatParser->fromString($combination['attribute_quantity'])
+            );
+            $form_data['combinations'][$k]['attribute_wholesale_price'] = abs(
+                $this->floatParser->fromString($combination['attribute_wholesale_price'])
             );
         }
 
@@ -548,9 +554,7 @@ class AdminModelAdapter extends \PrestaShopBundle\Model\AdminModelAdapter
                 : $this->taxRuleDataProvider->getIdTaxRulesGroupMostUsed(),
             'on_sale' => (bool) $product->on_sale,
             'wholesale_price' => $product->wholesale_price,
-            'unit_price' => $product->unit_price_ratio != 0
-                ? $product->price / $product->unit_price_ratio
-                : 0,
+            'unit_price' => $product->unit_price,
             'unity' => $product->unity,
             'specific_price' => [ // extra form to be saved separately. Here this is the default form values.
                 'sp_from_quantity' => 1,

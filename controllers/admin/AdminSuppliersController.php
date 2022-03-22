@@ -193,7 +193,7 @@ class AdminSuppliersControllerCore extends AdminController
                 ],
                 [
                     'type' => 'text',
-                    'label' => $this->trans('Zip/postal code', [], 'Admin.Global'),
+                    'label' => $this->trans('Zip/Postal code', [], 'Admin.Global'),
                     'name' => 'postcode',
                     'required' => in_array('postcode', $required_fields),
                     'maxlength' => 12,
@@ -286,12 +286,12 @@ class AdminSuppliersControllerCore extends AdminController
                         [
                             'id' => 'active_on',
                             'value' => 1,
-                            'label' => $this->trans('Enabled', [], 'Admin.Global'),
+                            'label' => $this->trans('Yes', [], 'Admin.Global'),
                         ],
                         [
                             'id' => 'active_off',
                             'value' => 0,
-                            'label' => $this->trans('Disabled', [], 'Admin.Global'),
+                            'label' => $this->trans('No', [], 'Admin.Global'),
                         ],
                     ],
                 ],
@@ -351,7 +351,6 @@ class AdminSuppliersControllerCore extends AdminController
     public function initToolbar()
     {
         parent::initToolbar();
-        $this->addPageHeaderToolBarModulesListButton();
 
         if (empty($this->display) && $this->can_import) {
             $this->toolbar_btn['import'] = [
@@ -363,7 +362,6 @@ class AdminSuppliersControllerCore extends AdminController
 
     public function renderView()
     {
-        $this->initTabModuleList();
         $this->toolbar_title = $this->object->name;
         $products = $this->object->getProductsLite($this->context->language->id);
         $total_product = count($products);
@@ -401,7 +399,7 @@ class AdminSuppliersControllerCore extends AdminController
                     }
                     $comb_array[$key]['attributes'] = rtrim($list, ', ');
                 }
-                isset($comb_array) ? $products[$i]->combination = $comb_array : '';
+                $products[$i]->combination = $comb_array;
                 unset($comb_array);
             } else {
                 $product_infos = Supplier::getProductInformationsBySupplier(
@@ -431,8 +429,9 @@ class AdminSuppliersControllerCore extends AdminController
         $generate_hight_dpi_images = (bool) Configuration::get('PS_HIGHT_DPI');
 
         /* Generate image with differents size */
-        if (($id_supplier = (int) Tools::getValue('id_supplier')) &&
-             isset($_FILES) && count($_FILES) && file_exists(_PS_SUPP_IMG_DIR_ . $id_supplier . '.jpg')) {
+        if (($id_supplier = (int) Tools::getValue('id_supplier'))
+            && count($_FILES)
+            && file_exists(_PS_SUPP_IMG_DIR_ . $id_supplier . '.jpg')) {
             $images_types = ImageType::getImagesTypes('suppliers');
             foreach ($images_types as $image_type) {
                 $file = _PS_SUPP_IMG_DIR_ . $id_supplier . '.jpg';
@@ -541,7 +540,7 @@ class AdminSuppliersControllerCore extends AdminController
                 $id_address = Address::getAddressIdBySupplierId($obj->id);
                 $address = new Address($id_address);
                 if (Validate::isLoadedObject($address)) {
-                    $address->deleted = 1;
+                    $address->deleted = true;
                     $address->save();
                 }
 

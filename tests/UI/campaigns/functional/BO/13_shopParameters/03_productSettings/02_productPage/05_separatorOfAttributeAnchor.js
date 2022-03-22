@@ -4,21 +4,22 @@ const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
+const testContext = require('@utils/testContext');
 
-// Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const ProductSettingsPage = require('@pages/BO/shopParameters/productSettings');
-const ProductPage = require('@pages/FO/product');
-const HomePage = require('@pages/FO/home');
-const SearchResultsPage = require('@pages/FO/searchResults');
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
+
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const productSettingsPage = require('@pages/BO/shopParameters/productSettings');
+
+// Import FO pages
+const productPage = require('@pages/FO/product');
+const homePage = require('@pages/FO/home');
+const searchResultsPage = require('@pages/FO/searchResults');
 
 // Import data
 const {Products} = require('@data/demo/products');
-
-// Import test context
-const testContext = require('@utils/testContext');
 
 const baseContext = 'functional_BO_shopParameters_productSettings_separatorOfAttributeAnchor';
 
@@ -27,44 +28,33 @@ let page;
 
 const productAttributes = ['1', 'size', 's/8', 'color', 'white'];
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    productSettingsPage: new ProductSettingsPage(page),
-    homePage: new HomePage(page),
-    productPage: new ProductPage(page),
-    searchResultsPage: new SearchResultsPage(page),
-  };
-};
-
-describe('Update separator of attribute anchor on the product links', async () => {
+describe('BO - Shop Parameters - Product Settings : Update separator of attribute anchor on  '
+  + 'the product links', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO and go to product settings page
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
   it('should go to \'Shop parameters > Product Settings\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToProductSettingsPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.shopParametersParentLink,
-      this.pageObjects.dashboardPage.productSettingsLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.shopParametersParentLink,
+      dashboardPage.productSettingsLink,
     );
 
-    const pageTitle = await this.pageObjects.productSettingsPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.productSettingsPage.pageTitle);
+    const pageTitle = await productSettingsPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(productSettingsPage.pageTitle);
   });
 
   const tests = [
@@ -76,29 +66,50 @@ describe('Update separator of attribute anchor on the product links', async () =
     it(`should choose the separator option '${test.args.option}'`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', `chooseOption_${index}`, baseContext);
 
-      const result = await this.pageObjects.productSettingsPage.setSeparatorOfAttributeOnProductLink(
+      const result = await productSettingsPage.setSeparatorOfAttributeOnProductLink(
+        page,
         test.args.option,
       );
 
-      await expect(result).to.contains(this.pageObjects.productSettingsPage.successfulUpdateMessage);
+      await expect(result).to.contains(productSettingsPage.successfulUpdateMessage);
+    });
+
+
+    it('should view my shop', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', `viewMyShop${index}`, baseContext);
+
+      page = await productSettingsPage.viewMyShop(page);
+
+      await homePage.changeLanguage(page, 'en');
+
+      const isHomePage = await homePage.isHomePage(page);
+      await expect(isHomePage, 'Home page was not opened').to.be.true;
+    });
+
+    it('should search for the product and go to product page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', `goToProductPage${index}`, baseContext);
+
+      await homePage.searchProduct(page, Products.demo_1.name);
+      await searchResultsPage.goToProductPage(page, 1);
+
+      const pageTitle = await productPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(Products.demo_1.name);
     });
 
     it('should check the attribute separator on the product links in FO', async function () {
       await testContext.addContextItem(this, 'testIdentifier', `checkAttributeSeparator_${index}`, baseContext);
 
-      page = await this.pageObjects.productSettingsPage.viewMyShop();
-      this.pageObjects = await init();
-
-      await this.pageObjects.homePage.changeLanguage('en');
-
-      await this.pageObjects.homePage.searchProduct(Products.demo_1.name);
-      await this.pageObjects.searchResultsPage.goToProductPage(1);
-
-      const currentURL = await this.pageObjects.productPage.getProductPageURL();
+      const currentURL = await productPage.getProductPageURL(page);
       await expect(currentURL).to.contains(test.args.attributesInProductLink);
+    });
 
-      page = await this.pageObjects.productPage.closePage(browserContext, 0);
-      this.pageObjects = await init();
+    it('should close the page and go back to BO', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', `closePageAndBackToBO${index}`, baseContext);
+
+      page = await productPage.closePage(browserContext, page, 0);
+
+      const pageTitle = await productSettingsPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(productSettingsPage.pageTitle);
     });
   });
 });

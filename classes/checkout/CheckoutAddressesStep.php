@@ -103,9 +103,8 @@ class CheckoutAddressesStepCore extends AbstractCheckoutStep
                 $id_address = $this->addressForm->getAddress()->id;
                 if ($requestParams['saveAddress'] === 'delivery') {
                     $this->getCheckoutSession()->setIdAddressDelivery($id_address);
-                    if ($this->use_same_address) {
-                        $this->getCheckoutSession()->setIdAddressInvoice($id_address);
-                    }
+                    $idAddressInvoice = $this->use_same_address ? $id_address : null;
+                    $this->getCheckoutSession()->setIdAddressInvoice($idAddressInvoice);
                 } else {
                     $this->getCheckoutSession()->setIdAddressInvoice($id_address);
                 }
@@ -193,6 +192,12 @@ class CheckoutAddressesStepCore extends AbstractCheckoutStep
                     $this->getCheckoutSession()->getIdAddressInvoice() &&
                     $this->getCheckoutSession()->getIdAddressDelivery()
                 );
+
+                // if we just pushed the invoice address form, we are using another address for invoice
+                // (param 'id_address_delivery' is only pushed in invoice address form)
+                if (isset($requestParams['saveAddress'], $requestParams['id_address_delivery'])) {
+                    $this->use_same_address = false;
+                }
             }
         }
 
@@ -256,14 +261,10 @@ class CheckoutAddressesStepCore extends AbstractCheckoutStep
 
         /** @var OrderControllerCore $controller */
         $controller = $this->context->controller;
-        if (isset($controller)) {
+        if ($controller instanceof OrderController) {
             $warnings = $controller->checkoutWarning;
-            $addressWarning = isset($warnings['address'])
-                ? $warnings['address']
-                : false;
-            $invalidAddresses = isset($warnings['invalid_addresses'])
-                ? $warnings['invalid_addresses']
-                : [];
+            $addressWarning = $warnings['address'] ?? false;
+            $invalidAddresses = $warnings['invalid_addresses'] ?? [];
 
             $errors = [];
             if (in_array($idAddressDelivery, $invalidAddresses)) {

@@ -1,9 +1,18 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class CreditSlips extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Credit slips page, contains functions that can be used on credit slips page
+ * @class
+ * @extends BOBasePage
+ */
+class CreditSlips extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on credit slips page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Credit Slips •';
     this.errorMessageWhenGenerateFileByDate = 'No order slips were found for this period.';
@@ -29,7 +38,10 @@ module.exports = class CreditSlips extends BOBasePage {
 
     // Credit slip options form
     this.creditSlipOptionsForm = '#form-credit-slips-options';
-    this.invoicePrefixInput = '#form_slip_prefix_1';
+    this.invoicePrefixENInput = '#form_slip_prefix_1';
+    this.invoicePrefixFRInput = '#form_slip_prefix_2';
+    this.languageDropDownButton = '#form_slip_prefix_dropdown';
+    this.invoicePrefixFrenchSelect = 'div.dropdown.show span[data-locale="fr"]';
     this.saveCreditSlipOptionsButton = `${this.creditSlipOptionsForm} #save-credit-slip-options-button`;
   }
 
@@ -38,136 +50,158 @@ module.exports = class CreditSlips extends BOBasePage {
    */
   /**
    * Reset input filters
+   * @param page {Page} Browser tab
    * @returns {Promise<void>}
    */
-  async resetFilter() {
-    if (await this.elementVisible(this.filterResetButton, 2000)) {
-      await this.clickAndWaitForNavigation(this.filterResetButton);
+  async resetFilter(page) {
+    if (await this.elementVisible(page, this.filterResetButton, 2000)) {
+      await this.clickAndWaitForNavigation(page, this.filterResetButton);
     }
   }
 
   /**
    * Get number of elements in grid
+   * @param page {Page} Browser tab
    * @returns {Promise<number>}
    */
-  async getNumberOfElementInGrid() {
-    return this.getNumberFromText(this.creditSlipsGridTitle);
+  async getNumberOfElementInGrid(page) {
+    return this.getNumberFromText(page, this.creditSlipsGridTitle);
   }
 
   /**
    * Reset Filter And get number of elements in list
+   * @param page {Page} Browser tab
    * @returns {Promise<number>}
    */
-  async resetAndGetNumberOfLines() {
-    await this.resetFilter();
-    return this.getNumberOfElementInGrid();
+  async resetAndGetNumberOfLines(page) {
+    await this.resetFilter(page);
+    return this.getNumberOfElementInGrid(page);
   }
 
   /**
    * Filter credit slips
-   * @param filterBy, column to filter
-   * @param value, value to filter with
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param filterBy {string} Column to filter with
+   * @param value {string} value to filter with
+   * @returns {Promise<void>}
    */
-  async filterCreditSlips(filterBy, value = '') {
-    await this.setValue(this.creditSlipsFilterColumnInput(filterBy), value.toString());
+  async filterCreditSlips(page, filterBy, value = '') {
+    await this.setValue(page, this.creditSlipsFilterColumnInput(filterBy), value.toString());
     // click on search
-    await this.clickAndWaitForNavigation(this.filterSearchButton);
+    await this.clickAndWaitForNavigation(page, this.filterSearchButton);
   }
 
   /**
    * Filter credit slips by date
-   * @param dateFrom
-   * @param dateTo
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on filter date from input
+   * @param dateTo {string} Value to set on filter date to input
+   * @returns {Promise<void>}
    */
-  async filterCreditSlipsByDate(dateFrom, dateTo) {
-    await this.page.type(this.creditSlipsFilterColumnInput('date_issued_from'), dateFrom);
-    await this.page.type(this.creditSlipsFilterColumnInput('date_issued_to'), dateTo);
+  async filterCreditSlipsByDate(page, dateFrom, dateTo) {
+    await page.type(this.creditSlipsFilterColumnInput('date_issued_from'), dateFrom);
+    await page.type(this.creditSlipsFilterColumnInput('date_issued_to'), dateTo);
     // click on search
-    await this.clickAndWaitForNavigation(this.filterSearchButton);
+    await this.clickAndWaitForNavigation(page, this.filterSearchButton);
   }
 
   /**
    * get text from a column
-   * @param row, row in table
-   * @param column, which column
+   * @param page {Page} Browser tab
+   * @param row {number} Credit slip row on table
+   * @param column {string} Column name to get
    * @returns {Promise<string>}
    */
-  async getTextColumnFromTableCreditSlips(row, column) {
-    return this.getTextContent(this.creditSlipsTableColumn(row, column));
+  async getTextColumnFromTableCreditSlips(page, row, column) {
+    return this.getTextContent(page, this.creditSlipsTableColumn(row, column));
   }
 
   /**
    * Download credit slip
-   * @param lineNumber
-   * @return {Promise<*>}
+   * @param page {Page} Browser tab
+   * @param row {number} Credit slip row on table
+   * @returns {Promise<string>}
    */
-  async downloadCreditSlip(lineNumber = 1) {
-    const [download] = await Promise.all([
-      this.page.waitForEvent('download'), // wait for download to start
-      this.page.click(this.creditSlipDownloadButton(lineNumber)),
-    ]);
-    return download.path();
+  downloadCreditSlip(page, row = 1) {
+    return this.clickAndWaitForDownload(page, this.creditSlipDownloadButton(row));
   }
 
   /**
    * Generate PDF by date and download it
-   * @param dateFrom
-   * @param dateTo
-   * @return {Promise<*>}
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on date from input
+   * @param dateTo {string} Value to set on date to input
+   * @returns {Promise<string>}
    */
-  async generatePDFByDateAndDownload(dateFrom = '', dateTo = '') {
-    await this.setValuesForGeneratingPDFByDate(dateFrom, dateTo);
+  async generatePDFByDateAndDownload(page, dateFrom = '', dateTo = '') {
+    await this.setValuesForGeneratingPDFByDate(page, dateFrom, dateTo);
 
-    const [download] = await Promise.all([
-      this.page.waitForEvent('download'), // wait for download to start
-      this.page.click(this.generatePdfByDateButton),
-    ]);
-    return download.path();
+    return this.clickAndWaitForDownload(page, this.generatePdfByDateButton);
   }
 
   /**
    * Get message error after generate credit slip fail
-   * @param dateFrom
-   * @param dateTo
-   * @return {Promise<string>}
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on date from input
+   * @param dateTo {string} Value to set on date to input
+   * @returns {Promise<string>}
    */
-  async generatePDFByDateAndFail(dateFrom = '', dateTo = '') {
-    await this.setValuesForGeneratingPDFByDate(dateFrom, dateTo);
-    await this.page.click(this.generatePdfByDateButton);
-    return this.getTextContent(this.alertTextBlock);
+  async generatePDFByDateAndFail(page, dateFrom = '', dateTo = '') {
+    await this.setValuesForGeneratingPDFByDate(page, dateFrom, dateTo);
+    await page.click(this.generatePdfByDateButton);
+    return this.getAlertDangerBlockParagraphContent(page);
   }
 
   /**
    * Set values to generate pdf by date
-   * @param dateFrom
-   * @param dateTo
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on date from input
+   * @param dateTo {string} Value to set on date to input
    * @returns {Promise<void>}
    */
-  async setValuesForGeneratingPDFByDate(dateFrom = '', dateTo = '') {
+  async setValuesForGeneratingPDFByDate(page, dateFrom = '', dateTo = '') {
     if (dateFrom) {
-      await this.setValue(this.dateFromInput, dateFrom);
+      await this.setValue(page, this.dateFromInput, dateFrom);
     }
 
     if (dateTo) {
-      await this.setValue(this.dateToInput, dateTo);
+      await this.setValue(page, this.dateToInput, dateTo);
     }
   }
 
-  /** Edit credit slip Prefix
-   * @param prefix
-   * @return {Promise<void>}
+  /** Edit credit slip Prefix on FR and on EN
+   * @param page {Page} Browser tab
+   * @param prefixEN {string} Prefix on english language value to change
+   * @param prefixFR {string} Prefix on french language value to change
+   * @returns {Promise<void>}
    */
-  async changePrefix(prefix) {
-    await this.setValue(this.invoicePrefixInput, prefix);
+  async changePrefix(page, prefixEN, prefixFR = prefixEN) {
+    await this.setValue(page, this.invoicePrefixENInput, prefixEN);
+    await this.waitForSelectorAndClick(page, this.languageDropDownButton);
+    await this.waitForSelectorAndClick(page, this.invoicePrefixFrenchSelect);
+    await this.setValue(page, this.invoicePrefixFRInput, prefixFR);
+  }
+
+  /**
+   * Delete prefix
+   * @param page {Page} Browser tab
+   * @returns {Promise<void>}
+   */
+  async deletePrefix(page) {
+    await this.clearInput(page, this.invoicePrefixENInput);
+    await this.waitForSelectorAndClick(page, this.languageDropDownButton);
+    await this.waitForSelectorAndClick(page, this.invoicePrefixFrenchSelect);
+    await this.clearInput(page, this.invoicePrefixFRInput);
   }
 
   /** Save credit slip options
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @returns {Promise<void>}
    */
-  async saveCreditSlipOptions() {
-    await this.clickAndWaitForNavigation(this.saveCreditSlipOptionsButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+  async saveCreditSlipOptions(page) {
+    await this.clickAndWaitForNavigation(page, this.saveCreditSlipOptionsButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new CreditSlips();

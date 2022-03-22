@@ -1,31 +1,27 @@
 require('module-alias/register');
+
+const {expect} = require('chai');
+
+// Import browser helper
+const helper = require('@utils/helpers');
+
+// Import pages
+const installPage = require('@pages/install');
+const homePage = require('@pages/FO/home');
+
+// Import test context
 const testContext = require('@utils/testContext');
 
 const baseContext = 'sanity_installShop_installShop';
-// Using chai
-const {expect} = require('chai');
-const helper = require('@utils/helpers');
-// Importing pages
-const InstallPage = require('@pages/install');
-const HomePage = require('@pages/FO/home');
 
 let browserContext;
 let page;
-
-// Init objects needed
-const init = async function () {
-  return {
-    installPage: new InstallPage(page),
-    homePage: new HomePage(page),
-  };
-};
 
 describe('Install Prestashop', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-    this.pageObjects = await init();
   });
 
   after(async () => {
@@ -35,92 +31,206 @@ describe('Install Prestashop', async () => {
   // Steps
   it('should open the Install page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToInstallPage', baseContext);
-    await this.pageObjects.installPage.goTo(global.INSTALL.URL);
-    const result = await this.pageObjects.installPage.checkStepTitle(
-      this.pageObjects.installPage.firstStepPageTitle,
-      [
-        this.pageObjects.installPage.firstStepFrTitle,
-        this.pageObjects.installPage.firstStepEnTitle,
-      ],
-    );
-    await expect(result).to.be.true;
+
+    await installPage.goTo(page, global.INSTALL.URL);
+
+    const stepTitle = await installPage.getStepTitle(page, 'Choose your language');
+    const installationTitles = [installPage.firstStepFrTitle, installPage.firstStepEnTitle];
+
+    await expect(installationTitles.some(x => stepTitle.includes(x))).to.be.true;
   });
 
   it('should change language to English and check title', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'ChangeLanguageToEnglish', baseContext);
-    await this.pageObjects.installPage.setInstallLanguage();
-    const result = await this.pageObjects.installPage.checkStepTitle(
-      this.pageObjects.installPage.firstStepPageTitle,
-      this.pageObjects.installPage.firstStepEnTitle,
-    );
-    await expect(result).to.be.true;
+
+    await installPage.setInstallLanguage(page);
+
+    const stepTitle = await installPage.getStepTitle(page, 'Choose your language');
+    await expect(stepTitle).to.contain(installPage.firstStepEnTitle);
   });
 
   it('should click on next and go to step \'License Agreements\'', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToLicenseAgreements', baseContext);
-    await this.pageObjects.installPage.nextStep();
-    const result = await this.pageObjects.installPage.checkStepTitle(
-      this.pageObjects.installPage.secondStepPageTitle,
-      this.pageObjects.installPage.secondStepEnTitle,
-    );
-    await expect(result).to.be.true;
+
+    await installPage.nextStep(page);
+
+    const stepTitle = await installPage.getStepTitle(page, 'License agreements');
+    await expect(stepTitle).to.contain(installPage.secondStepEnTitle);
   });
 
   it('should agree to terms and conditions and go to step \'System compatibility\'', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToSystemCompatibility', baseContext);
-    await this.pageObjects.installPage.agreeToTermsAndConditions();
-    await this.pageObjects.installPage.nextStep();
-    if (!this.pageObjects.installPage.elementVisible(this.pageObjects.installPage.thirdStepFinishedListItem)) {
-      const result = await this.pageObjects.installPage.checkStepTitle(
-        this.pageObjects.installPage.thirdStepPageTitle,
-        this.pageObjects.installPage.thirdStepEnTitle,
-      );
-      await expect(result).to.be.true;
+
+    await installPage.agreeToTermsAndConditions(page);
+    await installPage.nextStep(page);
+
+    if (!(await installPage.elementVisible(page, installPage.thirdStepFinishedListItem, 500))) {
+      const stepTitle = await installPage.getStepTitle(page, 'System compatibility');
+      await expect(stepTitle).to.contain(installPage.thirdStepEnTitle);
     }
   });
 
-  it('should click on next and go to step \'shop Information\'', async function () {
-    await testContext.addContextItem(this, 'testIdentifier', 'goToShopInformation', baseContext);
-    if (!this.pageObjects.installPage.elementVisible(this.pageObjects.installPage.thirdStepFinishedListItem)) {
-      await this.pageObjects.installPage.nextStep();
+  it('should click on next and go to step \'Store Information\'', async function () {
+    await testContext.addContextItem(this, 'testIdentifier', 'goToStoreInformation', baseContext);
+
+    if (!(await installPage.elementVisible(page, installPage.thirdStepFinishedListItem, 500))) {
+      await installPage.nextStep(page);
     }
-    const result = await this.pageObjects.installPage.checkStepTitle(
-      this.pageObjects.installPage.fourthStepPageTitle,
-      this.pageObjects.installPage.fourthStepEnTitle,
-    );
-    await expect(result).to.be.true;
+
+    const stepTitle = await installPage.getStepTitle(page, 'Store information');
+    await expect(stepTitle).to.contain(installPage.fourthStepEnTitle);
   });
 
-  it('should fill shop Information form and go to step \'Database Configuration\'', async function () {
-    await testContext.addContextItem(this, 'testIdentifier', 'goToDatabaseConfiguration', baseContext);
-    await this.pageObjects.installPage.fillInformationForm();
-    await this.pageObjects.installPage.nextStep();
-    const result = await this.pageObjects.installPage.checkStepTitle(
-      this.pageObjects.installPage.fifthStepPageTitle,
-      this.pageObjects.installPage.fifthStepEnTitle,
-    );
-    await expect(result).to.be.true;
+  it('should fill shop Information form and go to step \'Content Configuration\'', async function () {
+    await testContext.addContextItem(this, 'testIdentifier', 'goToContentConfiguration', baseContext);
+
+    await installPage.elementVisible(page, installPage.fourthStepFinishedListItem, 500);
+    await installPage.fillInformationForm(page);
+    await installPage.nextStep(page);
+
+    const stepTitle = await installPage.getStepTitle(page, 'Content of your store');
+    await expect(stepTitle).to.contain(installPage.fifthStepEnTitle);
+  });
+
+  it('should click on next and go to step \'System Configuration\'', async function () {
+    await testContext.addContextItem(this, 'testIdentifier', 'goToDatabaseInformation', baseContext);
+
+    await installPage.nextStep(page);
+    await installPage.elementVisible(page, installPage.fifthStepFinishedListItem, 500);
+
+    const stepTitle = await installPage.getStepTitle(page, 'System configuration');
+    await expect(stepTitle).to.contain(installPage.sixthStepEnTitle);
   });
 
   it('should fill database configuration form and check database connection', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'checkDatabaseConnection', baseContext);
-    await this.pageObjects.installPage.fillDatabaseForm();
-    const result = await this.pageObjects.installPage.isDatabaseConnected();
+
+    await installPage.fillDatabaseForm(page);
+    const result = await installPage.isDatabaseConnected(page);
     await expect(result).to.be.true;
   });
 
-  it('should finish installation and check that installation is successful', async function () {
-    await testContext.addContextItem(this, 'testIdentifier', 'checkInstallationSuccessful', baseContext);
-    await this.pageObjects.installPage.nextStep();
-    const result = await this.pageObjects.installPage.isInstallationSuccessful();
+  it('should start the installation process', async function () {
+    await testContext.addContextItem(this, 'testIdentifier', 'startInstallation', baseContext);
+
+    await installPage.nextStep(page);
+    const result = await installPage.isInstallationInProgress(page);
     await expect(result).to.be.true;
+  });
+
+  const tests = [
+    {
+      args:
+        {
+          step: {
+            name: 'Generate Setting file',
+            timeout: 10000,
+          },
+        },
+    },
+    {
+      args:
+        {
+          step: {
+            name: 'Install database',
+            timeout: 30000,
+          },
+        },
+    },
+    {
+      args:
+        {
+          step: {
+            name: 'Default data',
+            timeout: 30000,
+          },
+        },
+    },
+    {
+      args:
+        {
+          step: {
+            name: 'Populate database',
+            timeout: 30000,
+          },
+        },
+    },
+    {
+      args:
+        {
+          step: {
+            name: 'Shop configuration',
+            timeout: 30000,
+          },
+        },
+    },
+    {
+      args:
+        {
+          step: {
+            name: 'Install modules',
+            timeout: 30000,
+          },
+        },
+    },
+    {
+      args:
+        {
+          step: {
+            name: 'Install theme',
+            timeout: 60000,
+          },
+        },
+    },
+    {
+      args:
+        {
+          step: {
+            name: 'Install fixtures',
+            timeout: 30000,
+          },
+        },
+    },
+    {
+      args:
+        {
+          step: {
+            name: 'Post installation scripts',
+            timeout: 60000,
+          },
+        },
+    },
+  ];
+
+  tests.forEach((test, index) => {
+    it(`should installation step '${test.args.step.name}' be finished`, async function () {
+      await testContext.addContextItem(this, 'testIdentifier', `CheckStep${index}`, baseContext);
+
+      const stepFinished = await installPage.isInstallationStepFinished(
+        page,
+        test.args.step.name,
+        test.args.step.timeout,
+      );
+
+      await expect(stepFinished, `Fail to finish the step ${test.args.step.name}`).to.be.true;
+    });
+  });
+
+  it('should installation be successful', async function () {
+    await testContext.addContextItem(this, 'testIdentifier', 'checkInstallationSuccessful', baseContext);
+
+    const result = await installPage.isInstallationSuccessful(page);
+    await expect(result).to.be.true;
+
+    const stepTitle = await installPage.getStepTitle(page, 'Installation finished');
+    await expect(stepTitle).to.contain(installPage.finalStepEnTitle);
   });
 
   it('should go to FO and check that Prestashop logo exists', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'checkPrestashopFO', baseContext);
-    page = await this.pageObjects.installPage.goToFOAfterInstall();
-    this.pageObjects = await init();
-    const result = await this.pageObjects.homePage.isHomePage();
+
+    page = await installPage.goToFOAfterInstall(page);
+    const result = await homePage.isHomePage(page);
     await expect(result).to.be.true;
   });
 });

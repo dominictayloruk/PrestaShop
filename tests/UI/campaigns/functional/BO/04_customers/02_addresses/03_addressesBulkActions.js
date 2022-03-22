@@ -1,16 +1,16 @@
 require('module-alias/register');
 
+// Import expect from chai
 const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
+const loginCommon = require('@commonTests/BO/loginBO');
 
 // Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const AddressesPage = require('@pages/BO/customers/addresses');
-const AddAddressPage = require('@pages/BO/customers/addresses/add');
+const dashboardPage = require('@pages/BO/dashboard');
+const addressesPage = require('@pages/BO/customers/addresses');
+const addAddressPage = require('@pages/BO/customers/addresses/add');
 
 // Import data
 const AddressFaker = require('@data/faker/address');
@@ -20,84 +20,71 @@ const testContext = require('@utils/testContext');
 
 const baseContext = 'functional_BO_customers_addresses_addressesBulkActions';
 
-
 let browserContext;
 let page;
 let numberOfAddresses = 0;
 
 const addressData = new AddressFaker({address: 'todelete', email: 'pub@prestashop.com', country: 'France'});
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    addressesPage: new AddressesPage(page),
-    addAddressPage: new AddAddressPage(page),
-  };
-};
-
 // Create addresses then delete with Bulk actions
-describe('Create Addresses then delete with Bulk actions', async () => {
+describe('BO - Customers - Addresses : Addresses bulk actions', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO and go to addresses page
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
-  it('should go to \'Customers>Addresses\' page', async function () {
+  it('should go to \'Customers > Addresses\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToAddressesPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.customersParentLink,
-      this.pageObjects.dashboardPage.addressesLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.customersParentLink,
+      dashboardPage.addressesLink,
     );
 
-    await this.pageObjects.addressesPage.closeSfToolBar();
+    await addressesPage.closeSfToolBar(page);
 
-    const pageTitle = await this.pageObjects.addressesPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.addressesPage.pageTitle);
+    const pageTitle = await addressesPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(addressesPage.pageTitle);
   });
 
   it('should reset all filters', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'resetFirst', baseContext);
 
-    numberOfAddresses = await this.pageObjects.addressesPage.resetAndGetNumberOfLines();
+    numberOfAddresses = await addressesPage.resetAndGetNumberOfLines(page);
     await expect(numberOfAddresses).to.be.above(0);
   });
 
   // 1 : Create 2 addresses in BO
   describe('Create 2 addresses in BO', async () => {
-    const tests = [
+    [
       {args: {addressToCreate: addressData}},
       {args: {addressToCreate: addressData}},
-    ];
-
-    tests.forEach((test, index) => {
+    ].forEach((test, index) => {
       it('should go to add new address page', async function () {
         await testContext.addContextItem(this, 'testIdentifier', `goToAddAddressPage${index + 1}`, baseContext);
 
-        await this.pageObjects.addressesPage.goToAddNewAddressPage();
-        const pageTitle = await this.pageObjects.addAddressPage.getPageTitle();
-        await expect(pageTitle).to.contains(this.pageObjects.addAddressPage.pageTitleCreate);
+        await addressesPage.goToAddNewAddressPage(page);
+        const pageTitle = await addAddressPage.getPageTitle(page);
+        await expect(pageTitle).to.contains(addAddressPage.pageTitleCreate);
       });
 
-      it('should create address and check result', async function () {
+      it(`should create address n°${index + 1} and check result`, async function () {
         await testContext.addContextItem(this, 'testIdentifier', `createAddress${index + 1}`, baseContext);
 
-        const textResult = await this.pageObjects.addAddressPage.createEditAddress(test.args.addressToCreate);
-        await expect(textResult).to.equal(this.pageObjects.addressesPage.successfulCreationMessage);
+        const textResult = await addAddressPage.createEditAddress(page, test.args.addressToCreate);
+        await expect(textResult).to.equal(addressesPage.successfulCreationMessage);
 
-        const numberOfAddressesAfterCreation = await this.pageObjects.addressesPage.getNumberOfElementInGrid();
+        const numberOfAddressesAfterCreation = await addressesPage.getNumberOfElementInGrid(page);
         await expect(numberOfAddressesAfterCreation).to.be.equal(numberOfAddresses + index + 1);
       });
     });
@@ -105,32 +92,28 @@ describe('Create Addresses then delete with Bulk actions', async () => {
 
   // 2 : Delete addresses created with bulk actions
   describe('Delete addresses with Bulk Actions', async () => {
-    it('should filter list by address', async function () {
+    it(`should filter list by address ${addressData.address}`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'filterToBulkDelete', baseContext);
 
-      await this.pageObjects.addressesPage.resetFilter();
+      await addressesPage.resetFilter(page);
 
-      await this.pageObjects.addressesPage.filterAddresses(
-        'input',
-        'address1',
-        addressData.address,
-      );
+      await addressesPage.filterAddresses(page, 'input', 'address1', addressData.address);
 
-      const address = await this.pageObjects.addressesPage.getTextColumnFromTableAddresses(1, 'address1');
+      const address = await addressesPage.getTextColumnFromTableAddresses(page, 1, 'address1');
       await expect(address).to.contains(addressData.address);
     });
 
     it('should delete addresses with Bulk Actions and check addresses Page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'bulkDeleteAddresses', baseContext);
 
-      const deleteTextResult = await this.pageObjects.addressesPage.deleteAddressesBulkActions();
-      await expect(deleteTextResult).to.be.equal(this.pageObjects.addressesPage.successfulDeleteMessage);
+      const deleteTextResult = await addressesPage.deleteAddressesBulkActions(page);
+      await expect(deleteTextResult).to.be.equal(addressesPage.successfulDeleteMessage);
     });
 
     it('should reset all filters', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'resetAfterBulkDelete', baseContext);
 
-      const numberOfAddressesAfterReset = await this.pageObjects.addressesPage.resetAndGetNumberOfLines();
+      const numberOfAddressesAfterReset = await addressesPage.resetAndGetNumberOfLines(page);
       await expect(numberOfAddressesAfterReset).to.be.equal(numberOfAddresses);
     });
   });

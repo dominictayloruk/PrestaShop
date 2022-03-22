@@ -35,12 +35,15 @@ use Symfony\Component\Translation\TranslatorInterface;
  */
 abstract class TranslatorAwareType extends CommonAbstractType
 {
+    /**
+     * @var TranslatorInterface
+     */
     private $translator;
 
     /**
      * All languages available on shop. Used for translations.
      *
-     * @param array $locales
+     * @param array<int, array<string, mixed>> $locales
      */
     protected $locales;
 
@@ -62,6 +65,14 @@ abstract class TranslatorAwareType extends CommonAbstractType
     protected function trans($key, $domain, $parameters = [])
     {
         return $this->translator->trans($key, $parameters, $domain);
+    }
+
+    /**
+     * @return TranslatorInterface
+     */
+    protected function getTranslator(): TranslatorInterface
+    {
+        return $this->translator;
     }
 
     /**

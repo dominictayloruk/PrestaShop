@@ -32,19 +32,22 @@ class CategoryTreeIterator
 {
     public const ROOT_CATEGORY_ID = 1;
 
+    /**
+     * @var CategoryTreeChoiceProvider
+     */
     public $categoryTreeChoiceProvider;
 
     /**
      * CategoryTreeIterator constructor.
      *
-     * @param $categoryTreeChoiceProvider
+     * @param CategoryTreeChoiceProvider$categoryTreeChoiceProvider
      */
-    public function __construct($categoryTreeChoiceProvider)
+    public function __construct(CategoryTreeChoiceProvider $categoryTreeChoiceProvider)
     {
         $this->categoryTreeChoiceProvider = $categoryTreeChoiceProvider;
     }
 
-    public function getCategoryId(string $categoryName)
+    public function getCategoryId(string $categoryName): ?int
     {
         $categoryTreeChoicesArray = $this->categoryTreeChoiceProvider->getChoices();
 
@@ -55,7 +58,7 @@ class CategoryTreeIterator
      * @param string $categoryName
      * @param array $nodes
      *
-     * @return int
+     * @return int|void|null
      */
     private function getCategoryNodeId(string $categoryName, array $nodes)
     {

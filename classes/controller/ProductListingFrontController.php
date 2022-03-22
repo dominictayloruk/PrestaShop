@@ -89,11 +89,7 @@ abstract class ProductListingFrontControllerCore extends ProductPresentingFrontC
             ->setIdShop($this->context->shop->id)
             ->setIdLang($this->context->language->id)
             ->setIdCurrency($this->context->currency->id)
-            ->setIdCustomer(
-                $this->context->customer ?
-                    $this->context->customer->id :
-                    null
-            );
+            ->setIdCustomer($this->context->customer ? $this->context->customer->id : null);
     }
 
     /**
@@ -128,7 +124,7 @@ abstract class ProductListingFrontControllerCore extends ProductPresentingFrontC
     /**
      * Renders an array of facets.
      *
-     * @param array $facets
+     * @param ProductSearchResult $result
      *
      * @return string the HTML of the facets
      */
@@ -166,7 +162,7 @@ abstract class ProductListingFrontControllerCore extends ProductPresentingFrontC
     /**
      * Renders an array of active filters.
      *
-     * @param array $facets
+     * @param ProductSearchResult $result
      *
      * @return string the HTML of the facets
      */
@@ -220,7 +216,7 @@ abstract class ProductListingFrontControllerCore extends ProductPresentingFrontC
      *
      * @param ProductSearchQuery $query
      *
-     * @return ProductSearchProviderInterface or null
+     * @return ProductSearchProviderInterface|null
      */
     private function getProductSearchProviderFromModules($query)
     {
@@ -240,6 +236,8 @@ abstract class ProductListingFrontControllerCore extends ProductPresentingFrontC
                 return $provider;
             }
         }
+
+        return null;
     }
 
     /**
@@ -300,6 +298,10 @@ abstract class ProductListingFrontControllerCore extends ProductPresentingFrontC
 
         $query->setEncodedFacets($encodedFacets);
 
+        Hook::exec('actionProductSearchProviderRunQueryBefore', [
+            'query' => $query,
+        ]);
+
         // We're ready to run the actual query!
 
         /** @var ProductSearchResult $result */
@@ -307,6 +309,11 @@ abstract class ProductListingFrontControllerCore extends ProductPresentingFrontC
             $context,
             $query
         );
+
+        Hook::exec('actionProductSearchProviderRunQueryAfter', [
+            'query' => $query,
+            'result' => $result,
+        ]);
 
         if (Configuration::get('PS_CATALOG_MODE') && !Configuration::get('PS_CATALOG_MODE_WITH_PRICES')) {
             $this->disablePriceControls($result);

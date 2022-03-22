@@ -1,9 +1,18 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class AddAddress extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Add address page, contains functions that can be used on the page
+ * @class
+ * @extends BOBasePage
+ */
+class AddAddress extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on add address page
+   */
+  constructor() {
+    super();
 
     this.pageTitleCreate = 'Addresses •';
     this.pageTitleEdit = 'Edit •';
@@ -21,6 +30,7 @@ module.exports = class AddAddress extends BOBasePage {
     this.customerSecondAddressInput = '#customer_address_address2';
     this.customerAddressCityInput = '#customer_address_city';
     this.customerAddressCountrySelect = '#customer_address_id_country';
+    this.customerAddressCountryOption = `${this.customerAddressCountrySelect} option`;
     this.customerAddressPhoneInput = '#customer_address_phone';
     this.customerAddressOtherInput = '#customer_address_other';
     this.saveAddressButton = '#save-button';
@@ -32,28 +42,55 @@ module.exports = class AddAddress extends BOBasePage {
 
   /**
    * Fill form for add/edit address
-   * @param addressData
+   * @param page {Page} Browser tab
+   * @param addressData {AddressData} Data to set on new address form
+   * @param save {boolean} True if we need to save the new address, false if not
+   * @returns {Promise<?string>}
+   */
+  async createEditAddress(page, addressData, save = true) {
+    if (await this.elementVisible(page, this.customerEmailInput, 2000)) {
+      await this.setValue(page, this.customerEmailInput, addressData.email);
+    }
+    await this.setValue(page, this.customerAddressdniInput, addressData.dni);
+    await this.setValue(page, this.customerAddressAliasInput, addressData.alias);
+    await this.setValue(page, this.customerAddressFirstNameInput, addressData.firstName);
+    await this.setValue(page, this.customerLastNameInput, addressData.lastName);
+    await this.setValue(page, this.customerAddressCompanyInput, addressData.company);
+    await this.setValue(page, this.customerAddressVatNumberInput, addressData.vatNumber);
+    await this.setValue(page, this.customerAddressInput, addressData.address);
+    await this.setValue(page, this.customerSecondAddressInput, addressData.secondAddress);
+    await this.setValue(page, this.customerAddressPostCodeInput, addressData.postalCode);
+    await this.setValue(page, this.customerAddressCityInput, addressData.city);
+    await this.selectByVisibleText(page, this.customerAddressCountrySelect, addressData.country);
+    await this.setValue(page, this.customerAddressPhoneInput, addressData.phone);
+    await this.setValue(page, this.customerAddressOtherInput, addressData.other);
+
+    // Save address
+    if (save) {
+      return this.saveAddress(page);
+    }
+
+    return null;
+  }
+
+  /**
+   * Save address
+   * @param page {Page} Browser tab
    * @returns {Promise<string>}
    */
-  async createEditAddress(addressData) {
-    if (await this.elementVisible(this.customerEmailInput, 2000)) {
-      await this.setValue(this.customerEmailInput, addressData.email);
-    }
-    await this.setValue(this.customerAddressdniInput, addressData.dni);
-    await this.setValue(this.customerAddressAliasInput, addressData.alias);
-    await this.setValue(this.customerAddressFirstNameInput, addressData.firstName);
-    await this.setValue(this.customerLastNameInput, addressData.lastName);
-    await this.setValue(this.customerAddressCompanyInput, addressData.company);
-    await this.setValue(this.customerAddressVatNumberInput, addressData.vatNumber);
-    await this.setValue(this.customerAddressInput, addressData.address);
-    await this.setValue(this.customerSecondAddressInput, addressData.secondAddress);
-    await this.setValue(this.customerAddressPostCodeInput, addressData.postalCode);
-    await this.setValue(this.customerAddressCityInput, addressData.city);
-    await this.selectByVisibleText(this.customerAddressCountrySelect, addressData.country);
-    await this.setValue(this.customerAddressPhoneInput, addressData.phone);
-    await this.setValue(this.customerAddressOtherInput, addressData.other);
-    // Save address
-    await this.clickAndWaitForNavigation(this.saveAddressButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+  async saveAddress(page) {
+    await this.clickAndWaitForNavigation(page, this.saveAddressButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+
+  /**
+   * Get selected country by default in form
+   * @param page {Page} Browser tab
+   * @return {Promise<string>}
+   */
+  getSelectedCountry(page) {
+    return this.getTextContent(page, `${this.customerAddressCountryOption}[selected]`, false);
+  }
+}
+
+module.exports = new AddAddress();

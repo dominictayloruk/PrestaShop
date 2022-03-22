@@ -4,15 +4,15 @@ const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
+const basicHelper = require('@utils/basicHelper');
+const testContext = require('@utils/testContext');
+
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
 
 // Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const ContactsPage = require('@pages/BO/shopParameters/contact/index');
-
-// Import test context
-const testContext = require('@utils/testContext');
+const dashboardPage = require('@pages/BO/dashboard');
+const contactsPage = require('@pages/BO/shopParameters/contact/index');
 
 const baseContext = 'functional_BO_shopParameters_contact_sortContacts';
 
@@ -20,50 +20,41 @@ let browserContext;
 let page;
 let numberOfContacts = 0;
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    contactsPage: new ContactsPage(page),
-  };
-};
-
 // Sort contacts by id, name, email and description
-describe('Sort Contacts', async () => {
+describe('BO - Shop Parameters - Contact : Sort Contacts list', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO and go to contact page
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
-  it('should go to \'Shop parameters>Contact\' page', async function () {
+  it('should go to \'Shop parameters > Contact\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToContactsPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.shopParametersParentLink,
-      this.pageObjects.dashboardPage.contactLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.shopParametersParentLink,
+      dashboardPage.contactLink,
     );
 
-    await this.pageObjects.contactsPage.closeSfToolBar();
+    await contactsPage.closeSfToolBar(page);
 
-    const pageTitle = await this.pageObjects.contactsPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.contactsPage.pageTitle);
+    const pageTitle = await contactsPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(contactsPage.pageTitle);
   });
 
   it('should reset all filters and get number of contacts in BO', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'resetFilterFirst', baseContext);
 
-    numberOfContacts = await this.pageObjects.contactsPage.resetAndGetNumberOfLines();
+    numberOfContacts = await contactsPage.resetAndGetNumberOfLines(page);
     await expect(numberOfContacts).to.be.above(0);
   });
 
@@ -93,18 +84,18 @@ describe('Sort Contacts', async () => {
     it(`should sort by '${test.args.sortBy}' '${test.args.sortDirection}' And check result`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', test.args.testIdentifier, baseContext);
 
-      let nonSortedTable = await this.pageObjects.contactsPage.getAllRowsColumnContent(test.args.sortBy);
+      let nonSortedTable = await contactsPage.getAllRowsColumnContent(page, test.args.sortBy);
 
-      await this.pageObjects.contactsPage.sortTable(test.args.sortBy, test.args.sortDirection);
+      await contactsPage.sortTable(page, test.args.sortBy, test.args.sortDirection);
 
-      let sortedTable = await this.pageObjects.contactsPage.getAllRowsColumnContent(test.args.sortBy);
+      let sortedTable = await contactsPage.getAllRowsColumnContent(page, test.args.sortBy);
 
       if (test.args.isFloat) {
         nonSortedTable = await nonSortedTable.map(text => parseFloat(text));
         sortedTable = await sortedTable.map(text => parseFloat(text));
       }
 
-      const expectedResult = await this.pageObjects.contactsPage.sortArray(nonSortedTable, test.args.isFloat);
+      const expectedResult = await basicHelper.sortArray(nonSortedTable, test.args.isFloat);
 
       if (test.args.sortDirection === 'asc') {
         await expect(sortedTable).to.deep.equal(expectedResult);

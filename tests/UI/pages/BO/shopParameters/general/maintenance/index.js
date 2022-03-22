@@ -1,17 +1,25 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class shopParamsMaintenance extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Maintenance page, contains selectors and functions for the page
+ * @class
+ * @extends BOBasePage
+ */
+class ShopParamsMaintenance extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up titles and selectors to use on maintenance page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Maintenance •';
     this.maintenanceText = 'We are currently updating our shop and will be back really soon. Thanks for your patience.';
 
     // Selectors
-    this.generalNavItemLink = '#subtab-AdminPreferences';
     this.generalForm = '#form-maintenance';
-    this.switchShopLabel = toggle => `label[for='form_enable_shop_${toggle}']`;
+    this.shopStatusToggleInput = toggle => `#form_enable_shop_${toggle}`;
     this.maintenanceTextInputEN = '#form_maintenance_text_1_ifr';
     this.customMaintenanceFrTab = `${this.generalForm} a[data-locale='fr']`;
     this.maintenanceTextInputFR = '#form_maintenance_text_2_ifr';
@@ -24,47 +32,57 @@ module.exports = class shopParamsMaintenance extends BOBasePage {
   Methods
    */
   /**
-   * Enable / disable shop
-   * @param toEnable, true to enable and false to disable
+   * Enable/Disable shop
+   * @param page {Page} Browser tab
+   * @param toEnable {boolean} Status to set to enable/disable the shop
    * @return {Promise<string>}
    */
-  async changeShopStatus(toEnable = true) {
-    await this.waitForSelectorAndClick(this.switchShopLabel(toEnable ? 1 : 0));
-    await this.clickAndWaitForNavigation(this.saveFormButton);
-    return this.getTextContent(this.alertSuccessBlock);
+  async changeShopStatus(page, toEnable = true) {
+    await this.setChecked(page, this.shopStatusToggleInput(toEnable ? 1 : 0));
+    await this.clickAndWaitForNavigation(page, this.saveFormButton);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Update Maintenance text
-   * @param text
+   * @param page {Page} Browser tab
+   * @param text {string} Maintenance text to set
    * @return {Promise<string>}
    */
-  async changeMaintenanceTextShopStatus(text) {
-    await this.setValueOnTinymceInput(this.maintenanceTextInputEN, text);
-    await this.page.click(this.customMaintenanceFrTab);
-    await this.setValueOnTinymceInput(this.maintenanceTextInputFR, text);
-    await this.page.click(this.saveFormButton);
-    return this.getTextContent(this.alertSuccessBlock);
+  async changeMaintenanceTextShopStatus(page, text) {
+    await this.setValueOnTinymceInput(page, this.maintenanceTextInputEN, text);
+    await page.click(this.customMaintenanceFrTab);
+    await this.setValueOnTinymceInput(page, this.maintenanceTextInputFR, text);
+    await page.click(this.saveFormButton);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Add my IP address in maintenance IP input
+   * @param page {Page} Browser tab
    * @return {Promise<string>}
    */
-  async addMyIpAddress() {
-    await this.page.click(this.addMyIPAddressButton);
-    await this.page.click(this.saveFormButton);
-    return this.getTextContent(this.alertSuccessBlock);
+  async addMyIpAddress(page) {
+    await page.click(this.addMyIPAddressButton);
+    await page.click(this.saveFormButton);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Add maintenance IP address input
-   * @param ipAddress
+   * @param page {Page} Browser tab
+   * @param ipAddress {string} Maintenance IP address to set
    * @return {Promise<string>}
    */
-  async addMaintenanceIPAddress(ipAddress) {
-    await this.setValue(this.maintenanceIpInput, ipAddress);
-    await this.page.click(this.saveFormButton);
-    return this.getTextContent(this.alertSuccessBlock);
+  async addMaintenanceIPAddress(page, ipAddress) {
+    await this.setValue(page, this.maintenanceIpInput, ipAddress);
+    await page.click(this.saveFormButton);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new ShopParamsMaintenance();

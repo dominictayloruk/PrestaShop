@@ -34,7 +34,7 @@ class ProfileCore extends ObjectModel
         'class_name',
     ];
 
-    /** @var string Name */
+    /** @var string|array<int, string> Name */
     public $name;
 
     /**
@@ -51,6 +51,30 @@ class ProfileCore extends ObjectModel
     ];
 
     protected static $_cache_accesses = [];
+
+    /**
+     * {@inheritdoc}
+     */
+    public function __construct($id = null, $idLang = null, $idShop = null, $translator = null)
+    {
+        parent::__construct($id, $idLang, $idShop, $translator);
+
+        $this->image_dir = _PS_PROFILE_IMG_DIR_;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getProfileImage(): ?string
+    {
+        $path = $this->image_dir . $this->id . '.jpg';
+
+        return file_exists($path)
+            ? Context::getContext()->link->getMediaLink(
+                str_replace($this->image_dir, _THEME_PROFILE_DIR_, $path)
+            )
+            : null;
+    }
 
     /**
      * Get all available profiles.
@@ -70,9 +94,9 @@ class ProfileCore extends ObjectModel
      * Get the current profile name.
      *
      * @param int $idProfile Profile ID
-     * @param null $idLang Language ID
+     * @param int|null $idLang Language ID
      *
-     * @return string Profile
+     * @return array Profile
      */
     public static function getProfile($idProfile, $idLang = null)
     {
@@ -81,8 +105,7 @@ class ProfileCore extends ObjectModel
         }
 
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow(
-            '
-			SELECT `name`
+            'SELECT `name`
 			FROM `' . _DB_PREFIX_ . 'profile` p
 			LEFT JOIN `' . _DB_PREFIX_ . 'profile_lang` pl ON (p.`id_profile` = pl.`id_profile`)
 			WHERE p.`id_profile` = ' . (int) $idProfile . '
@@ -128,7 +151,7 @@ class ProfileCore extends ObjectModel
      * @param int $idProfile Profile ID
      * @param string $type Type
      *
-     * @return bool
+     * @return array|false
      */
     public static function getProfileAccesses($idProfile, $type = 'id_tab')
     {

@@ -26,7 +26,6 @@
 
 namespace PrestaShop\PrestaShop\Adapter;
 
-use PrestaShop\Decimal\Number;
 use PrestaShop\PrestaShop\Adapter\File\HtaccessFileGenerator;
 use Tools as LegacyTools;
 
@@ -71,23 +70,6 @@ class Tools
     }
 
     /**
-     * Polyfill for bcadd if BC Math extension is not installed.
-     *
-     * @deprecated since 1.7.2.2 - Use PrestaShop\Decimal\Number instead
-     */
-    public function bcadd($left_operand, $right_operand, $scale = null)
-    {
-        $result = (new Number((string) $left_operand))
-            ->plus(new Number((string) $right_operand));
-
-        if (null === $scale) {
-            return (string) $result;
-        }
-
-        return (string) $result->toPrecision($scale);
-    }
-
-    /**
      * @param string $html
      * @param string|null $uri_unescape
      * @param bool $allow_style
@@ -108,7 +90,7 @@ class Tools
     }
 
     /**
-     * @see LegacyTools::generateRobotsFile()
+     * @see LegacyTools::generateHtaccess()
      *
      * @return bool
      */
@@ -264,9 +246,9 @@ class Tools
      *
      * @throws \PrestaShopException
      */
-    public function displayDate($date, $id_lang = null, $full = false, $separator = null)
+    public function displayDate($date, $full = false)
     {
-        return LegacyTools::displayDate($date, $id_lang, $full, $separator);
+        return LegacyTools::displayDate($date, $full);
     }
 
     /**

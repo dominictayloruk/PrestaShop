@@ -1,17 +1,28 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class Categories extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Categories page, contains functions that can be used on the page
+ * @class
+ * @extends BOBasePage
+ */
+class Categories extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on categories page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Categories';
     this.successfulUpdateStatusMessage = 'The status has been successfully updated.';
 
     // Selectors
     this.editHomeCategoryButton = '#main-div .breadcrumb a[href*=\'edit\']';
+
     // Header links
     this.addNewCategoryLink = '#page-header-desc-configuration-add[title=\'Add new category\']';
+
     // List of categories
     this.categoryGridPanel = '#category_grid_panel';
     this.categoryGridTitle = `${this.categoryGridPanel} h3.card-header-title`;
@@ -28,32 +39,37 @@ module.exports = class Categories extends BOBasePage {
     } a.grid-view-row-link`;
     this.categoriesListTableEditLink = (row, column) => `${this.categoriesListTableColumn(row, column)
     } a.grid-edit-row-link`;
-    this.categoriesListColumnValidIcon = (row, column) => `${this.categoriesListTableColumn(row, column)
-    } i.grid-toggler-icon-valid`;
-    this.categoriesListColumnNotValidIcon = (row, column) => `${this.categoriesListTableColumn(row, column)
-    } i.grid-toggler-icon-not-valid`;
+
+    this.categoriesListColumnStatus = row => `${this.categoriesListTableColumn(row, 'active')} .ps-switch`;
+    this.categoriesListColumnStatusToggleInput = row => `${this.categoriesListColumnStatus(row)} input`;
+
     // Filters
     this.categoryFilterInput = filterBy => `${this.categoriesListForm} #category_${filterBy}`;
     this.filterSearchButton = `${this.categoriesListForm} .grid-search-button`;
     this.filterResetButton = `${this.categoriesListForm} .grid-reset-button`;
+
     // Bulk Actions
     this.selectAllRowsDiv = `${this.categoriesListForm} tr.column-filters .grid_bulk_action_select_all`;
     this.bulkActionsToggleButton = `${this.categoriesListForm} button.dropdown-toggle`;
     this.bulkActionsEnableButton = `${this.categoriesListForm} #category_grid_bulk_action_enable_selection`;
     this.bulkActionsDisableButton = `${this.categoriesListForm} #category_grid_bulk_action_disable_selection`;
     this.bulkActionsDeleteButton = `${this.categoriesListForm} #category_grid_bulk_action_delete_selection`;
+
     // Sort Selectors
     this.tableHead = `${this.categoriesListForm} thead`;
     this.sortColumnDiv = column => `${this.tableHead} div.ps-sortable-column[data-sort-col-name='${column}']`;
     this.sortColumnSpanButton = column => `${this.sortColumnDiv(column)} span.ps-sort`;
+
     // Modal Dialog
     this.deleteCategoryModal = '#category_grid_delete_categories_modal.show';
     this.deleteCategoryModalDeleteButton = `${this.deleteCategoryModal} button.js-submit-delete-categories`;
     this.deleteCategoryModalModeInput = id => `${this.deleteCategoryModal} #delete_categories_delete_mode_${id}`;
+
     // Grid Actions
     this.categoryGridActionsButton = '#category-grid-actions-button';
     this.gridActionDropDownMenu = '#category-grid-actions-dropdown-menu';
     this.gridActionExportLink = '#category-grid-action-export';
+
     // Pagination selectors
     this.paginationLimitSelect = '#paginator_select_page_limit';
     this.paginationLabel = `${this.categoryGridPanel} .col-form-label`;
@@ -66,303 +82,342 @@ module.exports = class Categories extends BOBasePage {
    */
   /**
    * Go to add new category page
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async goToAddNewCategoryPage() {
-    await this.clickAndWaitForNavigation(this.addNewCategoryLink);
+  async goToAddNewCategoryPage(page) {
+    await this.clickAndWaitForNavigation(page, this.addNewCategoryLink);
   }
 
   /**
    * Reset input filters
+   * @param page {Page} Browser tab
    * @returns {Promise<void>}
    */
-  async resetFilter() {
-    if (!(await this.elementNotVisible(this.filterResetButton, 2000))) {
-      await this.clickAndWaitForNavigation(this.filterResetButton);
+  async resetFilter(page) {
+    if (!(await this.elementNotVisible(page, this.filterResetButton, 2000))) {
+      await this.clickAndWaitForNavigation(page, this.filterResetButton);
     }
   }
 
   /**
    * Get number of elements in grid
+   * @param page {Page} Browser tab
    * @returns {Promise<number>}
    */
-  async getNumberOfElementInGrid() {
-    return this.getNumberFromText(this.categoryGridTitle);
+  async getNumberOfElementInGrid(page) {
+    return this.getNumberFromText(page, this.categoryGridTitle);
   }
 
   /**
-   * Reset Filter And get number of elements in list
+   * Reset Filter and get number of elements in list
+   * @param page {Page} Browser tab
    * @returns {Promise<number>}
    */
-  async resetAndGetNumberOfLines() {
-    await this.resetFilter();
-    return this.getNumberOfElementInGrid();
+  async resetAndGetNumberOfLines(page) {
+    await this.resetFilter(page);
+    return this.getNumberOfElementInGrid(page);
   }
 
   /**
    * Filter list of categories
-   * @param filterType, input or select to choose method of filter
-   * @param filterBy, column to filter
-   * @param value, value to filter with
+   * @param page {Page} Browser tab
+   * @param filterType {string} Input or select to choose method of filter
+   * @param filterBy {string} Column to filter
+   * @param value {string} Value to filter with
    * @return {Promise<void>}
    */
-  async filterCategories(filterType, filterBy, value = '') {
+  async filterCategories(page, filterType, filterBy, value = '') {
     switch (filterType) {
       case 'input':
-        await this.setValue(this.categoryFilterInput(filterBy), value.toString());
+        await this.setValue(page, this.categoryFilterInput(filterBy), value);
         break;
       case 'select':
-        await this.selectByVisibleText(this.categoryFilterInput(filterBy), value ? 'Yes' : 'No');
+        await this.selectByVisibleText(page, this.categoryFilterInput(filterBy), value ? 'Yes' : 'No');
         break;
       default:
         throw new Error(`Filter ${filterBy} was not found`);
     }
     // click on search
-    await this.clickAndWaitForNavigation(this.filterSearchButton);
+    await this.clickAndWaitForNavigation(page, this.filterSearchButton);
   }
 
   /**
    * Get Value of column Displayed
-   * @param row, row in table
-   * @param column, column to check
+   * @param page {Page} Browser tab
+   * @param row {number} Row on table
    * @return {Promise<boolean>}
    */
-  async getToggleColumnValue(row, column) {
-    return this.elementVisible(this.categoriesListColumnValidIcon(row, column), 100);
+  async getStatus(page, row) {
+    // Get value of the check input
+    const inputValue = await this.getAttributeContent(
+      page,
+      `${this.categoriesListColumnStatusToggleInput(row)}:checked`,
+      'value',
+    );
+
+    // Return status=false if value='0' and true otherwise
+    return (inputValue !== '0');
   }
 
   /**
    * Quick edit toggle column value
-   * @param row, row in table
-   * @param column, column to update
-   * @param valueWanted, Value wanted in column
+   * @param page {Page} Browser tab
+   * @param row {number} Row on table
+   * @param valueWanted {boolean} True if we need to enable status, false if not
    * @return {Promise<boolean>} return true if action is done, false otherwise
    */
-  async updateToggleColumnValue(row, column, valueWanted = true) {
-    await this.waitForVisibleSelector(this.categoriesListTableColumn(row, column), 2000);
-    if (await this.getToggleColumnValue(row, column) !== valueWanted) {
-      await this.page.click(`${this.categoriesListTableColumn(row, column)} i`);
+  async setStatus(page, row, valueWanted = true) {
+    if (await this.getStatus(page, row) !== valueWanted) {
+      await page.click(this.categoriesListColumnStatus(row));
+
       await this.waitForVisibleSelector(
-        (
-          valueWanted
-            ? this.categoriesListColumnValidIcon(row, column)
-            : this.categoriesListColumnNotValidIcon(row, column)
-        ),
-        15000,
+        page,
+        `${this.categoriesListColumnStatusToggleInput(row)}[value='${valueWanted ? 1 : 0}']:checked`,
       );
+
       return true;
     }
+
     return false;
   }
 
   /**
    * Get text from a column
-   * @param row, row in table
-   * @param column, which column
+   * @param page {Page} Browser tab
+   * @param row {number} Row on table
+   * @param column {string} Column to get text value
    * @returns {Promise<string>}
    */
-  async getTextColumnFromTableCategories(row, column) {
-    return this.getTextContent(this.categoriesListTableColumn(row, column));
+  async getTextColumnFromTableCategories(page, row, column) {
+    return this.getTextContent(page, this.categoriesListTableColumn(row, column));
   }
 
   /**
    * Get all information from categories table
-   * @param row
-   * @returns {Promise<{name: string, description: string, id: string, position: *, status: boolean}>}
+   * @param page {Page} Browser tab
+   * @param row {number} Row on table
+   * @returns {Promise<{name: string, description: string, id: string, position: number, status: boolean}>}
    */
-  async getCategoryFromTable(row) {
+  async getCategoryFromTable(page, row) {
     return {
-      id: await this.getTextColumnFromTableCategories(row, 'id_category'),
-      name: await this.getTextColumnFromTableCategories(row, 'name'),
-      description: await this.getTextColumnFromTableCategories(row, 'description'),
-      position: parseFloat(await this.getTextColumnFromTableCategories(row, 'position')),
-      status: await this.getToggleColumnValue(row, 'active'),
+      id: await this.getTextColumnFromTableCategories(page, row, 'id_category'),
+      name: await this.getTextColumnFromTableCategories(page, row, 'name'),
+      description: await this.getTextColumnFromTableCategories(page, row, 'description'),
+      position: parseFloat(await this.getTextColumnFromTableCategories(page, row, 'position')),
+      status: await this.getStatus(page, row),
     };
   }
 
   /**
    * Get content from all rows
-   * @param column
-   * @return {Promise<[]>}
+   * @param page {Page} Browser tab
+   * @param column {string} Column to get all rows column
+   * @return {Promise<Array<string>>}
    */
-  async getAllRowsColumnContent(column) {
-    const rowsNumber = await this.getNumberOfElementInGrid();
+  async getAllRowsColumnContent(page, column) {
+    const rowsNumber = await this.getNumberOfElementInGrid(page);
     const allRowsContentTable = [];
+
     for (let i = 1; i <= rowsNumber; i++) {
-      const rowContent = await this.getTextColumnFromTableCategories(i, column);
-      await allRowsContentTable.push(rowContent);
+      const rowContent = await this.getTextColumnFromTableCategories(page, i, column);
+      allRowsContentTable.push(rowContent);
     }
+
     return allRowsContentTable;
   }
 
   /**
    * Go to Edit Category page
-   * @param row, row in table
+   * @param page {Page} Browser tab
+   * @param row {number} Row on table
    * @return {Promise<void>}
    */
-  async goToEditCategoryPage(row) {
+  async goToEditCategoryPage(page, row) {
     // Click on dropDown
     await Promise.all([
-      this.page.click(this.categoriesListTableToggleDropDown(row, 'actions')),
-      this.waitForVisibleSelector(this.categoriesListTableEditLink(row, 'actions')),
+      page.click(this.categoriesListTableToggleDropDown(row, 'actions')),
+      this.waitForVisibleSelector(page, this.categoriesListTableEditLink(row, 'actions')),
     ]);
     // Click on edit
-    await this.clickAndWaitForNavigation(this.categoriesListTableEditLink(row, 'actions'));
+    await this.clickAndWaitForNavigation(page, this.categoriesListTableEditLink(row, 'actions'));
   }
 
   /**
    * View subcategories in list
-   * @param row, row in table
+   * @param page {Page} Browser tab
+   * @param row {number} Row on table
    * @return {Promise<void>}
    */
-  async goToViewSubCategoriesPage(row) {
+  async goToViewSubCategoriesPage(page, row) {
     if (
-      await this.elementVisible(this.categoriesListTableViewLink(row, 'actions'), 100)
+      await this.elementVisible(page, this.categoriesListTableViewLink(row, 'actions'), 100)
     ) {
-      await this.clickAndWaitForNavigation(this.categoriesListTableViewLink(row, 'actions'));
+      await this.clickAndWaitForNavigation(page, this.categoriesListTableViewLink(row, 'actions'));
     } else {
-      await this.clickAndWaitForNavigation(`${this.categoriesListTableColumn(row, 'name')} a`);
+      await this.clickAndWaitForNavigation(page, `${this.categoriesListTableColumn(row, 'name')} a`);
     }
   }
 
   /**
    * Delete Category
-   * @param row, row in table
-   * @param modeID, Deletion method to choose in modal
+   * @param page {Page} Browser tab
+   * @param row {number} Row on table
+   * @param modeID {number} Deletion method to choose in modal
    * @returns {Promise<string>}
    */
-  async deleteCategory(row, modeID = '0') {
+  async deleteCategory(page, row, modeID = 0) {
     // Click on dropDown
     await Promise.all([
-      this.page.click(this.categoriesListTableToggleDropDown(row, 'actions')),
+      page.click(this.categoriesListTableToggleDropDown(row, 'actions')),
       this.waitForVisibleSelector(
+        page,
         `${this.categoriesListTableToggleDropDown(row, 'actions')}[aria-expanded='true']`,
       ),
     ]);
     // Click on delete and wait for modal
     await Promise.all([
-      this.page.click(this.categoriesListTableDeleteLink(row, 'actions')),
-      this.waitForVisibleSelector(this.deleteCategoryModal),
+      page.click(this.categoriesListTableDeleteLink(row, 'actions')),
+      this.waitForVisibleSelector(page, this.deleteCategoryModal),
     ]);
-    await this.chooseOptionAndDelete(modeID);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.chooseOptionAndDelete(page, modeID);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Choose the option and delete
-   * @param modeID, Deletion mode ID to choose in modal
+   * @param page {Page} Browser tab
+   * @param modeID {number} Deletion mode ID to choose in modal
    * @return {Promise<void>}
    */
-  async chooseOptionAndDelete(modeID) {
-    await this.page.click(this.deleteCategoryModalModeInput(modeID));
-    await this.clickAndWaitForNavigation(this.deleteCategoryModalDeleteButton);
-    await this.waitForVisibleSelector(this.alertSuccessBlockParagraph);
+  async chooseOptionAndDelete(page, modeID) {
+    await this.setChecked(page, this.deleteCategoryModalModeInput(modeID));
+    await this.clickAndWaitForNavigation(page, this.deleteCategoryModalDeleteButton);
+    await this.waitForVisibleSelector(page, this.alertSuccessBlockParagraph);
   }
 
   /**
    * Enable / disable categories by Bulk Actions
-   * @param enable
+   * @param page {Page} Browser tab
+   * @param enable {boolean} True if we need to enable status, false if not
    * @returns {Promise<string>}
    */
-  async changeCategoriesEnabledColumnBulkActions(enable = true) {
+  async bulkSetStatus(page, enable = true) {
     // Click on Select All
     await Promise.all([
-      this.page.$eval(this.selectAllRowsDiv, el => el.click()),
-      this.waitForVisibleSelector(`${this.bulkActionsToggleButton}:not([disabled])`),
+      page.$eval(this.selectAllRowsDiv, el => el.click()),
+      this.waitForVisibleSelector(page, `${this.bulkActionsToggleButton}:not([disabled])`),
     ]);
+
     // Click on Button Bulk actions
     await Promise.all([
-      this.page.click(this.bulkActionsToggleButton),
-      this.waitForVisibleSelector(`${this.bulkActionsToggleButton}[aria-expanded='true']`),
+      page.click(this.bulkActionsToggleButton),
+      this.waitForVisibleSelector(page, `${this.bulkActionsToggleButton}[aria-expanded='true']`),
     ]);
+
     // Click on delete and wait for modal
-    await this.clickAndWaitForNavigation(enable ? this.bulkActionsEnableButton : this.bulkActionsDisableButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, enable ? this.bulkActionsEnableButton : this.bulkActionsDisableButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Delete all Categories with Bulk Actions
-   * @param modeID, Deletion mode ID to choose in modal
+   * @param page {Page} Browser tab
+   * @param modeID {number} Deletion mode ID to choose in modal
    * @returns {Promise<string>}
    */
-  async deleteCategoriesBulkActions(modeID = '0') {
+  async deleteCategoriesBulkActions(page, modeID = 0) {
     // Click on Select All
     await Promise.all([
-      this.page.$eval(this.selectAllRowsDiv, el => el.click()),
-      this.waitForVisibleSelector(`${this.bulkActionsToggleButton}:not([disabled])`),
+      page.$eval(this.selectAllRowsDiv, el => el.click()),
+      this.waitForVisibleSelector(page, `${this.bulkActionsToggleButton}:not([disabled])`),
     ]);
+
     // Click on Button Bulk actions
     await Promise.all([
-      this.page.click(this.bulkActionsToggleButton),
-      this.waitForVisibleSelector(`${this.bulkActionsToggleButton}[aria-expanded='true']`),
+      page.click(this.bulkActionsToggleButton),
+      this.waitForVisibleSelector(page, `${this.bulkActionsToggleButton}[aria-expanded='true']`),
     ]);
+
     // Click on delete and wait for modal
     await Promise.all([
-      this.page.click(this.bulkActionsDeleteButton),
-      this.waitForVisibleSelector(this.deleteCategoryModal),
+      page.click(this.bulkActionsDeleteButton),
+      this.waitForVisibleSelector(page, this.deleteCategoryModal),
     ]);
-    await this.chooseOptionAndDelete(modeID);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.chooseOptionAndDelete(page, modeID);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Change category position
-   * @param categoryRow
-   * @param position
+   * @param page {Page} Browser tab
+   * @param actualPosition {number} Value of actual position
+   * @param newPosition {number} Value of new position
    * @return {Promise<string>}
    */
-  async changeCategoryPosition(categoryRow, position) {
+  async changeCategoryPosition(page, actualPosition, newPosition) {
     await this.dragAndDrop(
-      this.categoriesListTableDraggableColumn(categoryRow),
-      this.categoriesListTableDraggableColumn(position),
+      page,
+      this.categoriesListTableDraggableColumn(actualPosition),
+      this.categoriesListTableDraggableColumn(newPosition),
     );
-    return this.getTextContent(this.growlMessageBlock);
+
+    return this.getGrowlMessageContent(page);
   }
 
   /* Sort methods */
   /**
    * Sort table by clicking on column name
-   * @param sortBy, column to sort with
-   * @param sortDirection, asc or desc
+   * @param page {Page} Browser tab
+   * @param sortBy {string} Column to sort with
+   * @param sortDirection {string} Sort direction asc or desc
    * @return {Promise<void>}
    */
-  async sortTable(sortBy, sortDirection) {
+  async sortTable(page, sortBy, sortDirection) {
     const sortColumnDiv = `${this.sortColumnDiv(sortBy)}[data-sort-direction='${sortDirection}']`;
     const sortColumnSpanButton = this.sortColumnSpanButton(sortBy);
+
     let i = 0;
-    while (await this.elementNotVisible(sortColumnDiv, 500) && i < 2) {
-      await this.page.hover(this.sortColumnDiv(sortBy));
-      await this.clickAndWaitForNavigation(sortColumnSpanButton);
+    while (await this.elementNotVisible(page, sortColumnDiv, 2000) && i < 2) {
+      await page.hover(this.sortColumnDiv(sortBy));
+      await this.clickAndWaitForNavigation(page, sortColumnSpanButton);
       i += 1;
     }
-    await this.waitForVisibleSelector(sortColumnDiv);
+
+    await this.waitForVisibleSelector(page, sortColumnDiv, 20000);
   }
 
   // Export methods
   /**
    * Click on lint to export categories to a csv file
-   * @return {Promise<*>}
+   * @param page {Page} Browser tab
+   * @return {Promise<string>}
    */
-  async exportDataToCsv() {
+  async exportDataToCsv(page) {
     await Promise.all([
-      this.page.click(this.categoryGridActionsButton),
-      this.waitForVisibleSelector(`${this.gridActionDropDownMenu}.show`),
+      page.click(this.categoryGridActionsButton),
+      this.waitForVisibleSelector(page, `${this.gridActionDropDownMenu}.show`),
     ]);
-    const [download] = await Promise.all([
-      this.page.waitForEvent('download'),
-      this.page.click(this.gridActionExportLink),
-      this.page.waitForSelector(`${this.gridActionDropDownMenu}.show`, {state: 'hidden'}),
+
+    const [downloadPath] = await Promise.all([
+      this.clickAndWaitForDownload(page, this.gridActionExportLink),
+      this.waitForHiddenSelector(page, `${this.gridActionDropDownMenu}.show`),
     ]);
-    return download.path();
+
+    return downloadPath;
   }
 
   /**
    * Get category from table in csv format
-   * @param row
+   * @param page {Page} Browser tab
+   * @param row {number} Row on table
    * @return {Promise<string>}
    */
-  async getCategoryInCsvFormat(row) {
-    const category = await this.getCategoryFromTable(row);
+  async getCategoryInCsvFormat(page, row) {
+    const category = await this.getCategoryFromTable(page, row);
+
     return `${category.id};`
       + `${category.name};`
       + `"${category.description}";`
@@ -372,46 +427,57 @@ module.exports = class Categories extends BOBasePage {
 
   /**
    * Go to edit category page
+   * @param page {Page} Browser tab
    * @returns {Promise<void>}
    */
-  async goToEditHomeCategoryPage() {
-    await this.waitForSelectorAndClick(this.editHomeCategoryButton);
+  async goToEditHomeCategoryPage(page) {
+    await this.clickAndWaitForNavigation(page, this.editHomeCategoryButton);
   }
 
   /* Pagination methods */
   /**
    * Get pagination label
+   * @param page {Page} Browser tab
    * @return {Promise<string>}
    */
-  getPaginationLabel() {
-    return this.getTextContent(this.paginationLabel);
+  getPaginationLabel(page) {
+    return this.getTextContent(page, this.paginationLabel);
   }
 
   /**
    * Select pagination limit
-   * @param number
+   * @param page {Page} Browser tab
+   * @param number {number} Value of pagination limit to select
    * @returns {Promise<string>}
    */
-  async selectPaginationLimit(number) {
-    await this.selectByVisibleText(this.paginationLimitSelect, number);
-    return this.getPaginationLabel();
+  async selectPaginationLimit(page, number) {
+    await Promise.all([
+      this.selectByVisibleText(page, this.paginationLimitSelect, number),
+      page.waitForNavigation({waitUntil: 'networkidle'}),
+    ]);
+
+    return this.getPaginationLabel(page);
   }
 
   /**
    * Click on next
+   * @param page {Page} Browser tab
    * @returns {Promise<string>}
    */
-  async paginationNext() {
-    await this.clickAndWaitForNavigation(this.paginationNextLink);
-    return this.getPaginationLabel();
+  async paginationNext(page) {
+    await this.clickAndWaitForNavigation(page, this.paginationNextLink);
+    return this.getPaginationLabel(page);
   }
 
   /**
    * Click on previous
+   * @param page {Page} Browser tab
    * @returns {Promise<string>}
    */
-  async paginationPrevious() {
-    await this.clickAndWaitForNavigation(this.paginationPreviousLink);
-    return this.getPaginationLabel();
+  async paginationPrevious(page) {
+    await this.clickAndWaitForNavigation(page, this.paginationPreviousLink);
+    return this.getPaginationLabel(page);
   }
-};
+}
+
+module.exports = new Categories();

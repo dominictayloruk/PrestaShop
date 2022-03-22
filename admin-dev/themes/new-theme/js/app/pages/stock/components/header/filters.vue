@@ -46,6 +46,7 @@
           >
             <h2>{{ trans('filter_suppliers') }}</h2>
             <FilterComponent
+              ref="suppliers"
               :placeholder="trans('filter_search_suppliers')"
               :list="this.$store.getters.suppliers"
               class="filter-suppliers"
@@ -107,6 +108,7 @@
           <div class="py-3">
             <h2>{{ trans('filter_categories') }}</h2>
             <FilterComponent
+              ref="categories"
               :placeholder="trans('filter_search_category')"
               :list="categoriesList"
               class="filter-categories"
@@ -147,39 +149,68 @@
   </div>
 </template>
 
-<script>
-  import PSSelect from '@app/widgets/ps-select';
-  import PSDatePicker from '@app/widgets/ps-datepicker';
-  import PSRadio from '@app/widgets/ps-radio';
-  import FilterComponent from './filters/filter-component';
+<script lang="ts">
+  /* eslint-disable camelcase */
+  import Vue from 'vue';
+  import PSSelect from '@app/widgets/ps-select.vue';
+  import PSDatePicker from '@app/widgets/ps-datepicker.vue';
+  import PSRadio from '@app/widgets/ps-radio.vue';
+  import FilterComponent, {FilterComponentInstanceType} from './filters/filter-component.vue';
 
-  export default {
+  export interface StockCategory {
+    active: number;
+    children: Array<StockCategory>;
+    id: string;
+    id_category: number;
+    id_parent: number;
+    name: string;
+    position: string;
+    visible: boolean;
+  }
+
+  const Filters = Vue.extend({
     computed: {
-      locale() {
+      locale(): string {
         return window.data.locale;
       },
-      isOverview() {
+      isOverview(): boolean {
         return this.$route.name === 'overview';
       },
-      employees() {
+      employees(): Array<{id_employee: number, name: string}> {
         return this.$store.state.employees;
       },
-      movementsTypes() {
+      movementsTypes(): Array<{id_stock_mvt_reason: Array<number>, name: string}> {
         return this.$store.state.movementsTypes;
       },
-      categoriesList() {
+      categoriesList(): Array<StockCategory> {
         return this.$store.getters.categories;
+      },
+      suppliersFilterRef(): FilterComponentInstanceType {
+        return <FilterComponentInstanceType>(this.$refs.suppliers);
+      },
+      categoriesFilterRef(): FilterComponentInstanceType {
+        return <FilterComponentInstanceType>(this.$refs.categories);
       },
     },
     methods: {
-      onClear(event) {
-        delete this.date_add[event.dateType];
+      reset(): void {
+        const dataOption = this.$options.data;
+
+        Object.assign(
+          this.$data,
+          dataOption instanceof Function ? dataOption.apply(this) : dataOption,
+        );
+        this.suppliersFilterRef?.reset();
+        this.categoriesFilterRef?.reset();
+      },
+      onClear(event: any): void {
+        delete this.date_add[<number>event.dateType];
         this.applyFilter();
       },
-      onClick() {
+      onClick(): void {
         this.applyFilter();
       },
-      onFilterActive(list, type) {
+      onFilterActive(list: Array<any>, type: string): void {
         if (type === 'supplier') {
           this.suppliers = list;
         } else {
@@ -188,7 +219,7 @@
         this.disabled = !this.suppliers.length && !this.categories.length;
         this.applyFilter();
       },
-      applyFilter() {
+      applyFilter(): void {
         this.$store.dispatch('isLoading');
         this.$emit('applyFilter', {
           suppliers: this.suppliers,
@@ -199,7 +230,7 @@
           active: this.active,
         });
       },
-      onChange(item) {
+      onChange(item: any): void {
         if (item.itemId === 'id_stock_mvt_reason') {
           this.id_stock_mvt_reason = item.value === 'default' ? [] : item.value;
         } else {
@@ -207,13 +238,13 @@
         }
         this.applyFilter();
       },
-      onDpChange(event) {
-        this.date_add[event.dateType] = event.date.unix();
+      onDpChange(event: any) {
+        this.date_add[<number>event.dateType] = event.date.unix();
         if (event.oldDate) {
           this.applyFilter();
         }
       },
-      onRadioChange(value) {
+      onRadioChange(value: any): void {
         this.active = value;
         this.applyFilter();
       },
@@ -225,18 +256,24 @@
       PSRadio,
     },
     mounted() {
-      this.date_add = {};
+      this.date_add = [];
       this.$store.dispatch('getSuppliers');
       this.$store.dispatch('getCategories');
     },
-    data: () => ({
-      disabled: true,
-      suppliers: [],
-      categories: [],
-      id_stock_mvt_reason: [],
-      id_employee: [],
-      date_add: {},
-      active: null,
-    }),
-  };
+    data() {
+      return {
+        disabled: true,
+        suppliers: [] as Array<any>,
+        categories: [] as Array<any>,
+        id_stock_mvt_reason: [] as Array<any>,
+        id_employee: [] as Array<any>,
+        date_add: [] as Array<any>,
+        active: null,
+      };
+    },
+  });
+
+  export type FiltersInstanceType = InstanceType<typeof Filters> | undefined;
+
+  export default Filters;
 </script>

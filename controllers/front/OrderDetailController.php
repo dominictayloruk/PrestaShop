@@ -51,9 +51,8 @@ class OrderDetailControllerCore extends FrontController
                 $this->errors[] = $this->trans('The order is no longer valid.', [], 'Shop.Notifications.Error');
             } elseif (empty($msgText)) {
                 $this->errors[] = $this->trans('The message cannot be blank.', [], 'Shop.Notifications.Error');
-            } elseif (!Validate::isMessage($msgText)) {
-                $this->errors[] = $this->trans('This message is invalid (HTML is not allowed).', [], 'Shop.Notifications.Error');
             }
+
             if (!count($this->errors)) {
                 $order = new Order($idOrder);
                 if (Validate::isLoadedObject($order) && $order->id_customer == $this->context->customer->id) {
@@ -84,7 +83,7 @@ class OrderDetailControllerCore extends FrontController
                     $cm->id_customer_thread = $ct->id;
                     $cm->message = $msgText;
                     $client_ip_address = Tools::getRemoteAddr();
-                    $cm->ip_address = (int) ip2long($client_ip_address);
+                    $cm->ip_address = (string) ip2long($client_ip_address);
                     $cm->add();
 
                     if (!Configuration::get('PS_MAIL_EMAIL_MESSAGE')) {
@@ -117,7 +116,7 @@ class OrderDetailControllerCore extends FrontController
                                 '{email}' => $customer->email,
                                 '{id_order}' => (int) $order->id,
                                 '{order_name}' => $order->getUniqReference(),
-                                '{message}' => Tools::nl2br($msgText),
+                                '{message}' => Tools::nl2br(Tools::htmlentitiesUTF8($msgText)),
                                 '{product_name}' => $product_name,
                             ],
                             $to,
@@ -184,12 +183,20 @@ class OrderDetailControllerCore extends FrontController
 
             $order = new Order($id_order);
             if (Validate::isLoadedObject($order) && $order->id_customer == $this->context->customer->id) {
+                if ($order->id_shop != $this->context->shop->id && $this->context->customer->id_shop_group == $this->context->shop->id_shop_group) {
+                    $shopGroup = new ShopGroup($this->context->customer->id_shop_group);
+                    if (!$shopGroup->share_order) {
+                        $this->redirect_after = '404';
+                        $this->redirect();
+                    }
+                }
                 $this->order_to_display = (new OrderPresenter())->present($order);
 
                 $this->reference = $order->reference;
 
                 $this->context->smarty->assign([
                     'order' => $this->order_to_display,
+                    'orderIsVirtual' => $order->isVirtual(),
                     'HOOK_DISPLAYORDERDETAIL' => Hook::exec('displayOrderDetail', ['order' => $order]),
                 ]);
             } else {

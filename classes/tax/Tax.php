@@ -25,7 +25,9 @@
  */
 class TaxCore extends ObjectModel
 {
-    /** @var string Name */
+    const TAX_DEFAULT_PRECISION = 3;
+
+    /** @var array<int,string>|string Name */
     public $name;
 
     /** @var float Rate (%) */
@@ -35,7 +37,7 @@ class TaxCore extends ObjectModel
     public $active;
 
     /** @var bool true if the tax has been historized */
-    public $deleted = 0;
+    public $deleted = false;
 
     /**
      * @see ObjectModel::$definition
@@ -75,7 +77,7 @@ class TaxCore extends ObjectModel
     /**
      * Save the object with the field deleted to true.
      *
-     *  @return bool
+     * @return bool
      */
     public function historize()
     {
@@ -104,7 +106,7 @@ class TaxCore extends ObjectModel
             $res = $this->add();
 
             // change tax id in the tax rule table
-            $res &= TaxRule::swapTaxId($historized_tax->id, $this->id);
+            $res = $res && TaxRule::swapTaxId($historized_tax->id, $this->id);
 
             return $res;
         } elseif (parent::update($null_values)) {
@@ -141,6 +143,9 @@ class TaxCore extends ObjectModel
     /**
      * Get all available taxes.
      *
+     * @param int|bool $id_lang
+     * @param bool $active_only (true by default)
+     *
      * @return array Taxes
      */
     public static function getTaxes($id_lang = false, $active_only = true)
@@ -172,7 +177,7 @@ class TaxCore extends ObjectModel
      * Return the tax id associated to the specified name.
      *
      * @param string $tax_name
-     * @param bool $active (true by default)
+     * @param bool|int $active (true by default)
      */
     public static function getTaxIdByName($tax_name, $active = 1)
     {
@@ -189,7 +194,7 @@ class TaxCore extends ObjectModel
     /**
      * Returns the ecotax tax rate.
      *
-     * @param id_address
+     * @param int $id_address
      *
      * @return float $tax_rate
      */
@@ -206,7 +211,8 @@ class TaxCore extends ObjectModel
     /**
      * Returns the carrier tax rate.
      *
-     * @param id_address
+     * @param int $id_carrier
+     * @param int $id_address
      *
      * @return float $tax_rate
      */
@@ -222,34 +228,13 @@ class TaxCore extends ObjectModel
     }
 
     /**
-     * Return the product tax rate using the tax rules system.
+     * Returns the product tax rate.
      *
      * @param int $id_product
-     * @param int $id_country
+     * @param int $id_address
+     * @param Context $context
      *
-     * @return Tax
-     *
-     * @deprecated since 1.5
-     */
-    public static function getProductTaxRateViaRules($id_product, $id_country, $id_state, $zipcode)
-    {
-        Tools::displayAsDeprecated();
-
-        if (!isset(self::$_product_tax_via_rules[$id_product . '-' . $id_country . '-' . $id_state . '-' . $zipcode])) {
-            $tax_rate = TaxRulesGroup::getTaxesRate((int) Product::getIdTaxRulesGroupByIdProduct((int) $id_product), (int) $id_country, (int) $id_state, $zipcode);
-            self::$_product_tax_via_rules[$id_product . '-' . $id_country . '-' . $zipcode] = $tax_rate;
-        }
-
-        return self::$_product_tax_via_rules[$id_product . '-' . $id_country . '-' . $zipcode];
-    }
-
-    /**
-     * Returns the product tax.
-     *
-     * @param int $id_product
-     * @param int $id_country
-     *
-     * @return Tax
+     * @return float
      */
     public static function getProductTaxRate($id_product, $id_address = null, Context $context = null)
     {

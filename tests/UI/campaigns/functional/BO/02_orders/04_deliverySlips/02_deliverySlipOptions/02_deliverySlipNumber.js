@@ -1,25 +1,21 @@
 require('module-alias/register');
-// Using chai
-const {expect} = require('chai');
+
+// Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
 
-// Importing pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const DeliverySlipsPage = require('@pages/BO/orders/deliverySlips/index');
-const OrdersPage = require('@pages/BO/orders/index');
-const ViewOrderPage = require('@pages/BO/orders/view');
-const FOBasePage = require('@pages/FO/FObasePage');
-const HomePage = require('@pages/FO/home');
-const ProductPage = require('@pages/FO/product');
-const CartPage = require('@pages/FO/cart');
-const CheckoutPage = require('@pages/FO/checkout');
-const OrderConfirmationPage = require('@pages/FO/checkout/orderConfirmation');
+// Import common tests
+const loginCommon = require('@commonTests/BO/loginBO');
+const {createOrderByCustomerTest} = require('@commonTests/FO/createOrder');
 
-// Importing data
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const deliverySlipsPage = require('@pages/BO/orders/deliverySlips/index');
+const ordersPage = require('@pages/BO/orders/index');
+const orderPageTabListBlock = require('@pages/BO/orders/view/tabListBlock');
+
+// Import data
 const {PaymentMethods} = require('@data/demo/paymentMethods');
-const {DefaultAccount} = require('@data/demo/customer');
+const {DefaultCustomer} = require('@data/demo/customer');
 const {Statuses} = require('@data/demo/orderStatuses');
 const DeliverySlipOptionsFaker = require('@data/faker/deliverySlipOptions');
 
@@ -28,151 +24,99 @@ const testContext = require('@utils/testContext');
 
 const baseContext = 'functional_BO_orders_deliverSlips_deliverSlipsOptions_deliverySlipNumber';
 
+// Import expect from chai
+const {expect} = require('chai');
+
 let browserContext;
 let page;
 let fileName;
 
+const orderByCustomerData = {
+  customer: DefaultCustomer,
+  product: 1,
+  productQuantity: 5,
+  paymentMethod: PaymentMethods.wirePayment.moduleName,
+};
 const deliverySlipData = new DeliverySlipOptionsFaker();
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    deliverySlipsPage: new DeliverySlipsPage(page),
-    ordersPage: new OrdersPage(page),
-    viewOrderPage: new ViewOrderPage(page),
-    foBasePage: new FOBasePage(page),
-    homePage: new HomePage(page),
-    productPage: new ProductPage(page),
-    cartPage: new CartPage(page),
-    checkoutPage: new CheckoutPage(page),
-    orderConfirmationPage: new OrderConfirmationPage(page),
-  };
-};
-
 /*
-Edit Delivery slip number
-Create order
-Change the Order status to Shipped
-Check the delivery slip file name
+Pre-condition:
+- Create order in FO
+Scenario:
+- Edit Delivery slip number
+- Change the Order status to Shipped
+- Check the delivery slip file name
  */
 
-describe('Edit \'Delivery slip number\' and check the generated file name', async () => {
+describe('BO - Orders - Delivery slips : Update \'Delivery slip number\'', async () => {
+  // Pre-condition: Create order in FO
+  createOrderByCustomerTest(orderByCustomerData, baseContext);
+
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
-  describe('Edit the Delivery slip number', async () => {
-    it('should go to delivery slips page', async function () {
+  describe('Update the Delivery slip number', async () => {
+    it('should go to \'Orders > Delivery slips\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToDeliverySlipsPageToUpdateNumber', baseContext);
 
-      await this.pageObjects.dashboardPage.goToSubMenu(
-        this.pageObjects.dashboardPage.ordersParentLink,
-        this.pageObjects.dashboardPage.deliverySlipslink,
+      await dashboardPage.goToSubMenu(
+        page,
+        dashboardPage.ordersParentLink,
+        dashboardPage.deliverySlipslink,
       );
 
-      await this.pageObjects.deliverySlipsPage.closeSfToolBar();
+      await deliverySlipsPage.closeSfToolBar(page);
 
-      const pageTitle = await this.pageObjects.deliverySlipsPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.deliverySlipsPage.pageTitle);
+      const pageTitle = await deliverySlipsPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(deliverySlipsPage.pageTitle);
     });
 
     it('should change the Delivery slip number', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'updateDeliverySlipsNumber', baseContext);
 
-      await this.pageObjects.deliverySlipsPage.changeNumber(deliverySlipData.number);
-      const textMessage = await this.pageObjects.deliverySlipsPage.saveDeliverySlipOptions();
-      await expect(textMessage).to.contains(this.pageObjects.deliverySlipsPage.successfulUpdateMessage);
+      await deliverySlipsPage.changeNumber(page, deliverySlipData.number);
+      const textMessage = await deliverySlipsPage.saveDeliverySlipOptions(page);
+      await expect(textMessage).to.contains(deliverySlipsPage.successfulUpdateMessage);
     });
   });
 
-  describe('Create new order in FO', async () => {
-    it('should go to FO and create an order', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'createOrderInFO', baseContext);
-
-      // Click on view my shop
-      page = await this.pageObjects.deliverySlipsPage.viewMyShop();
-      this.pageObjects = await init();
-
-      // Change FO language
-      await this.pageObjects.foBasePage.changeLanguage('en');
-
-      // Go to the first product page
-      await this.pageObjects.homePage.goToProductPage(1);
-
-      // Add the created product to the cart
-      await this.pageObjects.productPage.addProductToTheCart();
-
-      // Proceed to checkout the shopping cart
-      await this.pageObjects.cartPage.clickOnProceedToCheckout();
-
-      // Checkout the order
-
-      // Personal information step - Login
-      await this.pageObjects.checkoutPage.clickOnSignIn();
-      await this.pageObjects.checkoutPage.customerLogin(DefaultAccount);
-
-      // Address step - Go to delivery step
-      const isStepAddressComplete = await this.pageObjects.checkoutPage.goToDeliveryStep();
-      await expect(isStepAddressComplete, 'Step Address is not complete').to.be.true;
-
-      // Delivery step - Go to payment step
-      const isStepDeliveryComplete = await this.pageObjects.checkoutPage.goToPaymentStep();
-      await expect(isStepDeliveryComplete, 'Step Address is not complete').to.be.true;
-
-      // Payment step - Choose payment step
-      await this.pageObjects.checkoutPage.choosePaymentAndOrder(PaymentMethods.wirePayment.moduleName);
-
-      // Check the confirmation message
-      const cardTitle = await this.pageObjects.orderConfirmationPage.getOrderConfirmationCardTitle();
-      await expect(cardTitle).to.contains(this.pageObjects.orderConfirmationPage.orderConfirmationCardTitle);
-
-      // Logout from FO
-      await this.pageObjects.foBasePage.logout();
-
-      // Close tab and go back to BO
-      page = await this.pageObjects.orderConfirmationPage.closePage(browserContext, 0);
-      this.pageObjects = await init();
-    });
-  });
-
-  describe('Create a delivery slip and check the edited data', async () => {
-    it('should go to the orders page', async function () {
+  describe('Create a delivery slip and check the update data', async () => {
+    it('should go to the \'Orders > Orders\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToOrdersPage', baseContext);
 
-      await this.pageObjects.deliverySlipsPage.goToSubMenu(
-        this.pageObjects.deliverySlipsPage.ordersParentLink,
-        this.pageObjects.deliverySlipsPage.ordersLink,
+      await deliverySlipsPage.goToSubMenu(
+        page,
+        deliverySlipsPage.ordersParentLink,
+        deliverySlipsPage.ordersLink,
       );
 
-      const pageTitle = await this.pageObjects.ordersPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.ordersPage.pageTitle);
+      const pageTitle = await ordersPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(ordersPage.pageTitle);
     });
 
     it('should go to the first order page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToFirstOrderPage', baseContext);
 
-      await this.pageObjects.ordersPage.goToOrder(1);
-      const pageTitle = await this.pageObjects.viewOrderPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewOrderPage.pageTitle);
+      await ordersPage.goToOrder(page, 1);
+      const pageTitle = await orderPageTabListBlock.getPageTitle(page);
+      await expect(pageTitle).to.contains(orderPageTabListBlock.pageTitle);
     });
 
     it(`should change the order status to '${Statuses.shipped.status}'`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'updateOrderStatus', baseContext);
 
-      const result = await this.pageObjects.viewOrderPage.modifyOrderStatus(Statuses.shipped.status);
+      const result = await orderPageTabListBlock.modifyOrderStatus(page, Statuses.shipped.status);
       await expect(result).to.equal(Statuses.shipped.status);
     });
 
@@ -180,7 +124,7 @@ describe('Edit \'Delivery slip number\' and check the generated file name', asyn
       await testContext.addContextItem(this, 'testIdentifier', 'checkDeliverySlipsDocumentName', baseContext);
 
       // Get delivery slips filename
-      fileName = await this.pageObjects.viewOrderPage.getFileName(3);
+      fileName = await orderPageTabListBlock.getFileName(page, 3);
       expect(fileName).to.contains(deliverySlipData.number);
     });
   });

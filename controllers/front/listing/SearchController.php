@@ -56,6 +56,7 @@ class SearchControllerCore extends ProductListingFrontController
             [
                 'search_string' => $this->search_string,
                 'search_tag' => $this->search_tag,
+                'subcategories' => [],
             ]
         );
     }
@@ -86,6 +87,7 @@ class SearchControllerCore extends ProductListingFrontController
     {
         $query = new ProductSearchQuery();
         $query
+            ->setQueryType('search')
             ->setSortOrder(new SortOrder('product', 'position', 'desc'))
             ->setSearchString($this->search_string)
             ->setSearchTag($this->search_tag);

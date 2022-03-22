@@ -80,7 +80,6 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
         $refundData = $table->getColumnsHash();
 
         try {
-            $this->lastException = null;
             $command = $this->createIssuePartialRefundCommand(
                 $orderId,
                 $refundData,
@@ -91,7 +90,7 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
 
             $this->getCommandBus()->handle($command);
         } catch (OrderException $e) {
-            $this->lastException = $e;
+            $this->setLastException($e);
         }
     }
 
@@ -115,7 +114,6 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
         $refundData = $table->getColumnsHash();
 
         try {
-            $this->lastException = null;
             $command = $this->createIssueStandardRefundCommand(
                 $orderId,
                 $refundData,
@@ -125,7 +123,7 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
 
             $this->getCommandBus()->handle($command);
         } catch (OrderException $e) {
-            $this->lastException = $e;
+            $this->setLastException($e);
         }
     }
 
@@ -152,7 +150,6 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
         $refundData = $table->getColumnsHash();
 
         try {
-            $this->lastException = null;
             $command = $this->createIssueReturnProductCommand(
                 $orderId,
                 $refundData,
@@ -163,17 +160,17 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
 
             $this->getCommandBus()->handle($command);
         } catch (OrderException $e) {
-            $this->lastException = $e;
+            $this->setLastException($e);
         }
     }
 
     /**
      * @Given :orderReference has :creditSlipNumber credit slips
      *
-     * @param $orderReference
+     * @param string $orderReference
      * @param int $creditSlipNumber
      */
-    public function checkOrderRefundsNumber($orderReference, int $creditSlipNumber)
+    public function checkOrderRefundsNumber(string $orderReference, int $creditSlipNumber): void
     {
         $orderId = SharedStorage::getStorage()->get($orderReference);
 
@@ -188,10 +185,10 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
     /**
      * @Given :orderReference last credit slip is:
      *
-     * @param $orderReference
+     * @param string $orderReference
      * @param TableNode $table
      */
-    public function checkOrderRefunds($orderReference, TableNode $table)
+    public function checkOrderRefunds(string $orderReference, TableNode $table): void
     {
         $orderId = SharedStorage::getStorage()->get($orderReference);
         $refundData = $table->getRowsHash();
@@ -217,7 +214,7 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
     /**
      * @Given return product is enabled
      */
-    public function enabledReturnProduct()
+    public function enabledReturnProduct(): void
     {
         Configuration::set('PS_ORDER_RETURN', 1);
     }
@@ -237,12 +234,13 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
      */
     public function assertLastErrorIsRefundQuantityTooHigh(int $maxRefund)
     {
-        $this->assertLastErrorIs(
+        /** @var InvalidCancelProductException $lastError */
+        $lastError = $this->assertLastErrorIs(
             InvalidCancelProductException::class,
             InvalidCancelProductException::QUANTITY_TOO_HIGH
         );
-        if ($maxRefund !== $this->lastException->getRefundableQuantity()) {
-            throw new RuntimeException(sprintf('Invalid refundable quantity in exception, expected %s but got %s', $maxRefund, $this->lastException->getRefundableQuantity()));
+        if ($maxRefund !== $lastError->getRefundableQuantity()) {
+            throw new RuntimeException(sprintf('Invalid refundable quantity in exception, expected %s but got %s', $maxRefund, $lastError->getRefundableQuantity()));
         }
     }
 
@@ -329,7 +327,7 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
      * @param bool $generateCreditSlip
      * @param bool $generateVoucher
      * @param int $voucherRefundType
-     * @param float|null $voucherRefundAmount
+     * @param string|null $voucherRefundAmount
      *
      * @return IssuePartialRefundCommand
      *
@@ -343,7 +341,7 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
         bool $generateCreditSlip,
         bool $generateVoucher,
         int $voucherRefundType = VoucherRefundType::PRODUCT_PRICES_EXCLUDING_VOUCHER_REFUND,
-        ?float $voucherRefundAmount = null
+        ?string $voucherRefundAmount = null
     ): IssuePartialRefundCommand {
         /** @var OrderForViewing $orderForViewing */
         $orderForViewing = $this->getQueryBus()->handle(new GetOrderForViewing((int) $orderId));
@@ -514,7 +512,7 @@ class OrderRefundFeatureContext extends AbstractDomainFeatureContext
 
             $this->getCommandBus()->handle($command);
         } catch (OrderException $e) {
-            $this->lastException = $e;
+            $this->setLastException($e);
         }
     }
 }

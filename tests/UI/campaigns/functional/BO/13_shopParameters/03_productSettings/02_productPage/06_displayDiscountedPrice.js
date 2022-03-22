@@ -1,26 +1,27 @@
 require('module-alias/register');
-// Using chai
+
 const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
+const testContext = require('@utils/testContext');
 
-// Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const ProductSettingsPage = require('@pages/BO/shopParameters/productSettings');
-const CartRulesPage = require('@pages/BO/catalog/discounts');
-const CatalogPriceRulesPage = require('@pages/BO/catalog/discounts/catalogPriceRules');
-const AddCatalogPriceRulePage = require('@pages/BO/catalog/discounts/catalogPriceRules/add');
-const ProductPage = require('@pages/FO/product');
-const HomePage = require('@pages/FO/home');
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
+
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const productSettingsPage = require('@pages/BO/shopParameters/productSettings');
+const cartRulesPage = require('@pages/BO/catalog/discounts');
+const catalogPriceRulesPage = require('@pages/BO/catalog/discounts/catalogPriceRules');
+const addCatalogPriceRulePage = require('@pages/BO/catalog/discounts/catalogPriceRules/add');
+
+// Import FO pages
+const productPage = require('@pages/FO/product');
+const homePage = require('@pages/FO/home');
 
 // Import data
 const PriceRuleFaker = require('@data/faker/catalogPriceRule');
-
-// import test context
-const testContext = require('@utils/testContext');
 
 const baseContext = 'functional_BO_shopParameters_productSettings_displayDiscountedPrice';
 
@@ -43,79 +44,66 @@ const unitDiscountToCheck = '€20.00';
 // Unit price in Volume discounts table(Product page FO)
 const unitPriceToCheck = '€8.68';
 
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    productSettingsPage: new ProductSettingsPage(page),
-    cartRulesPage: new CartRulesPage(page),
-    catalogPriceRulesPage: new CatalogPriceRulesPage(page),
-    addCatalogPriceRulePage: new AddCatalogPriceRulePage(page),
-    homePage: new HomePage(page),
-    productPage: new ProductPage(page),
-  };
-};
-
-describe('Enable/Disable display discounted price', async () => {
+describe('BO - Shop Parameters - Product Settings : Enable/Disable display discounted price', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO and go to products page
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
   it('should go to \'Catalog > Discounts\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToDiscountsPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.catalogParentLink,
-      this.pageObjects.dashboardPage.discountsLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.catalogParentLink,
+      dashboardPage.discountsLink,
     );
 
-    const pageTitle = await this.pageObjects.cartRulesPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.cartRulesPage.pageTitle);
+    const pageTitle = await cartRulesPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(cartRulesPage.pageTitle);
   });
 
   it('should go to \'Catalog Price Rules\' tab', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToCatalogPriceRulesTab', baseContext);
 
-    await this.pageObjects.cartRulesPage.goToCatalogPriceRulesTab();
-    const pageTitle = await this.pageObjects.catalogPriceRulesPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.catalogPriceRulesPage.pageTitle);
+    await cartRulesPage.goToCatalogPriceRulesTab(page);
+    const pageTitle = await catalogPriceRulesPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(catalogPriceRulesPage.pageTitle);
   });
 
   it('should create new catalog price rule', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'createCatalogPriceRule', baseContext);
 
-    await this.pageObjects.catalogPriceRulesPage.goToAddNewCatalogPriceRulePage();
-    const pageTitle = await this.pageObjects.addCatalogPriceRulePage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.addCatalogPriceRulePage.pageTitle);
+    await catalogPriceRulesPage.goToAddNewCatalogPriceRulePage(page);
+    const pageTitle = await addCatalogPriceRulePage.getPageTitle(page);
+    await expect(pageTitle).to.contains(addCatalogPriceRulePage.pageTitle);
 
-    const validationMessage = await this.pageObjects.addCatalogPriceRulePage.createEditCatalogPriceRule(priceRuleData);
-    await expect(validationMessage).to.contains(this.pageObjects.catalogPriceRulesPage.successfulCreationMessage);
+    const validationMessage = await addCatalogPriceRulePage.setCatalogPriceRule(page, priceRuleData);
+    await expect(validationMessage).to.contains(catalogPriceRulesPage.successfulCreationMessage);
   });
 
   it('should go to \'Shop parameters > Product Settings\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToProductSettingsPage', baseContext);
 
-    await this.pageObjects.addCatalogPriceRulePage.goToSubMenu(
-      this.pageObjects.addCatalogPriceRulePage.shopParametersParentLink,
-      this.pageObjects.addCatalogPriceRulePage.productSettingsLink,
+    await addCatalogPriceRulePage.goToSubMenu(
+      page,
+      addCatalogPriceRulePage.shopParametersParentLink,
+      addCatalogPriceRulePage.productSettingsLink,
     );
 
-    await this.pageObjects.productSettingsPage.closeSfToolBar();
+    await productSettingsPage.closeSfToolBar(page);
 
-    const pageTitle = await this.pageObjects.productSettingsPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.productSettingsPage.pageTitle);
+    const pageTitle = await productSettingsPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(productSettingsPage.pageTitle);
   });
 
   const tests = [
@@ -140,69 +128,72 @@ describe('Enable/Disable display discounted price', async () => {
         baseContext,
       );
 
-      const result = await this.pageObjects.productSettingsPage.setDisplayDiscountedPriceStatus(
+      const result = await productSettingsPage.setDisplayDiscountedPriceStatus(
+        page,
         test.args.enable,
       );
 
-      await expect(result).to.contains(this.pageObjects.productSettingsPage.successfulUpdateMessage);
+      await expect(result).to.contains(productSettingsPage.successfulUpdateMessage);
+    });
+
+    it('should view my shop and go to first product page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', `viewMyShop${index}`, baseContext);
+
+      page = await productSettingsPage.viewMyShop(page);
+
+      await homePage.changeLanguage(page, 'en');
+
+      const isHomePage = await homePage.isHomePage(page);
+      await expect(isHomePage, 'Home page was not opened').to.be.true;
+
+      await homePage.goToProductPage(page, 1);
     });
 
     it('should check the existence of the unit value', async function () {
-      await testContext.addContextItem(
-        this,
-        'testIdentifier',
-        `checkUnitValue${this.pageObjects.productSettingsPage.uppercaseFirstCharacter(test.args.action)}`,
-        baseContext,
-      );
+      await testContext.addContextItem(this, 'testIdentifier', `checkUnitValue${index}`, baseContext);
 
-      page = await this.pageObjects.productSettingsPage.viewMyShop();
-      this.pageObjects = await init();
-
-      await this.pageObjects.homePage.changeLanguage('en');
-      await this.pageObjects.homePage.goToProductPage(1);
-
-      const columnTitle = await this.pageObjects.productPage.getDiscountColumnTitle();
+      const columnTitle = await productPage.getDiscountColumnTitle(page);
       await expect(columnTitle).to.equal(test.args.textColumnToCheck);
 
-      const columnValue = await this.pageObjects.productPage.getDiscountValue();
+      const columnValue = await productPage.getDiscountValue(page);
       await expect(columnValue).to.equal(test.args.valueToCheck);
     });
 
     it('should go back to BO', async function () {
       await testContext.addContextItem(this, 'testIdentifier', `goBackToBo${index}`, baseContext);
 
-      page = await this.pageObjects.productPage.closePage(browserContext, 0);
-      this.pageObjects = await init();
+      page = await productPage.closePage(browserContext, page, 0);
 
-      const pageTitle = await this.pageObjects.productSettingsPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.productSettingsPage.pageTitle);
+      const pageTitle = await productSettingsPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(productSettingsPage.pageTitle);
     });
   });
 
   it('should go to \'Catalog > Discounts\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToDiscountsPageToDeletePriceRule', baseContext);
 
-    await this.pageObjects.productSettingsPage.goToSubMenu(
-      this.pageObjects.productSettingsPage.catalogParentLink,
-      this.pageObjects.productSettingsPage.discountsLink,
+    await productSettingsPage.goToSubMenu(
+      page,
+      productSettingsPage.catalogParentLink,
+      productSettingsPage.discountsLink,
     );
 
-    const pageTitle = await this.pageObjects.cartRulesPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.cartRulesPage.pageTitle);
+    const pageTitle = await cartRulesPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(cartRulesPage.pageTitle);
   });
 
   it('should go to \'Catalog Price Rules\' tab', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToCatalogPriceRuleTabToDeletePriceRule', baseContext);
 
-    await this.pageObjects.cartRulesPage.goToCatalogPriceRulesTab();
-    const pageTitle = await this.pageObjects.catalogPriceRulesPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.catalogPriceRulesPage.pageTitle);
+    await cartRulesPage.goToCatalogPriceRulesTab(page);
+    const pageTitle = await catalogPriceRulesPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(catalogPriceRulesPage.pageTitle);
   });
 
   it('should delete catalog price rule', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'deleteCatalogPriceRule', baseContext);
 
-    const deleteTextResult = await this.pageObjects.catalogPriceRulesPage.deleteCatalogPriceRule(priceRuleData.name);
-    await expect(deleteTextResult).to.contains(this.pageObjects.catalogPriceRulesPage.successfulDeleteMessage);
+    const deleteTextResult = await catalogPriceRulesPage.deleteCatalogPriceRule(page, priceRuleData.name);
+    await expect(deleteTextResult).to.contains(catalogPriceRulesPage.successfulDeleteMessage);
   });
 });

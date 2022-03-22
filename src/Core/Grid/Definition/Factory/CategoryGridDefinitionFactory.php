@@ -32,6 +32,7 @@ use PrestaShop\PrestaShop\Core\Grid\Action\Bulk\Type\SubmitBulkAction;
 use PrestaShop\PrestaShop\Core\Grid\Action\GridActionCollection;
 use PrestaShop\PrestaShop\Core\Grid\Action\Row\AccessibilityChecker\AccessibilityCheckerInterface;
 use PrestaShop\PrestaShop\Core\Grid\Action\Row\RowActionCollection;
+use PrestaShop\PrestaShop\Core\Grid\Action\Row\RowActionCollectionInterface;
 use PrestaShop\PrestaShop\Core\Grid\Action\Row\Type\Category\DeleteCategoryRowAction;
 use PrestaShop\PrestaShop\Core\Grid\Action\Row\Type\LinkRowAction;
 use PrestaShop\PrestaShop\Core\Grid\Action\Type\LinkGridAction;
@@ -40,6 +41,7 @@ use PrestaShop\PrestaShop\Core\Grid\Column\ColumnCollection;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Category\CategoryPositionColumn;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\ActionColumn;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\DraggableColumn;
+use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\HtmlColumn;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\IdentifierColumn;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\LinkColumn;
 use PrestaShop\PrestaShop\Core\Grid\Column\Type\Common\ToggleColumn;
@@ -57,7 +59,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
  */
 final class CategoryGridDefinitionFactory extends AbstractFilterableGridDefinitionFactory
 {
-    const GRID_ID = 'category';
+    public const GRID_ID = 'category';
 
     /**
      * @var string
@@ -143,11 +145,20 @@ final class CategoryGridDefinitionFactory extends AbstractFilterableGridDefiniti
                     ])
             )
             ->add(
-                (new DataColumn('description'))
+                (new HtmlColumn('description'))
                     ->setName($this->trans('Description', [], 'Admin.Global'))
                     ->setOptions([
                         'field' => 'description',
                         'sortable' => false,
+                    ])
+            )
+            ->add(
+                (new DataColumn('products_count'))
+                    ->setName($this->trans('Products', [], 'Admin.Global'))
+                    ->setOptions([
+                        'field' => 'products_count',
+                        'sortable' => false,
+                        'alignment' => 'center',
                     ])
             )
             ->add(
@@ -171,7 +182,7 @@ final class CategoryGridDefinitionFactory extends AbstractFilterableGridDefiniti
         if ($this->multistoreContextChecker->isSingleShopContext()) {
             $columns
                 ->addAfter(
-                    'description',
+                    'products_count',
                     (new CategoryPositionColumn('position'))
                         ->setName($this->trans('Position', [], 'Admin.Global'))
                         ->setOptions([
@@ -328,7 +339,7 @@ final class CategoryGridDefinitionFactory extends AbstractFilterableGridDefiniti
     }
 
     /**
-     * @return RowActionCollection
+     * @return RowActionCollectionInterface
      */
     private function getRowActions()
     {

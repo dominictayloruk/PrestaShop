@@ -1,11 +1,12 @@
 <?php
 /**
- * 2007-2020 PrestaShop SA and Contributors
+ * Copyright since 2007 PrestaShop SA and Contributors
+ * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
  * NOTICE OF LICENSE
  *
  * This source file is subject to the Open Software License (OSL 3.0)
- * that is bundled with this package in the file LICENSE.txt.
+ * that is bundled with this package in the file LICENSE.md.
  * It is also available through the world-wide-web at this URL:
  * https://opensource.org/licenses/OSL-3.0
  * If you did not receive a copy of the license and are unable to
@@ -16,12 +17,11 @@
  *
  * Do not edit or add to this file if you wish to upgrade PrestaShop to newer
  * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to https://www.prestashop.com for more information.
+ * needs please refer to https://devdocs.prestashop.com/ for more information.
  *
- * @author    PrestaShop SA <contact@prestashop.com>
- * @copyright 2007-2020 PrestaShop SA and Contributors
+ * @author    PrestaShop SA and Contributors <contact@prestashop.com>
+ * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
- * International Registered Trademark & Property of PrestaShop SA
  */
 declare(strict_types=1);
 
@@ -41,25 +41,35 @@ trait DeleteActionTrait
         string $deleteRouteParamName,
         string $deleteRouteParamField,
         string $method = 'POST',
-        array $extraRouteParams = []
+        array $extraRouteParams = [],
+        array $options = []
     ): RowActionInterface {
-        return (new SubmitRowAction('delete'))
-            ->setName($this->trans('Delete', [], 'Admin.Actions'))
-            ->setIcon('delete')
-            ->setOptions([
+        $options = array_merge(
+            [
                 'route' => $deleteRouteName,
                 'route_param_name' => $deleteRouteParamName,
                 'route_param_field' => $deleteRouteParamField,
                 'extra_route_params' => $extraRouteParams,
                 'confirm_message' => $this->trans('Are you sure you want to delete the selected item(s)?', [], 'Admin.Global'),
                 'method' => $method,
-                'modal_options' => new ModalOptions([
-                    'title' => $this->trans('Delete selection', [], 'Admin.Actions'),
-                    'confirm_button_label' => $this->trans('Delete', [], 'Admin.Actions'),
-                    'close_button_label' => $this->trans('Cancel', [], 'Admin.Actions'),
-                    'confirm_button_class' => 'btn-danger',
-                ]),
-            ])
+                'modal_options' => [],
+            ],
+            $options
+        );
+        $options['modal_options'] = new ModalOptions(array_merge(
+            [
+                'title' => $this->trans('Delete selection', [], 'Admin.Actions'),
+                'confirm_button_label' => $this->trans('Delete', [], 'Admin.Actions'),
+                'close_button_label' => $this->trans('Cancel', [], 'Admin.Actions'),
+                'confirm_button_class' => 'btn-danger',
+            ],
+            $options['modal_options']
+        ));
+
+        return (new SubmitRowAction('delete'))
+            ->setName($this->trans('Delete', [], 'Admin.Actions'))
+            ->setIcon('delete')
+            ->setOptions($options)
         ;
     }
 

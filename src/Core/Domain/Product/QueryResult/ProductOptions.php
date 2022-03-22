@@ -1,11 +1,12 @@
 <?php
 /**
- * 2007-2020 PrestaShop SA and Contributors
+ * Copyright since 2007 PrestaShop SA and Contributors
+ * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
  * NOTICE OF LICENSE
  *
  * This source file is subject to the Open Software License (OSL 3.0)
- * that is bundled with this package in the file LICENSE.txt.
+ * that is bundled with this package in the file LICENSE.md.
  * It is also available through the world-wide-web at this URL:
  * https://opensource.org/licenses/OSL-3.0
  * If you did not receive a copy of the license and are unable to
@@ -16,12 +17,11 @@
  *
  * Do not edit or add to this file if you wish to upgrade PrestaShop to newer
  * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to https://www.prestashop.com for more information.
+ * needs please refer to https://devdocs.prestashop.com/ for more information.
  *
- * @author    PrestaShop SA <contact@prestashop.com>
- * @copyright 2007-2020 PrestaShop SA and Contributors
+ * @author    PrestaShop SA and Contributors <contact@prestashop.com>
+ * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
- * International Registered Trademark & Property of PrestaShop SA
  */
 
 declare(strict_types=1);
@@ -54,77 +54,45 @@ class ProductOptions
     private $showPrice;
 
     /**
-     * @var LocalizedTags[]
-     */
-    private $localizedTags;
-
-    /**
      * @var string
      */
     private $condition;
 
     /**
-     * @var string
+     * @var bool
      */
-    private $isbn;
+    private $showCondition;
 
     /**
-     * @var string
+     * @var int
      */
-    private $upc;
-
-    /**
-     * @var string
-     */
-    private $ean13;
-
-    /**
-     * @var string
-     */
-    private $mpn;
-
-    /**
-     * @var string
-     */
-    private $reference;
+    private $manufacturerId;
 
     /**
      * @param string $visibility
      * @param bool $availableForOrder
      * @param bool $onlineOnly
      * @param bool $showPrice
-     * @param LocalizedTags[] $localizedTags
      * @param string $condition
-     * @param string $isbn
-     * @param string $upc
-     * @param string $ean13
-     * @param string $mpn
-     * @param string $reference
+     * @param bool $showCondition
+     * @param int $manufacturerId
      */
     public function __construct(
         string $visibility,
         bool $availableForOrder,
         bool $onlineOnly,
         bool $showPrice,
-        array $localizedTags,
         string $condition,
-        string $isbn,
-        string $upc,
-        string $ean13,
-        string $mpn,
-        string $reference
+        bool $showCondition,
+        int $manufacturerId
     ) {
         $this->visibility = $visibility;
         $this->availableForOrder = $availableForOrder;
         $this->onlineOnly = $onlineOnly;
         $this->showPrice = $showPrice;
-        $this->localizedTags = $localizedTags;
         $this->condition = $condition;
-        $this->isbn = $isbn;
-        $this->upc = $upc;
-        $this->ean13 = $ean13;
-        $this->mpn = $mpn;
-        $this->reference = $reference;
+        $this->showCondition = $showCondition;
+        $this->manufacturerId = $manufacturerId;
     }
 
     /**
@@ -160,14 +128,6 @@ class ProductOptions
     }
 
     /**
-     * @return LocalizedTags[]
-     */
-    public function getLocalizedTags(): array
-    {
-        return $this->localizedTags;
-    }
-
-    /**
      * @return string
      */
     public function getCondition(): string
@@ -176,42 +136,18 @@ class ProductOptions
     }
 
     /**
-     * @return string
+     * @return bool
      */
-    public function getIsbn(): string
+    public function showCondition(): bool
     {
-        return $this->isbn;
+        return $this->showCondition;
     }
 
     /**
-     * @return string
+     * @return int
      */
-    public function getUpc(): string
+    public function getManufacturerId(): int
     {
-        return $this->upc;
-    }
-
-    /**
-     * @return string
-     */
-    public function getEan13(): string
-    {
-        return $this->ean13;
-    }
-
-    /**
-     * @return string
-     */
-    public function getMpn(): string
-    {
-        return $this->mpn;
-    }
-
-    /**
-     * @return string
-     */
-    public function getReference(): string
-    {
-        return $this->reference;
+        return $this->manufacturerId;
     }
 }

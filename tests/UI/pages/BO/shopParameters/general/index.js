@@ -1,17 +1,26 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class shopParamsGeneral extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * General page, contains selectors and functions for the page
+ * @class
+ * @extends BOBasePage
+ */
+class ShopParamsGeneral extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up titles and selectors to use on general page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Preferences •';
 
     // Selectors
     this.maintenanceNavItemLink = '#subtab-AdminMaintenance';
-    this.displaySuppliersLabel = toggle => `label[for='form_display_suppliers_${toggle}']`;
-    this.displayBrandsLabel = toggle => `label[for='form_display_manufacturers_${toggle}']`;
-    this.enableMultiStoreLabel = toggle => `label[for='form_multishop_feature_active_${toggle}']`;
+    this.displaySuppliersToggleInput = toggle => `#form_display_suppliers_${toggle}`;
+    this.displayBrandsToggleInput = toggle => `#form_display_manufacturers_${toggle}`;
+    this.enableMultiStoreToggleInput = toggle => `#form_multishop_feature_active_${toggle}`;
     this.saveFormButton = '#form-preferences-save-button';
   }
 
@@ -21,42 +30,48 @@ module.exports = class shopParamsGeneral extends BOBasePage {
 
   /**
    * Change Tab to Maintenance in Shop Parameters General Page
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async goToSubTabMaintenance() {
-    await this.clickAndWaitForNavigation(this.maintenanceNavItemLink);
+  async goToSubTabMaintenance(page) {
+    await this.clickAndWaitForNavigation(page, this.maintenanceNavItemLink);
   }
 
   /**
    * Enable/Disable display suppliers
-   * @param toEnable
+   * @param page {Page} Browser tab
+   * @param toEnable {boolean} Status to set to enable/disable suppliers
    * @returns {Promise<string>}
    */
-  async setDisplaySuppliers(toEnable = true) {
-    await this.waitForSelectorAndClick(this.displaySuppliersLabel(toEnable ? 1 : 0));
-    await this.clickAndWaitForNavigation(this.saveFormButton);
-    return this.getTextContent(this.alertSuccessBlock);
+  async setDisplaySuppliers(page, toEnable = true) {
+    await this.setChecked(page, this.displaySuppliersToggleInput(toEnable ? 1 : 0));
+    await this.clickAndWaitForNavigation(page, this.saveFormButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Enable/Disable display brands
-   * @param toEnable
+   * @param page {Page} Browser tab
+   * @param toEnable {boolean} Status to set to enable/disable brands
    * @returns {Promise<string>}
    */
-  async setDisplayBrands(toEnable = true) {
-    await this.waitForSelectorAndClick(this.displayBrandsLabel(toEnable ? 1 : 0));
-    await this.clickAndWaitForNavigation(this.saveFormButton);
-    return this.getTextContent(this.alertSuccessBlock);
+  async setDisplayBrands(page, toEnable = true) {
+    await this.setChecked(page, this.displayBrandsToggleInput(toEnable ? 1 : 0));
+    await this.clickAndWaitForNavigation(page, this.saveFormButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Enable/Disable multi store
-   * @param toEnable
+   * @param page {Page} Browser tab
+   * @param toEnable {boolean} Status to set to enable/disable multistore
    * @returns {Promise<string>}
    */
-  async setMultiStoreStatus(toEnable = true) {
-    await this.waitForSelectorAndClick(this.enableMultiStoreLabel(toEnable ? 1 : 0));
-    await this.clickAndWaitForNavigation(this.saveFormButton);
-    return this.getTextContent(this.alertSuccessBlock);
+  async setMultiStoreStatus(page, toEnable = true) {
+    await this.setChecked(page, this.enableMultiStoreToggleInput(toEnable ? 1 : 0));
+    await this.clickAndWaitForNavigation(page, this.saveFormButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new ShopParamsGeneral();

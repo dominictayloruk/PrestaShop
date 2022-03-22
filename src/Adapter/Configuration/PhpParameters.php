@@ -27,7 +27,7 @@
 namespace PrestaShop\PrestaShop\Adapter\Configuration;
 
 use InvalidArgumentException;
-use Shudrum\Component\ArrayFinder\ArrayFinder;
+use PrestaShop\PrestaShop\Core\Util\ArrayFinder;
 use Symfony\Component\Filesystem\Exception\IOException;
 use Symfony\Component\Filesystem\Filesystem;
 
@@ -37,9 +37,9 @@ use Symfony\Component\Filesystem\Filesystem;
 class PhpParameters
 {
     /**
-     * @var array the current configuration
+     * @var ArrayFinder the current configuration
      */
-    private $configuration = [];
+    private $configuration;
 
     /**
      * @var string the PHP filename
@@ -68,8 +68,8 @@ class PhpParameters
     /**
      * Insert a value into configuration at the specified path.
      *
-     * @param $propertyPath
-     * @param $value
+     * @param string $propertyPath
+     * @param mixed $value
      */
     public function setProperty($propertyPath, $value)
     {

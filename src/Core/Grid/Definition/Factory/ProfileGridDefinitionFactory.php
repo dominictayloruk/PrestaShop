@@ -27,7 +27,6 @@
 namespace PrestaShop\PrestaShop\Core\Grid\Definition\Factory;
 
 use PrestaShop\PrestaShop\Core\Grid\Action\Bulk\BulkActionCollection;
-use PrestaShop\PrestaShop\Core\Grid\Action\Bulk\Type\SubmitBulkAction;
 use PrestaShop\PrestaShop\Core\Grid\Action\GridActionCollection;
 use PrestaShop\PrestaShop\Core\Grid\Action\Row\AccessibilityChecker\AccessibilityCheckerInterface;
 use PrestaShop\PrestaShop\Core\Grid\Action\Row\RowActionCollection;
@@ -48,7 +47,10 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
  */
 final class ProfileGridDefinitionFactory extends AbstractGridDefinitionFactory
 {
+    use BulkDeleteActionTrait;
     use DeleteActionTrait;
+
+    public const GRID_ID = 'profile';
 
     /**
      * @var string
@@ -88,7 +90,7 @@ final class ProfileGridDefinitionFactory extends AbstractGridDefinitionFactory
      */
     protected function getId()
     {
-        return 'profile';
+        return self::GRID_ID;
     }
 
     /**
@@ -196,10 +198,11 @@ final class ProfileGridDefinitionFactory extends AbstractGridDefinitionFactory
             )
             ->add((new Filter('actions', SearchAndResetType::class))
             ->setTypeOptions([
-                'attr' => [
-                    'data-url' => $this->resetActionUrl,
-                    'data-redirect' => $this->redirectionUrl,
+                'reset_route' => 'admin_common_reset_search_by_filter_id',
+                'reset_route_params' => [
+                    'filterId' => self::GRID_ID,
                 ],
+                'redirect_route' => 'admin_profiles_index',
             ])
             ->setAssociatedColumn('actions')
             )
@@ -212,12 +215,8 @@ final class ProfileGridDefinitionFactory extends AbstractGridDefinitionFactory
     protected function getBulkActions()
     {
         return (new BulkActionCollection())
-            ->add((new SubmitBulkAction('bulk_delete_profiles'))
-            ->setName($this->trans('Delete selected', [], 'Admin.Actions'))
-            ->setOptions([
-                'submit_route' => 'admin_profiles_bulk_delete',
-                'confirm_message' => $this->trans('Delete selected items?', [], 'Admin.Notifications.Warning'),
-            ])
+            ->add(
+                $this->buildBulkDeleteAction('admin_profiles_bulk_delete')
             )
         ;
     }

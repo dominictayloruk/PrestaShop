@@ -51,7 +51,10 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
  */
 final class EmployeeGridDefinitionFactory extends AbstractGridDefinitionFactory
 {
+    use BulkDeleteActionTrait;
     use DeleteActionTrait;
+
+    public const GRID_ID = 'employee';
 
     /**
      * @var string
@@ -83,7 +86,7 @@ final class EmployeeGridDefinitionFactory extends AbstractGridDefinitionFactory
      */
     protected function getId()
     {
-        return 'employee';
+        return self::GRID_ID;
     }
 
     /**
@@ -230,16 +233,18 @@ final class EmployeeGridDefinitionFactory extends AbstractGridDefinitionFactory
                     ])
                     ->setAssociatedColumn('profile')
             )
-            ->add((new Filter('active', YesAndNoChoiceType::class))
-            ->setAssociatedColumn('active')
+            ->add(
+                (new Filter('active', YesAndNoChoiceType::class))
+                    ->setAssociatedColumn('active')
             )
             ->add(
                 (new Filter('actions', SearchAndResetType::class))
                     ->setTypeOptions([
-                        'attr' => [
-                            'data-url' => $this->resetUrl,
-                            'data-redirect' => $this->redirectUrl,
+                        'reset_route' => 'admin_common_reset_search_by_filter_id',
+                        'reset_route_params' => [
+                            'filterId' => self::GRID_ID,
                         ],
+                        'redirect_route' => 'admin_employees_index',
                     ])
                     ->setAssociatedColumn('actions')
             );
@@ -289,16 +294,7 @@ final class EmployeeGridDefinitionFactory extends AbstractGridDefinitionFactory
                     ])
             )
             ->add(
-                (new SubmitBulkAction('delete_selection'))
-                    ->setName($this->trans('Delete selected', [], 'Admin.Actions'))
-                    ->setOptions([
-                        'submit_route' => 'admin_employees_bulk_delete',
-                        'confirm_message' => $this->trans(
-                            'Delete selected item?',
-                            [],
-                            'Admin.Notifications.Warning'
-                        ),
-                    ])
+                $this->buildBulkDeleteAction('admin_employees_bulk_delete')
             );
     }
 }

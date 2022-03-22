@@ -82,7 +82,7 @@
 
           {# Render remaining items in dropdown #}
           {% if regularActions|length > skippedActions %}
-            <a class="btn btn-link dropdown-toggle dropdown-toggle-dots dropdown-toggle-split"
+            <a class="btn btn-link dropdown-toggle dropdown-toggle-dots dropdown-toggle-split no-rotate"
                data-toggle="dropdown"
                aria-haspopup="true"
                aria-expanded="false"
@@ -90,7 +90,7 @@
             </a>
 
             <div class="dropdown-menu dropdown-menu-right">
-              {% for action in regularActions|slice(skippedActions) if action.isApplicable(record) %}
+              {% for action in regularActions|slice(skippedActions)|filter(action => action.isApplicable(record)) %}
                 {{ include('@PrestaShop/Admin/Common/Grid/Actions/Row/'~action.type~'.html.twig', {
                   'grid': grid,
                   'column': column,

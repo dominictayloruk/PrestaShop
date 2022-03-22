@@ -1,9 +1,18 @@
 require('module-alias/register');
-const BOBasePage = require('@pages/BO/BObasePage');
+const LocalizationBasePage = require('@pages/BO/international/localization/localizationBasePage');
 
-module.exports = class AddLanguage extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Add language page, contains functions that can be used on the page
+ * @class
+ * @extends LocalizationBasePage
+ */
+class AddLanguage extends LocalizationBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on add language page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Add new •';
     this.pageEditTitle = 'Edit:';
@@ -16,8 +25,8 @@ module.exports = class AddLanguage extends BOBasePage {
     this.fullDataFormatInput = '#language_full_date_format';
     this.flagInput = '#language_flag_image';
     this.noPictureInput = '#language_no_picture_image';
-    this.isRtlSwitch = id => `label[for='language_is_rtl_${id}']`;
-    this.statusSwitch = id => `label[for='language_is_active_${id}']`;
+    this.isRtlToggleInput = toggle => `#language_is_rtl_${toggle}`;
+    this.statusToggleInput = toggle => `#language_is_active_${toggle}`;
     this.saveButton = '#save-button';
   }
 
@@ -25,24 +34,31 @@ module.exports = class AddLanguage extends BOBasePage {
 
   /**
    * Create or edit language
-   * @param languageData
+   * @param page {Page} Browser tab
+   * @param languageData {LanguageData} Data to set on add/edit language form
    * @return {Promise<string>}
    */
-  async createEditLanguage(languageData) {
+  async createEditLanguage(page, languageData) {
     // Set input text
-    await this.setValue(this.nameInput, languageData.name);
-    await this.setValue(this.isoCodeInput, languageData.isoCode);
-    await this.setValue(this.languageCodeInput, languageData.languageCode);
-    await this.setValue(this.dateFormatInput, languageData.dateFormat);
-    await this.setValue(this.fullDataFormatInput, languageData.fullDateFormat);
+    await this.setValue(page, this.nameInput, languageData.name);
+    await this.setValue(page, this.isoCodeInput, languageData.isoCode);
+    await this.setValue(page, this.languageCodeInput, languageData.languageCode);
+    await this.setValue(page, this.dateFormatInput, languageData.dateFormat);
+    await this.setValue(page, this.fullDataFormatInput, languageData.fullDateFormat);
+
     // Add images
-    await this.generateAndUploadImage(this.flagInput, languageData.flag);
-    await this.generateAndUploadImage(this.noPictureInput, languageData.noPicture);
-    // Add switch
-    await this.page.click(this.isRtlSwitch(languageData.isRtl ? 1 : 0));
-    await this.page.click(this.statusSwitch(languageData.status ? 1 : 0));
+    await this.uploadFile(page, this.flagInput, languageData.flag);
+    await this.uploadFile(page, this.noPictureInput, languageData.noPicture);
+
+    // Set rtl and status
+    await this.setChecked(page, this.isRtlToggleInput(languageData.isRtl ? 1 : 0));
+    await this.setChecked(page, this.statusToggleInput(languageData.enabled ? 1 : 0));
+
     // Save and return result
-    await this.clickAndWaitForNavigation(this.saveButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, this.saveButton);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new AddLanguage();

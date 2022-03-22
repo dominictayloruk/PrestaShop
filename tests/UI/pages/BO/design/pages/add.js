@@ -1,9 +1,18 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class AddPage extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Add page page, contains functions that can be used on the page
+ * @class
+ * @extends BOBasePage
+ */
+class AddPage extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on add page page
+   */
+  constructor() {
+    super();
 
     this.pageTitleCreate = 'Pages';
 
@@ -13,8 +22,8 @@ module.exports = class AddPage extends BOBasePage {
     this.metaDescriptionInput = '#cms_page_meta_description_1';
     this.metaKeywordsInput = '#cms_page_meta_keyword_1-tokenfield';
     this.pageContentIframe = '#cms_page_content_1_ifr';
-    this.indexation = id => `#cms_page_is_indexed_for_search_${id}`;
-    this.displayed = id => `label[for='cms_page_is_displayed_${id}']`;
+    this.indexationToggleInput = toggle => `#cms_page_is_indexed_for_search_${toggle}`;
+    this.displayedToggleInput = toggle => `#cms_page_is_displayed_${toggle}`;
     this.savePageButton = '#save-button';
     this.saveAndPreviewPageButton = '#save-and-preview-button';
     this.cancelButton = '#cancel-link';
@@ -26,34 +35,43 @@ module.exports = class AddPage extends BOBasePage {
 
   /**
    * Fill form for add/edit page category
-   * @param pageData
+   * @param page {Page} Browser tab
+   * @param pageData {CMSPageData} Data to set on new/edit page form
    * @return {Promise<void>}
    */
-  async createEditPage(pageData) {
-    await this.setValue(this.titleInput, pageData.title);
-    await this.setValue(this.metaTitleInput, pageData.metaTitle);
-    await this.setValue(this.metaDescriptionInput, pageData.metaDescription);
-    await this.setValue(this.metaKeywordsInput, pageData.metaKeywords);
-    await this.setValueOnTinymceInput(this.pageContentIframe, pageData.content);
-    await this.page.click(this.indexation(pageData.indexation ? 1 : 0));
-    await this.page.click(this.displayed(pageData.displayed ? 1 : 0));
-    await this.clickAndWaitForNavigation(this.savePageButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+  async createEditPage(page, pageData) {
+    // Fill form
+    await this.setValue(page, this.titleInput, pageData.title);
+    await this.setValue(page, this.metaTitleInput, pageData.metaTitle);
+    await this.setValue(page, this.metaDescriptionInput, pageData.metaDescription);
+    await this.setValue(page, this.metaKeywordsInput, pageData.metaKeywords);
+    await this.setValueOnTinymceInput(page, this.pageContentIframe, pageData.content);
+    await this.setChecked(page, this.indexationToggleInput(pageData.indexation ? 1 : 0));
+    await this.setChecked(page, this.displayedToggleInput(pageData.displayed ? 1 : 0));
+
+    // Save form
+    await this.clickAndWaitForNavigation(page, this.savePageButton);
+
+    // Return successful message
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Preview page in new tab
-   * @return page opened
+   * @param page {Page} Browser tab
+   * @returns {Promise<Page>}
    */
-  async previewPage() {
-    return this.openLinkWithTargetBlank(this.saveAndPreviewPageButton);
+  async previewPage(page) {
+    return this.openLinkWithTargetBlank(page, this.saveAndPreviewPageButton);
   }
 
   /**
    * Cancel page
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async cancelPage() {
-    await this.clickAndWaitForNavigation(this.cancelButton);
+  async cancelPage(page) {
+    await this.clickAndWaitForNavigation(page, this.cancelButton);
   }
-};
+}
+module.exports = new AddPage();

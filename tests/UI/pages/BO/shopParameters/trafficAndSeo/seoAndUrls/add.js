@@ -1,9 +1,18 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class AddSeoUrl extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Add seo and url page, contains selectors and functions for the page
+ * @class
+ * @extends BOBasePage
+ */
+class AddSeoUrl extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up titles and selectors to use on add seo and url page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'SEO & URLs • ';
 
@@ -16,6 +25,7 @@ module.exports = class AddSeoUrl extends BOBasePage {
     this.metaDescriptionInput = id => `#meta_meta_description_${id}`;
     this.metaKeywordsInput = id => `#meta_meta_keywords_${id}-tokenfield`;
     this.friendlyUrlInput = id => `#meta_url_rewrite_${id}`;
+
     // Selectors for Meta keywords
     this.taggableFieldDiv = lang => `div.input-group div.js-locale-${lang}`;
     this.deleteKeywordLink = lang => `${this.taggableFieldDiv(lang)} a.close`;
@@ -26,27 +36,30 @@ module.exports = class AddSeoUrl extends BOBasePage {
 
   /**
    * Change language for selectors
-   * @param lang
+   * @param page {Page} Browser tab
+   * @param lang {string} Language to change
    * @return {Promise<void>}
    */
-  async changeLanguageForSelectors(lang = 'en') {
+  async changeLanguageForSelectors(page, lang = 'en') {
     await Promise.all([
-      this.page.click(this.pageTitleLangButton),
-      this.waitForVisibleSelector(`${this.pageTitleLangButton}[aria-expanded='true']`),
+      page.click(this.pageTitleLangButton),
+      this.waitForVisibleSelector(page, `${this.pageTitleLangButton}[aria-expanded='true']`),
     ]);
     await Promise.all([
-      this.page.click(this.pageTitleLangSpan(lang)),
-      this.waitForVisibleSelector(`${this.pageTitleLangButton}[aria-expanded='false']`),
+      page.click(this.pageTitleLangSpan(lang)),
+      this.waitForVisibleSelector(page, `${this.pageTitleLangButton}[aria-expanded='false']`),
     ]);
   }
 
   /**
    * Delete all keywords
-   * @param lang, to specify which input to empty
+   * @param page {Page} Browser tab
+   * @param lang {string} To specify which input to empty
    * @return {Promise<void>}
    */
-  async deleteKeywords(lang = 'en') {
-    const closeButtons = await this.page.$$(this.deleteKeywordLink(lang));
+  async deleteKeywords(page, lang = 'en') {
+    const closeButtons = await page.$$(this.deleteKeywordLink(lang));
+
     for (let i = 0; i < closeButtons.length; i++) {
       await closeButtons[i].click();
     }
@@ -54,41 +67,45 @@ module.exports = class AddSeoUrl extends BOBasePage {
 
   /**
    * Add keywords
-   * @param keywords, array of keywords
-   * @param idLang, to choose which lang (1 for en, 2 for fr)
+   * @param page {Page} Browser tab
+   * @param keywords {array} Array of keywords
+   * @param idLang {number} To choose which lang (1 for en, 2 for fr)
    * @return {Promise<void>}
    */
-  async addKeywords(keywords, idLang = 1) {
+  async addKeywords(page, keywords, idLang = 1) {
     for (let i = 0; i < keywords.length; i++) {
-      await this.page.type(this.metaKeywordsInput(idLang), keywords[i]);
-      await this.page.keyboard.press('Enter');
+      await page.type(this.metaKeywordsInput(idLang), keywords[i]);
+      await page.keyboard.press('Enter');
     }
   }
 
   /**
    * Create/Edit seo page
-   * @param seoPageData
+   * @param page {Page} Browser tab
+   * @param seoPageData {SeoPageData} Data to set on seo form
    * @return {Promise<void>}
    */
-  async createEditSeoPage(seoPageData) {
-    await this.page.selectOption(this.pageNameSelect, seoPageData.page);
+  async createEditSeoPage(page, seoPageData) {
+    await page.selectOption(this.pageNameSelect, seoPageData.page);
     // Fill form in english
-    await this.changeLanguageForSelectors('en');
-    await this.setValue(this.pageTitleInput(1), seoPageData.title);
-    await this.setValue(this.metaDescriptionInput(1), seoPageData.metaDescription);
-    await this.deleteKeywords('en');
-    await this.addKeywords(seoPageData.metaKeywords, 1);
-    await this.setValue(this.friendlyUrlInput(1), seoPageData.friendlyUrl);
+    await this.changeLanguageForSelectors(page, 'en');
+    await this.setValue(page, this.pageTitleInput(1), seoPageData.title);
+    await this.setValue(page, this.metaDescriptionInput(1), seoPageData.metaDescription);
+    await this.deleteKeywords(page, 'en');
+    await this.addKeywords(page, seoPageData.metaKeywords, 1);
+    await this.setValue(page, this.friendlyUrlInput(1), seoPageData.friendlyUrl);
     // Fill form in french
-    await this.changeLanguageForSelectors('fr');
-    await this.setValue(this.pageTitleInput(2), seoPageData.frTitle);
-    await this.setValue(this.metaDescriptionInput(2), seoPageData.frMetaDescription);
-    await this.deleteKeywords('fr');
-    await this.addKeywords(seoPageData.frMetaKeywords, 2);
-    await this.setValue(this.friendlyUrlInput(2), seoPageData.frFriendlyUrl);
+    await this.changeLanguageForSelectors(page, 'fr');
+    await this.setValue(page, this.pageTitleInput(2), seoPageData.frTitle);
+    await this.setValue(page, this.metaDescriptionInput(2), seoPageData.frMetaDescription);
+    await this.deleteKeywords(page, 'fr');
+    await this.addKeywords(page, seoPageData.frMetaKeywords, 2);
+    await this.setValue(page, this.friendlyUrlInput(2), seoPageData.frFriendlyUrl);
 
     // Save seo page
-    await this.clickAndWaitForNavigation(this.saveButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, this.saveButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new AddSeoUrl();

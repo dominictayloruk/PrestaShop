@@ -27,24 +27,52 @@ use Defuse\Crypto\Key;
 use PrestaShop\PrestaShop\Core\Exception\CoreException;
 use PrestaShop\PrestaShop\Core\Session\SessionInterface;
 
+/**
+ * @property bool $detect_language
+ * @property int $id_customer
+ * @property int $id_employee
+ * @property int $id_lang
+ * @property int $id_guest
+ * @property int|null $id_connections
+ * @property bool $is_guest
+ * @property bool $logged
+ * @property string $passwd
+ * @property int $session_id
+ * @property string $session_token
+ * @property string $shopContext
+ * @property int $last_activity
+ */
 class CookieCore
 {
+    const SAMESITE_NONE = 'None';
+    const SAMESITE_LAX = 'Lax';
+    const SAMESITE_STRICT = 'Strict';
+
+    const SAMESITE_AVAILABLE_VALUES = [
+        self::SAMESITE_NONE => self::SAMESITE_NONE,
+        self::SAMESITE_LAX => self::SAMESITE_LAX,
+        self::SAMESITE_STRICT => self::SAMESITE_STRICT,
+    ];
+
     /** @var array Contain cookie content in a key => value format */
     protected $_content = [];
 
-    /** @var array Crypted cookie name for setcookie() */
+    /** @var string Crypted cookie name for setcookie() */
     protected $_name;
 
-    /** @var array expiration date for setcookie() */
+    /** @var int expiration date for setcookie() */
     protected $_expire;
 
-    /** @var array Website domain for setcookie() */
+    /** @var bool|string Website domain for setcookie() */
     protected $_domain;
 
-    /** @var array Path for setcookie() */
+    /** @var string|bool SameSite for setcookie() */
+    protected $_sameSite;
+
+    /** @var string Path for setcookie() */
     protected $_path;
 
-    /** @var array cipher tool instance */
+    /** @var PhpEncryption cipher tool instance */
     protected $cipherTool;
 
     protected $_modified = false;
@@ -55,13 +83,14 @@ class CookieCore
 
     protected $_standalone;
 
+    /** @var bool */
     protected $_secure = false;
 
     /**
      * Get data if the cookie exists and else initialize an new one.
      *
-     * @param $name string Cookie name before encrypting
-     * @param $path string
+     * @param string $name Cookie name before encrypting
+     * @param string $path
      */
     public function __construct($name, $path = '', $expire = null, $shared_urls = null, $standalone = false, $secure = false)
     {
@@ -73,10 +102,9 @@ class CookieCore
             $this->_path = '/' . $this->_path;
         }
         $this->_path = rawurlencode($this->_path);
-        $this->_path = str_replace('%2F', '/', $this->_path);
-        $this->_path = str_replace('%7E', '~', $this->_path);
-        $this->_path = str_replace('%2B', '+', $this->_path);
+        $this->_path = str_replace(['%2F', '%7E', '%2B', '%26'], ['/', '~', '+', '&'], $this->_path);
         $this->_domain = $this->getDomain($shared_urls);
+        $this->_sameSite = Configuration::get('PS_COOKIE_SAMESITE');
         $this->_name = 'PrestaShop-' . md5(($this->_standalone ? '' : _PS_VERSION_) . $name . $this->_domain);
         $this->_allow_writing = true;
         $this->_salt = $this->_standalone ? str_pad('', 32, md5('ps' . __FILE__)) : _COOKIE_IV_;
@@ -98,6 +126,11 @@ class CookieCore
         $this->_allow_writing = false;
     }
 
+    /**
+     * @param array|null $shared_urls
+     *
+     * @return bool|string
+     */
     protected function getDomain($shared_urls = null)
     {
         $r = '!(?:(\w+)://)?(?:(\w+)\:(\w+)@)?([^/:]+)?(?:\:(\d*))?([^#?]+)?(?:\?([^#]+))?(?:#(.+$))?!i';
@@ -205,45 +238,6 @@ class CookieCore
     }
 
     /**
-     * Check customer informations saved into cookie and return customer validity.
-     *
-     * @deprecated as of version 1.5 use Customer::isLogged() instead
-     *
-     * @return bool customer validity
-     */
-    public function isLogged($withGuest = false)
-    {
-        Tools::displayAsDeprecated('Use Customer::isLogged() instead');
-        if (!$withGuest && $this->is_guest == 1) {
-            return false;
-        }
-
-        /* Customer is valid only if it can be load and if cookie password is the same as database one */
-        if ($this->logged == 1 && $this->id_customer && Validate::isUnsignedId($this->id_customer) && Customer::checkPassword((int) ($this->id_customer), $this->passwd)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Check employee informations saved into cookie and return employee validity.
-     *
-     * @deprecated as of version 1.5 use Employee::isLoggedBack() instead
-     *
-     * @return bool employee validity
-     */
-    public function isLoggedBack()
-    {
-        Tools::displayAsDeprecated('Use Employee::isLoggedBack() instead');
-        /* Employee is valid only if it can be load and if cookie password is the same as database one */
-        return $this->id_employee
-            && Validate::isUnsignedId($this->id_employee)
-            && Employee::checkPassword((int) $this->id_employee, $this->passwd)
-            && (!isset($this->_content['remote_addr']) || $this->_content['remote_addr'] == ip2long(Tools::getRemoteAddr()) || !Configuration::get('PS_COOKIE_CHECKIP'));
-    }
-
-    /**
      * Delete cookie
      * As of version 1.5 don't call this function, use Customer::logout() or Employee::logout() instead;.
      */
@@ -263,6 +257,7 @@ class CookieCore
      */
     public function mylogout()
     {
+        $this->deleteSession();
         unset(
             $this->_content['id_customer'],
             $this->_content['id_guest'],
@@ -330,24 +325,10 @@ class CookieCore
 
         //checks if the language exists, if not choose the default language
         if (!$this->_standalone && !Language::getLanguage((int) $this->id_lang)) {
-            $this->id_lang = Configuration::get('PS_LANG_DEFAULT');
+            $this->id_lang = (int) Configuration::get('PS_LANG_DEFAULT');
             // set detect_language to force going through Tools::setCookieLanguage to figure out browser lang
             $this->detect_language = true;
         }
-    }
-
-    /**
-     * Encrypt and set the Cookie.
-     *
-     * @param string|null $cookie Cookie content
-     *
-     * @return bool Indicates whether the Cookie was successfully set
-     *
-     * @deprecated 1.7.0
-     */
-    protected function _setcookie($cookie = null)
-    {
-        return $this->encryptAndSetCookie($cookie);
     }
 
     /**
@@ -374,7 +355,34 @@ class CookieCore
             $time = 1;
         }
 
-        return setcookie($this->_name, $content, $time, $this->_path, $this->_domain, $this->_secure, true);
+        /*
+         * The alternative signature supporting an options array is only available since
+         * PHP 7.3.0, before there is no support for SameSite attribute.
+         */
+        if (PHP_VERSION_ID < 70300) {
+            return setcookie(
+                $this->_name,
+                $content,
+                $time,
+                $this->_path,
+                $this->_domain . '; SameSite=' . $this->_sameSite,
+                $this->_secure,
+                true
+            );
+        }
+
+        return setcookie(
+            $this->_name,
+            $content,
+            [
+                'expires' => $time,
+                'path' => $this->_path,
+                'domain' => (string) $this->_domain,
+                'secure' => $this->_secure,
+                'httponly' => true,
+                'samesite' => in_array((string) $this->_sameSite, static::SAMESITE_AVAILABLE_VALUES) ? (string) $this->_sameSite : static::SAMESITE_NONE,
+            ]
+        );
     }
 
     public function __destruct()
@@ -515,7 +523,7 @@ class CookieCore
      */
     public function isSessionAlive()
     {
-        if (!isset($this->session_id, $this->session_token)) {
+        if (!isset($this->session_id) || !isset($this->session_token)) {
             return false;
         }
 
@@ -545,7 +553,10 @@ class CookieCore
             $session = new CustomerSession($sessionId);
         }
 
-        if (!empty($session->getId())) {
+        if (isset($session) && Validate::isLoadedObject($session)) {
+            // Update session date_upd
+            $session->save();
+
             return $session;
         }
 

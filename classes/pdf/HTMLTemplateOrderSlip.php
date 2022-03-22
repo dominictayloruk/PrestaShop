@@ -39,7 +39,9 @@ class HTMLTemplateOrderSlipCore extends HTMLTemplateInvoice
      */
     public $order_slip;
 
-    /** @var int Cart id */
+    /**
+     * @var int Cart id
+     */
     public $id_cart;
 
     /**
@@ -63,6 +65,7 @@ class HTMLTemplateOrderSlipCore extends HTMLTemplateInvoice
 
         $this->order->products = $products;
         $this->smarty = $smarty;
+        $this->smarty->assign('isTaxEnabled', (bool) Configuration::get('PS_TAX'));
 
         // header informations
         $this->date = Tools::displayDate($this->order_slip->date_add);
@@ -146,7 +149,7 @@ class HTMLTemplateOrderSlipCore extends HTMLTemplateInvoice
         $this->order->total_paid_tax_excl += $this->order->total_shipping_tax_excl;
 
         $total_cart_rule = 0;
-        if ($this->order_slip->order_slip_type == 1 && is_array($cart_rules = $this->order->getCartRules($this->order_invoice->id))) {
+        if ($this->order_slip->order_slip_type == 1 && is_array($cart_rules = $this->order->getCartRules())) {
             foreach ($cart_rules as $cart_rule) {
                 if ($tax_excluded_display) {
                     $total_cart_rule += $cart_rule['value_tax_excl'];
@@ -160,7 +163,7 @@ class HTMLTemplateOrderSlipCore extends HTMLTemplateInvoice
             'order' => $this->order,
             'order_slip' => $this->order_slip,
             'order_details' => $this->order->products,
-            'cart_rules' => $this->order_slip->order_slip_type == 1 ? $this->order->getCartRules($this->order_invoice->id) : false,
+            'cart_rules' => $this->order_slip->order_slip_type == 1 ? $this->order->getCartRules() : false,
             'amount_choosen' => $this->order_slip->order_slip_type == 2 ? true : false,
             'delivery_address' => $formatted_delivery_address,
             'invoice_address' => $formatted_invoice_address,
@@ -232,14 +235,14 @@ class HTMLTemplateOrderSlipCore extends HTMLTemplateInvoice
     /**
      * Returns different tax breakdown elements.
      *
-     * @return array Different tax breakdown elements
+     * @return array|bool Different tax breakdown elements
      */
     protected function getTaxBreakdown()
     {
         $breakdowns = [
             'product_tax' => $this->getProductTaxesBreakdown(),
             'shipping_tax' => $this->getShippingTaxesBreakdown(),
-            'ecotax_tax' => $this->order_slip->getEcoTaxTaxesBreakdown(),
+            'ecotax_tax' => Configuration::get('PS_USE_ECOTAX') ? $this->order_slip->getEcoTaxTaxesBreakdown() : [],
         ];
 
         foreach ($breakdowns as $type => $bd) {
@@ -249,7 +252,7 @@ class HTMLTemplateOrderSlipCore extends HTMLTemplateInvoice
         }
 
         if (empty($breakdowns)) {
-            $breakdowns = false;
+            return false;
         }
 
         if (isset($breakdowns['product_tax'])) {

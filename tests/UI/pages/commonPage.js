@@ -1,100 +1,129 @@
-module.exports = class CommonPage {
-  constructor(page) {
-    this.page = page;
-  }
-
+/**
+ * Parent page, contains functions that can be used in every page (BO, FO ...)
+ * @class
+ */
+class CommonPage {
   /**
    * Get page title
+   * @param page {Page} Browser tab
    * @returns {Promise<string>}
    */
-  async getPageTitle() {
-    return this.page.title();
+  async getPageTitle(page) {
+    return page.title();
   }
 
   /**
    * Go to URL
-   * @param url
+   * @param page {Page} Browser tab
+   * @param url {string} Url to go to
    * @returns {Promise<void>}
    */
-  async goTo(url) {
-    await this.page.goto(url);
+  async goTo(page, url) {
+    await page.goto(url);
   }
 
   /**
    * Get current url
+   * @param page {Page} Browser tab
    * @returns {Promise<string>}
    */
-  async getCurrentURL() {
-    return decodeURIComponent(this.page.url());
+  async getCurrentURL(page) {
+    return decodeURIComponent(page.url());
+  }
+
+  /**
+   * Wait for selector to have a state
+   * @param page {Page} Browser tab
+   * @param selector {string} selector to wait
+   * @param state {string} Selector state between 'visible'|'hidden'|'attached'|'detached'
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
+   * @returns {Promise<void>}
+   */
+  async waitForSelector(page, selector, state, timeout = 10000) {
+    await page.waitForSelector(selector, {state, timeout});
   }
 
   /**
    * Wait for selector to be visible
-   * @param selector
-   * @param timeout
+   * @param page {Page} Browser tab
+   * @param selector {string} selector to wait
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
    * @return {Promise<void>}
    */
-  async waitForVisibleSelector(selector, timeout = 10000) {
-    await this.page.waitForSelector(selector, {state: 'visible', timeout});
+  async waitForVisibleSelector(page, selector, timeout = 10000) {
+    await this.waitForSelector(page, selector, 'visible', timeout);
+  }
+
+  /**
+   * Wait for selector to be visible
+   * @param page {Page} Browser tab
+   * @param selector {string} selector to wait
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
+   * @return {Promise<void>}
+   */
+  async waitForHiddenSelector(page, selector, timeout = 10000) {
+    await this.waitForSelector(page, selector, 'hidden', timeout);
+  }
+
+  /**
+   * Wait for selector to be attached
+   * @param page {Page} Browser tab
+   * @param selector {string} selector to wait
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
+   * @return {Promise<void>}
+   */
+  async waitForAttachedSelector(page, selector, timeout = 10000) {
+    await this.waitForSelector(page, selector, 'attached', timeout);
+  }
+
+  /**
+   * Wait for selector to be detached
+   * @param page {Page} Browser tab
+   * @param selector {string} selector to wait
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
+   * @return {Promise<void>}
+   */
+  async waitForDetachedSelector(page, selector, timeout = 10000) {
+    await this.waitForSelector(page, selector, 'detached', timeout);
   }
 
   /**
    * Get Text from element
-   * @param selector, from where to get text
-   * @param waitForSelector
+   * @param page {Page} Browser tab
+   * @param selector{string} From where to get text
+   * @param waitForSelector {boolean} True to wait for selector to be visible before getting text
    * @return {Promise<string>}
    */
-  async getTextContent(selector, waitForSelector = true) {
+  async getTextContent(page, selector, waitForSelector = true) {
     if (waitForSelector) {
-      await this.waitForVisibleSelector(selector);
+      await this.waitForVisibleSelector(page, selector);
     }
-    const textContent = await this.page.$eval(selector, el => el.textContent);
+    const textContent = await page.textContent(selector);
+
     return textContent.replace(/\s+/g, ' ').trim();
   }
 
   /**
    * Get attribute from element
-   * @param selector
-   * @param attribute
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the element
+   * @param attribute {string} Name of the attribute to get
    * @returns {Promise<string>}
    */
-  async getAttributeContent(selector, attribute) {
-    await this.page.waitForSelector(selector, {state: 'attached'});
-    return this.page.$eval(selector, (el, attr) => el
-      .getAttribute(attr), attribute);
-  }
-
-  /**
-   * Is checkBox have checked status
-   * @param selector, checkbox to check
-   * @returns {Promise<boolean>}
-   */
-  async elementChecked(selector) {
-    return this.page.$eval(selector, el => el.checked);
-  }
-
-  /**
-   * Update checkbox value
-   * @param selector
-   * @param expectedValue
-   * @return {Promise<void>}
-   */
-  async updateCheckboxValue(selector, expectedValue) {
-    const actualValue = await this.elementChecked(selector);
-    if (actualValue !== expectedValue) {
-      await this.page.click(selector);
-    }
+  async getAttributeContent(page, selector, attribute) {
+    return page.getAttribute(selector, attribute);
   }
 
   /**
    * Is element visible
-   * @param selector, element to check
-   * @param timeout, how much should we wait
-   * @returns {Promise<boolean>}, true if visible, false if not
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the element
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
+   * @returns {Promise<boolean>} True if visible, false if not
    */
-  async elementVisible(selector, timeout = 10) {
+  async elementVisible(page, selector, timeout = 10) {
     try {
-      await this.waitForVisibleSelector(selector, timeout);
+      await this.waitForVisibleSelector(page, selector, timeout);
       return true;
     } catch (error) {
       return false;
@@ -103,13 +132,14 @@ module.exports = class CommonPage {
 
   /**
    * Is element not visible
+   * @param page {Page} Browser tab
    * @param selector, element to check
-   * @param timeout, how much should we wait
-   * @returns {Promise<boolean>}, true if visible, false if not
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
+   * @returns {Promise<boolean>} True if not visible, false if visible
    */
-  async elementNotVisible(selector, timeout = 10) {
+  async elementNotVisible(page, selector, timeout = 10) {
     try {
-      await this.page.waitForSelector(selector, {state: 'hidden', timeout});
+      await this.waitForHiddenSelector(page, selector, timeout);
       return true;
     } catch (error) {
       return false;
@@ -118,203 +148,318 @@ module.exports = class CommonPage {
 
   /**
    * Open link in new Tab and get opened Page
-   * @param selector, where to click
-   * @param newPageSelector, selector to wait in new page (default to FO logo)
-   * @return newPage, what was opened by the browser
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the element for the click
+   * @param newPageSelector {string} String to locate the element on the opened page (default to FO logo)
+   * @return {Promise<Page>} Opened tab after the click
    */
-  async openLinkWithTargetBlank(selector, newPageSelector = 'body .logo') {
+  async openLinkWithTargetBlank(page, selector, newPageSelector = 'body .logo') {
     const [newPage] = await Promise.all([
-      this.page.waitForEvent('popup'),
-      this.page.click(selector),
+      page.waitForEvent('popup'),
+      page.click(selector),
     ]);
 
     await newPage.waitForLoadState('networkidle');
 
-    await newPage.waitForSelector(newPageSelector, {state: 'visible'});
+    await this.waitForVisibleSelector(newPage, newPageSelector);
     return newPage;
   }
 
   /**
    * Wait for selector and click
-   * @param selector, element to check
-   * @param timeout, wait timeout
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the element for the check
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
    * @return {Promise<void>}
    */
-  async waitForSelectorAndClick(selector, timeout = 5000) {
-    await this.waitForVisibleSelector(selector, timeout);
-    await this.page.click(selector);
+  async waitForSelectorAndClick(page, selector, timeout = 5000) {
+    await this.waitForVisibleSelector(page, selector, timeout);
+    await page.click(selector);
   }
 
   /**
    * Reload actual browser page
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async reloadPage() {
-    await this.page.reload();
+  async reloadPage(page) {
+    await page.reload();
   }
 
   /**
    * Delete the existing text from input then set a value
-   * @param selector, input
-   * @param value, value to set in the input
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the input to set its value
+   * @param value {?string|number} Value to set on the input
    * @return {Promise<void>}
    */
-  async setValue(selector, value) {
-    await this.waitForSelectorAndClick(selector);
-    await this.page.click(selector, {clickCount: 3});
-    // Delete text from input before typing
-    await this.page.keyboard.press('Delete');
-    await this.page.type(selector, value);
+  async setValue(page, selector, value) {
+    await this.clearInput(page, selector);
+
+    if (value !== null) {
+      await page.type(selector, value.toString());
+    }
   }
 
   /**
-   * To accept or dismiss a navigator dialog
-   * @param accept
+   * Delete text from input
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the element for the deletion
+   * @returns {Promise<void>}
+   */
+  async clearInput(page, selector) {
+    await this.waitForVisibleSelector(page, selector);
+    // eslint-disable-next-line no-return-assign,no-param-reassign
+    await page.$eval(selector, el => el.value = '');
+  }
+
+  /**
+   * To accept or dismiss a javascript dialog
+   * @param page {Page} Browser tab
+   * @param accept {boolean} True to accept the dialog, false to dismiss
+   * @param text {string} Text to set on dialog input
    * @return {Promise<void>}
    */
-  async dialogListener(accept = true) {
-    this.page.once('dialog', (dialog) => {
-      if (accept) dialog.accept();
-      else dialog.dismiss();
+  async dialogListener(page, accept = true, text = '') {
+    page.once('dialog', (dialog) => {
+      if (accept && text === '') {
+        dialog.accept();
+      } else if (text !== '') {
+        dialog.accept(text);
+      } else {
+        dialog.dismiss();
+      }
     });
   }
 
   /**
    * Close actual tab and goto another tab if wanted
-   * @param browserContext
-   * @param tabId
+   * @param browserContext {BrowserContext} Context of the page
+   * @param page {Page} Browser tab
+   * @param tabId {number} Tab to get focus on after closing the other tab
    * @return {Promise<void>}
    */
-  async closePage(browserContext, tabId = -1) {
-    await this.page.close();
+  async closePage(browserContext, page, tabId = -1) {
+    await page.close();
+    let focusedPage;
+
     if (tabId !== -1) {
-      this.page = (await browserContext.pages())[tabId];
+      focusedPage = (await browserContext.pages())[tabId];
     }
-    return this.page;
+    return focusedPage;
   }
 
   /**
    * Scroll to element
-   * @param selector
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the element to scroll to
    * @return {Promise<void>}
    */
-  async scrollTo(selector) {
-    await this.page.$eval(selector, el => el.scrollIntoView());
+  async scrollTo(page, selector) {
+    await page.$eval(selector, el => el.scrollIntoView());
   }
 
   /**
    * Select option in select by visible text
-   * @param selector
-   * @param textValue
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the select
+   * @param textValue {string/number} Value to select
+   * @param force {boolean} Forcing the value of the select
    * @returns {Promise<void>}
    */
-  async selectByVisibleText(selector, textValue) {
-    let found = false;
-    let options = await this.page.$$eval(
-      `${selector} option`,
-      all => all.map(
-        option => ({
-          textContent: option.textContent,
-          value: option.value,
-        })),
-    );
-    options = await options.filter(option => textValue === option.textContent);
-    if (options.length !== 0) {
-      const elementValue = await options[0].value;
-      await this.page.selectOption(selector, elementValue);
-      found = true;
-    }
-    if (!found) throw new Error(`${textValue} was not found as option of select`);
+  async selectByVisibleText(page, selector, textValue, force = false) {
+    await page.selectOption(selector, {label: textValue.toString()}, {force});
   }
 
   /**
    * To get a number from text
-   * @param selector
-   * @param timeout
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the element
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
    * @returns {Promise<number>}
    */
-  async getNumberFromText(selector, timeout = 0) {
-    await this.page.waitForTimeout(timeout);
-    const text = await this.getTextContent(selector);
+  async getNumberFromText(page, selector, timeout = 0) {
+    await page.waitForTimeout(timeout);
+    const text = await this.getTextContent(page, selector);
     const number = /\d+/g.exec(text).toString();
+
     return parseInt(number, 10);
   }
 
   /**
    * Go to Page and wait for navigation
-   * @param selector
-   * @param waitUntil, the event to wait after click (load/networkidle/domcontentloaded)
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the element
+   * @param waitUntil {'load'|'domcontentloaded'|'networkidle'|'commit'} The event to wait after click
+   * @param timeout {number} Time to wait for navigation
    * @return {Promise<void>}
    */
-  async clickAndWaitForNavigation(selector, waitUntil = 'networkidle') {
+  async clickAndWaitForNavigation(page, selector, waitUntil = 'networkidle', timeout = 30000) {
     await Promise.all([
-      this.page.waitForNavigation({waitUntil}),
-      this.page.click(selector),
+      page.waitForNavigation({waitUntil, timeout}),
+      page.click(selector),
     ]);
   }
 
   /**
    * Navigate to the previous page in history
-   * @param waitUntil
+   * @param page {Page} Browser tab
+   * @param waitUntil {string} The event to wait after click (load/networkidle/domcontentloaded)
    * @return {Promise<void>}
    */
-  async goToPreviousPage(waitUntil = 'load') {
-    await this.page.goBack({waitUntil});
+  async goToPreviousPage(page, waitUntil = 'load') {
+    await page.goBack({waitUntil});
   }
 
   /**
    * Check if checkbox is selected
-   * @param selector
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the checkbox
    * @return {Promise<boolean>}
    */
-  async isCheckboxSelected(selector) {
-    return this.page.$eval(selector, el => el.checked);
+  isChecked(page, selector) {
+    return page.isChecked(selector);
   }
 
   /**
    * Select, unselect checkbox
-   * @param checkboxSelector, selector of checkbox
-   * @param valueWanted, true if we want to select checkBox, else otherwise
+   * @param page {Page} Browser tab
+   * @param checkboxSelector {string} String to locate the checkbox
+   * @param valueWanted {boolean} Value wanted on the selector
    * @return {Promise<void>}
    */
-  async changeCheckboxValue(checkboxSelector, valueWanted = true) {
-    if (valueWanted !== (await this.isCheckboxSelected(checkboxSelector))) {
-      await this.page.click(checkboxSelector);
+  async setChecked(page, checkboxSelector, valueWanted = true) {
+    await page.setChecked(checkboxSelector, valueWanted);
+  }
+
+  /**
+   * Set checkbox value when its hidden
+   * @param page {Page} Browser tab
+   * @param checkboxSelector {string} Selector of the checkbox resolve hidden
+   * @param valueWanted {boolean} Wanted value for the checkbox
+   * @return {Promise<void>}
+   */
+  async setHiddenCheckboxValue(page, checkboxSelector, valueWanted = true) {
+    if (valueWanted !== (await this.isChecked(page, checkboxSelector))) {
+      const parentElement = await this.getParentElement(page, checkboxSelector);
+      await parentElement.click();
     }
   }
 
   /**
-   * Sort array of strings or numbers
-   * @param arrayToSort
-   * @param isFloat
-   * @return {Promise<*>}
+   * Select, unselect checkbox with icon click
+   * @param page {Page} Browser tab
+   * @param checkboxSelector {string} Selector of checkbox
+   * @param valueWanted {boolean} True if we want to select checkBox, else otherwise
+   * @return {Promise<void>}
    */
-  async sortArray(arrayToSort, isFloat = false) {
-    if (isFloat) {
-      return arrayToSort.sort((a, b) => a - b);
+  async setCheckedWithIcon(page, checkboxSelector, valueWanted = true) {
+    if (valueWanted !== (await this.isChecked(page, checkboxSelector))) {
+      // The selector is not visible, that why '+ i' is required here
+      await page.$eval(`${checkboxSelector} + i`, el => el.click());
     }
-    return arrayToSort.sort((a, b) => a.localeCompare(b));
   }
 
   /**
    * Drag and drop element
-   * @param selectorToDrag
-   * @param selectorWhereToDrop
+   * @param page {Page} Browser tab
+   * @param source {string} String to locate the element to drag
+   * @param target {string} String to locate the element where to drop
    * @return {Promise<void>}
    */
-  async dragAndDrop(selectorToDrag, selectorWhereToDrop) {
-    await this.page.hover(selectorToDrag);
-    await this.page.mouse.down();
-    await this.page.hover(selectorWhereToDrop);
-    await this.page.mouse.up();
+  async dragAndDrop(page, source, target) {
+    await page.dragAndDrop(source, target);
   }
 
   /**
-   * Uppercase the first character of the word
-   * @param word
-   * @returns {string}
+   * Upload file in input type=file selector
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the file input
+   * @param filePath {string} Path of the file to add
+   * @return {Promise<void>}
    */
-  uppercaseFirstCharacter(word) {
-    return `${word[0].toUpperCase()}${word.slice(1)}`;
+  async uploadFile(page, selector, filePath) {
+    const input = await page.$(selector);
+    await input.setInputFiles(filePath);
   }
-};
+
+  /**
+   * Upload file using file chooser
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the file chooser
+   * @param filePath {Array<string>} Path of the file to add
+   * @returns {Promise<void>}
+   */
+  async uploadOnFileChooser(page, selector, filePath) {
+    // Set value when fileChooser is open
+    page.once('filechooser', async (fileChooser) => {
+      await fileChooser.setFiles(filePath);
+    });
+    await page.click(selector);
+  }
+
+  /**
+   * Get a float price from text
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the element
+   * @param timeout {number} Time to wait on milliseconds before throwing an error
+   * @returns {Promise<number>}
+   */
+  async getPriceFromText(page, selector, timeout = 0) {
+    await page.waitForTimeout(timeout);
+    const text = await this.getTextContent(page, selector);
+
+    const number = Number(text.replace(/[^0-9.-]+/g, ''));
+
+    return parseFloat(number);
+  }
+
+  /**
+   * Get parent element from selector
+   * @param page {Page} Browser tab
+   * @param selector {string} String to locate the child element
+   * @return {Promise<ElementHandle>}
+   */
+  getParentElement(page, selector) {
+    /* eslint-env browser */
+    return page.evaluateHandle(sl => document.querySelector(sl).parentElement, selector);
+  }
+
+  /**
+   * Click on selector and wait for download event
+   * @param page {Page} Browser tab
+   * @param selector {string} Selector to click on
+   * @param targetBlank {boolean} Link has attribute target=blank
+   * @returns {Promise<string>}
+   */
+  async clickAndWaitForDownload(page, selector, targetBlank = false) {
+    /* eslint-disable no-return-assign, no-param-reassign */
+    // Delete the target because a new tab is opened when downloading the file
+    if (targetBlank) {
+      await page.$eval(selector, el => el.target = '');
+    }
+    /* eslint-enable no-return-assign, no-param-reassign */
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click(selector),
+    ]);
+
+    return download.path();
+  }
+
+  /**
+   * Wait for title to be filled
+   * @param page {Page} Browser tab
+   * @returns {Promise<void>}
+   */
+  async waitForPageTitleToLoad(page) {
+    let isTitleEmpty = true;
+    for (let i = 0; i < 20 && isTitleEmpty; i++) {
+      isTitleEmpty = (await this.getPageTitle(page) === '');
+      await page.waitForTimeout(100);
+    }
+  }
+}
+
+module.exports = CommonPage;

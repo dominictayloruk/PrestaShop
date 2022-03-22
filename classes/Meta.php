@@ -62,7 +62,7 @@ class MetaCore extends ObjectModel
      * Get pages.
      *
      * @param bool $excludeFilled
-     * @param bool $addPage
+     * @param bool|string $addPage
      *
      * @return array
      */
@@ -73,7 +73,10 @@ class MetaCore extends ObjectModel
             die(Tools::displayError(Context::getContext()->getTranslator()->trans('Cannot scan root directory', [], 'Admin.Notifications.Error')));
         }
 
-        if (!$overrideFiles = Tools::scandir(_PS_CORE_DIR_ . DIRECTORY_SEPARATOR . 'override' . DIRECTORY_SEPARATOR . 'controllers' . DIRECTORY_SEPARATOR . 'front' . DIRECTORY_SEPARATOR, 'php', '', true)) {
+        $overrideDir = _PS_CORE_DIR_ . DIRECTORY_SEPARATOR . 'override' . DIRECTORY_SEPARATOR . 'controllers' . DIRECTORY_SEPARATOR . 'front' . DIRECTORY_SEPARATOR;
+        if (!is_dir($overrideDir)) {
+            $overrideFiles = [];
+        } elseif (!$overrideFiles = Tools::scandir($overrideDir, 'php', '', true)) {
             die(Tools::displayError(Context::getContext()->getTranslator()->trans('Cannot scan "override" directory', [], 'Admin.Notifications.Error')));
         }
 
@@ -430,8 +433,7 @@ class MetaCore extends ObjectModel
             if (!empty($row['meta_description'])) {
                 $row['meta_description'] = strip_tags($row['meta_description']);
             }
-            $row['meta_title'] = ($row['meta_title'] ? $row['meta_title'] : $row['name']) . (!empty($pageNumber) ? ' (' . $pageNumber . ')' : '');
-            $row['meta_title'];
+            $row['meta_title'] = ($row['meta_title'] ?: $row['name']) . (!empty($pageNumber) ? ' (' . $pageNumber . ')' : '');
 
             return Meta::completeMetaTags($row, $row['meta_title']);
         }

@@ -30,34 +30,35 @@
 class CustomerMessageCore extends ObjectModel
 {
     public $id;
+
     /** @var int CustomerThread ID */
     public $id_customer_thread;
 
-    /** @var   */
+    /** @var int */
     public $id_employee;
 
-    /** @var string $message */
+    /** @var string */
     public $message;
 
-    /** @var string $file_name */
+    /** @var string */
     public $file_name;
 
-    /** @var string $ip_address */
+    /** @var string */
     public $ip_address;
 
-    /** @var string $user_agent */
+    /** @var string */
     public $user_agent;
 
-    /** @var int $private */
+    /** @var bool */
     public $private;
 
-    /** @var string $date_add */
+    /** @var string */
     public $date_add;
 
-    /** @var string $date_upd */
+    /** @var string */
     public $date_upd;
 
-    /** @var bool $read */
+    /** @var bool */
     public $read;
 
     /**
@@ -70,17 +71,17 @@ class CustomerMessageCore extends ObjectModel
             'id_employee' => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedId'],
             'id_customer_thread' => ['type' => self::TYPE_INT],
             'ip_address' => ['type' => self::TYPE_STRING, 'validate' => 'isIp2Long', 'size' => 15],
-            'message' => ['type' => self::TYPE_STRING, 'validate' => 'isCleanHtml', 'required' => true, 'size' => 16777216],
+            'message' => ['type' => self::TYPE_HTML, 'required' => true, 'size' => 16777216],
             'file_name' => ['type' => self::TYPE_STRING],
             'user_agent' => ['type' => self::TYPE_STRING],
-            'private' => ['type' => self::TYPE_INT],
+            'private' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
             'date_add' => ['type' => self::TYPE_DATE, 'validate' => 'isDate'],
             'date_upd' => ['type' => self::TYPE_DATE, 'validate' => 'isDate'],
             'read' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
         ],
     ];
 
-    /** @var array $webserviceParameters */
+    /** @var array */
     protected $webserviceParameters = [
         'fields' => [
             'id_employee' => [
@@ -170,7 +171,7 @@ class CustomerMessageCore extends ObjectModel
     /**
      * Get the last message for a thread customer.
      *
-     * @param $id_customer_thread   Thread customer reference
+     * @param int $id_customer_thread Thread customer reference
      *
      * @return string Last message
      */

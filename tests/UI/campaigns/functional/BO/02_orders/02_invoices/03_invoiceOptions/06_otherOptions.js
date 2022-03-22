@@ -1,27 +1,22 @@
 require('module-alias/register');
-// Using chai
-const {expect} = require('chai');
+
+// Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
 const files = require('@utils/files');
 
-// Importing pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const InvoicesPage = require('@pages/BO/orders/invoices/index');
-const OrdersPage = require('@pages/BO/orders/index');
-const ViewOrderPage = require('@pages/BO/orders/view');
-const FOBasePage = require('@pages/FO/FObasePage');
-const HomePage = require('@pages/FO/home');
-const FOLoginPage = require('@pages/FO/login');
-const ProductPage = require('@pages/FO/product');
-const CartPage = require('@pages/FO/cart');
-const CheckoutPage = require('@pages/FO/checkout');
-const OrderConfirmationPage = require('@pages/FO/checkout/orderConfirmation');
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
+const {createOrderByCustomerTest} = require('@commonTests/FO/createOrder');
 
-// Importing data
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const invoicesPage = require('@pages/BO/orders/invoices/index');
+const ordersPage = require('@pages/BO/orders/index');
+const orderPageTabListBlock = require('@pages/BO/orders/view/tabListBlock');
+
+// Import data
 const {PaymentMethods} = require('@data/demo/paymentMethods');
-const {DefaultAccount} = require('@data/demo/customer');
+const {DefaultCustomer} = require('@data/demo/customer');
 const {Statuses} = require('@data/demo/orderStatuses');
 const InvoiceOptionFaker = require('@data/faker/invoice');
 
@@ -30,187 +25,100 @@ const testContext = require('@utils/testContext');
 
 const baseContext = 'functional_BO_orders_invoices_invoiceOptions_otherOptions';
 
+// Import expect from chai
+const {expect} = require('chai');
 
 let browserContext;
 let page;
 
-let invoiceData;
+const invoiceData = new InvoiceOptionFaker();
 let fileName;
 let filePath;
-
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    invoicesPage: new InvoicesPage(page),
-    ordersPage: new OrdersPage(page),
-    viewOrderPage: new ViewOrderPage(page),
-    foBasePage: new FOBasePage(page),
-    homePage: new HomePage(page),
-    foLoginPage: new FOLoginPage(page),
-    productPage: new ProductPage(page),
-    cartPage: new CartPage(page),
-    checkoutPage: new CheckoutPage(page),
-    orderConfirmationPage: new OrderConfirmationPage(page),
-  };
+const orderByCustomerData = {
+  customer: DefaultCustomer,
+  product: 1,
+  productQuantity: 1,
+  paymentMethod: PaymentMethods.wirePayment.moduleName,
 };
 
 /*
-Edit Invoice number, Footer text
-Create order
-Change the Order status to Shipped
-Check the invoice file name
+Pre-condition:
+- Create order in FO
+Scenario:
+- Edit Invoice number and Footer text
+- Change the create order status to Shipped
+- Check the invoice file name
  */
-describe('Edit \'Invoice number, Footer text\' and check the generated invoice file', async () => {
+describe('BO - Orders - Invoices : Update \'Invoice number and Footer text\'', async () => {
+  // Pre-condition: Create order in FO
+  createOrderByCustomerTest(orderByCustomerData, baseContext);
+
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
-
-    invoiceData = await (new InvoiceOptionFaker());
   });
+
   after(async () => {
     // Delete the invoice file
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
-  describe('Edit the Invoice number and Footer text', async () => {
-    it('should go to invoices page', async function () {
+  describe('Update the Invoice number and Footer text', async () => {
+    it('should go to \'Orders > Invoices\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToInvoicesPageToEditOptions', baseContext);
 
-      await this.pageObjects.dashboardPage.goToSubMenu(
-        this.pageObjects.dashboardPage.ordersParentLink,
-        this.pageObjects.dashboardPage.invoicesLink,
+      await dashboardPage.goToSubMenu(
+        page,
+        dashboardPage.ordersParentLink,
+        dashboardPage.invoicesLink,
       );
 
-      await this.pageObjects.invoicesPage.closeSfToolBar();
+      await invoicesPage.closeSfToolBar(page);
 
-      const pageTitle = await this.pageObjects.invoicesPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.invoicesPage.pageTitle);
+      const pageTitle = await invoicesPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(invoicesPage.pageTitle);
     });
 
-    it('should change the Invoice numberFooter text', async function () {
+    it('should change the invoice number and the invoice footer text', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'updateOptions', baseContext);
 
-      await this.pageObjects.invoicesPage.setInputOptions(invoiceData);
-      const textMessage = await this.pageObjects.invoicesPage.saveInvoiceOptions();
-      await expect(textMessage).to.contains(this.pageObjects.invoicesPage.successfulUpdateMessage);
+      await invoicesPage.setInputOptions(page, invoiceData);
+      const textMessage = await invoicesPage.saveInvoiceOptions(page);
+      await expect(textMessage).to.contains(invoicesPage.successfulUpdateMessage);
     });
   });
 
-  describe('Create new order in FO', async () => {
-    it('should go to FO page', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'goToFO', baseContext);
-
-      // Click on view my shop
-      page = await this.pageObjects.invoicesPage.viewMyShop();
-      this.pageObjects = await init();
-
-      // Change language on FO
-      await this.pageObjects.homePage.changeLanguage('en');
-
-      const isHomePage = await this.pageObjects.homePage.isHomePage();
-      await expect(isHomePage, 'Fail to open FO home page').to.be.true;
-    });
-
-    it('should go to login page', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'goToLoginFO', baseContext);
-
-      await this.pageObjects.homePage.goToLoginPage();
-
-      const pageTitle = await this.pageObjects.foLoginPage.getPageTitle();
-      await expect(pageTitle, 'Fail to open FO login page').to.contains(this.pageObjects.foLoginPage.pageTitle);
-    });
-
-    it('should sign in with default customer', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'sighInFO', baseContext);
-
-      await this.pageObjects.foLoginPage.customerLogin(DefaultAccount);
-
-      const isCustomerConnected = await this.pageObjects.foLoginPage.isCustomerConnected();
-      await expect(isCustomerConnected, 'Customer is not connected').to.be.true;
-    });
-
-    it('should create an order', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'createOrder', baseContext);
-
-      // Go to home page
-      await this.pageObjects.foLoginPage.goToHomePage();
-
-      // Go to the first product page
-      await this.pageObjects.homePage.goToProductPage(1);
-
-      // Add the created product to the cart
-      await this.pageObjects.productPage.addProductToTheCart();
-
-      // Proceed to checkout the shopping cart
-      await this.pageObjects.cartPage.clickOnProceedToCheckout();
-
-      // Address step - Go to delivery step
-      const isStepAddressComplete = await this.pageObjects.checkoutPage.goToDeliveryStep();
-      await expect(isStepAddressComplete, 'Step Address is not complete').to.be.true;
-
-      // Delivery step - Go to payment step
-      const isStepDeliveryComplete = await this.pageObjects.checkoutPage.goToPaymentStep();
-      await expect(isStepDeliveryComplete, 'Step Address is not complete').to.be.true;
-
-      // Payment step - Choose payment step
-      await this.pageObjects.checkoutPage.choosePaymentAndOrder(PaymentMethods.wirePayment.moduleName);
-
-      // Check the confirmation message
-      const cardTitle = await this.pageObjects.orderConfirmationPage.getOrderConfirmationCardTitle();
-      await expect(cardTitle).to.contains(this.pageObjects.orderConfirmationPage.orderConfirmationCardTitle);
-    });
-
-    it('should sign out from FO', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'sighOutFO', baseContext);
-
-      await this.pageObjects.orderConfirmationPage.logout();
-      const isCustomerConnected = await this.pageObjects.orderConfirmationPage.isCustomerConnected();
-      await expect(isCustomerConnected, 'Customer is connected').to.be.false;
-    });
-
-    it('should go back to BO', async function () {
-      await testContext.addContextItem(this, 'testIdentifier', 'goBackToBo', baseContext);
-
-      page = await this.pageObjects.orderConfirmationPage.closePage(browserContext, 0);
-      this.pageObjects = await init();
-      const pageTitle = await this.pageObjects.invoicesPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.invoicesPage.pageTitle);
-    });
-  });
-
-  describe('Create an invoice and check the edited data', async () => {
-    it('should go to the orders page', async function () {
+  describe('Create an invoice and check the updated data', async () => {
+    it('should go to \'Orders > Orders\' page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToOrdersPageUpdatedOptions', baseContext);
 
-      await this.pageObjects.invoicesPage.goToSubMenu(
-        this.pageObjects.invoicesPage.ordersParentLink,
-        this.pageObjects.invoicesPage.ordersLink,
+      await invoicesPage.goToSubMenu(
+        page,
+        invoicesPage.ordersParentLink,
+        invoicesPage.ordersLink,
       );
 
-      const pageTitle = await this.pageObjects.ordersPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.ordersPage.pageTitle);
+      const pageTitle = await ordersPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(ordersPage.pageTitle);
     });
 
     it('should go to the first order page', async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'goToFirstOrderPageUpdatedOptions', baseContext);
 
-      await this.pageObjects.ordersPage.goToOrder(1);
-      const pageTitle = await this.pageObjects.viewOrderPage.getPageTitle();
-      await expect(pageTitle).to.contains(this.pageObjects.viewOrderPage.pageTitle);
+      await ordersPage.goToOrder(page, 1);
+      const pageTitle = await orderPageTabListBlock.getPageTitle(page);
+      await expect(pageTitle).to.contains(orderPageTabListBlock.pageTitle);
     });
 
     it(`should change the order status to '${Statuses.shipped.status}'`, async function () {
       await testContext.addContextItem(this, 'testIdentifier', 'updateStatusUpdatedOptions', baseContext);
 
-      const result = await this.pageObjects.viewOrderPage.modifyOrderStatus(Statuses.shipped.status);
+      const result = await orderPageTabListBlock.modifyOrderStatus(page, Statuses.shipped.status);
       await expect(result).to.equal(Statuses.shipped.status);
     });
 
@@ -218,7 +126,7 @@ describe('Edit \'Invoice number, Footer text\' and check the generated invoice f
       await testContext.addContextItem(this, 'testIdentifier', 'downloadInvoiceUpdatedOptions', baseContext);
 
       // Download invoice
-      filePath = await this.pageObjects.viewOrderPage.downloadInvoice();
+      filePath = await orderPageTabListBlock.downloadInvoice(page);
 
       const exist = await files.doesFileExist(filePath);
       await expect(exist).to.be.true;
@@ -228,7 +136,7 @@ describe('Edit \'Invoice number, Footer text\' and check the generated invoice f
       await testContext.addContextItem(this, 'testIdentifier', 'checkUpdatedInvoiceNumber', baseContext);
 
       // Get file name
-      fileName = await this.pageObjects.viewOrderPage.getFileName();
+      fileName = await orderPageTabListBlock.getFileName(page);
       expect(fileName).to.contains(invoiceData.invoiceNumber);
     });
 

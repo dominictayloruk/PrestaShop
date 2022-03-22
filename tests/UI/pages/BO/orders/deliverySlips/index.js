@@ -1,9 +1,18 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class DeliverySlips extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Delivery slips page, contains functions that can be used on delivery slips page
+ * @class
+ * @extends BOBasePage
+ */
+class DeliverySlips extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on delivery slips page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Delivery Slips';
     this.errorMessageWhenGenerateFileByDate = 'No delivery slip was found for this period.';
@@ -20,7 +29,7 @@ module.exports = class DeliverySlips extends BOBasePage {
     this.deliverySlipForm = '#form-delivery-slips-options';
     this.deliveryPrefixInput = '#form_prefix_1';
     this.deliveryNumberInput = '#form_number';
-    this.deliveryEnableProductImage = id => `${this.deliverySlipForm} label[for='form_enable_product_image_${id}']`;
+    this.deliveryProductImageStatusToggleInput = toggle => `#form_enable_product_image_${toggle}`;
     this.saveDeliverySlipOptionsButton = `${this.deliverySlipForm} #save-delivery-slip-options-button`;
   }
 
@@ -30,78 +39,82 @@ module.exports = class DeliverySlips extends BOBasePage {
 
   /**
    * Generate PDF by date and download
-   * @param dateFrom
-   * @param dateTo
-   * @return {Promise<*>}
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on date from input
+   * @param dateTo {string} Value to set on date to input
+   * @returns {Promise<string>}
    */
-  async generatePDFByDateAndDownload(dateFrom = '', dateTo = '') {
-    await this.setValuesForGeneratingPDFByDate(dateFrom, dateTo);
+  async generatePDFByDateAndDownload(page, dateFrom = '', dateTo = '') {
+    await this.setValuesForGeneratingPDFByDate(page, dateFrom, dateTo);
 
-    const [download] = await Promise.all([
-      this.page.waitForEvent('download'), // wait for download to start
-      this.page.click(this.generatePdfByDateButton),
-    ]);
-    return download.path();
+    return this.clickAndWaitForDownload(page, this.generatePdfByDateButton);
   }
 
   /**
    * Get message error after generate delivery slip fail
-   * @param dateFrom
-   * @param dateTo
-   * @return {Promise<string>}
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on date from input
+   * @param dateTo {string} Value to set on date to input
+   * @returns {Promise<string>}
    */
-  async generatePDFByDateAndFail(dateFrom = '', dateTo = '') {
-    await this.setValuesForGeneratingPDFByDate(dateFrom, dateTo);
-    await this.page.click(this.generatePdfByDateButton);
-    return this.getTextContent(this.alertTextBlock);
+  async generatePDFByDateAndFail(page, dateFrom = '', dateTo = '') {
+    await this.setValuesForGeneratingPDFByDate(page, dateFrom, dateTo);
+    await page.click(this.generatePdfByDateButton);
+    return this.getAlertDangerBlockParagraphContent(page);
   }
 
   /**
    * Set values to generate pdf by date
-   * @param dateFrom
-   * @param dateTo
+   * @param page {Page} Browser tab
+   * @param dateFrom {string} Value to set on date from input
+   * @param dateTo {string} Value to set on date to input
    * @returns {Promise<void>}
    */
-  async setValuesForGeneratingPDFByDate(dateFrom = '', dateTo = '') {
+  async setValuesForGeneratingPDFByDate(page, dateFrom = '', dateTo = '') {
     if (dateFrom) {
-      await this.setValue(this.dateFromInput, dateFrom);
+      await this.setValue(page, this.dateFromInput, dateFrom);
     }
 
     if (dateTo) {
-      await this.setValue(this.dateToInput, dateTo);
+      await this.setValue(page, this.dateToInput, dateTo);
     }
   }
 
   /** Edit delivery slip Prefix
-   * @param prefix
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param prefix {string} Prefix value to set
+   * @returns {Promise<void>}
    */
-  async changePrefix(prefix) {
-    await this.setValue(this.deliveryPrefixInput, prefix);
+  async changePrefix(page, prefix) {
+    await this.setValue(page, this.deliveryPrefixInput, prefix);
   }
 
-  /** Edit delivery slip Prefix
-   * @param number
-   * @return {Promise<void>}
+  /** Edit delivery slip number
+   * @param page {Page} Browser tab
+   * @param number {number} Number value to change
+   * @returns {Promise<void>}
    */
-  async changeNumber(number) {
-    await this.setValue(this.deliveryNumberInput, number);
+  async changeNumber(page, number) {
+    await this.setValue(page, this.deliveryNumberInput, number);
   }
 
   /**
    * Enable disable product image
-   * @param enable
-   * @return {Promise<void>}
+   * @param page {Page} Browser tab
+   * @param enable {boolean} True if we need to enable product image
+   * @returns {Promise<void>}
    */
-  async setEnableProductImage(enable = true) {
-    await this.page.click(this.deliveryEnableProductImage(enable ? 1 : 0));
+  async setEnableProductImage(page, enable = true) {
+    await this.setChecked(page, this.deliveryProductImageStatusToggleInput(enable ? 1 : 0));
   }
 
   /** Save delivery slip options
-   * @return {Promise<string>}
+   * @param page {Page} Browser tab
+   * @returns {Promise<string>}
    */
-  async saveDeliverySlipOptions() {
-    await this.clickAndWaitForNavigation(this.saveDeliverySlipOptionsButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+  async saveDeliverySlipOptions(page) {
+    await this.clickAndWaitForNavigation(page, this.saveDeliverySlipOptionsButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+module.exports = new DeliverySlips();

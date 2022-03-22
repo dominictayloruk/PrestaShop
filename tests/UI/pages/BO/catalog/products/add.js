@@ -1,25 +1,41 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class AddProduct extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * Add product page, contains functions that can be used on the page
+ * @class
+ * @extends BOBasePage
+ */
+class AddProduct extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on add product page
+   */
+  constructor() {
+    super();
 
     this.pageTitle = 'Product •';
+
     // Text Message
     this.settingUpdatedMessage = 'Settings updated.';
+    this.duplicateSuccessfulMessage = 'Product successfully duplicated.';
     this.errorMessage = 'Unable to update settings.';
     this.errorMessageWhenSummaryTooLong = number => 'This value is too long.'
       + ` It should have ${number} characters or less.`;
+
     // Selectors
     this.productNameInput = '#form_step1_name_1';
+    this.productImageDropZoneDiv = '#product-images-dropzone';
     this.productTypeSelect = '#form_step1_type_product';
+    this.openFileManagerDiv = `${this.productImageDropZoneDiv} .disabled.openfilemanager.dz-clickable`;
+    this.imagePreviewBlock = `${this.productImageDropZoneDiv} > div.dz-complete.dz-image-preview`;
     this.productWithCombinationsInput = '#show_variations_selector div:nth-of-type(2) input';
     this.productReferenceInput = '#form_step6_reference';
     this.productQuantityInput = '#form_step1_qty_0_shortcut';
-    this.productPriceTtcInput = '#form_step1_price_ttc_shortcut';
+    this.productPriceAtiInput = '#form_step1_price_ttc_shortcut';
     this.saveProductButton = 'input#submit[value=\'Save\']';
     this.goToCatalogButton = '#product_form_save_go_to_catalog_btn';
+    this.addNewProductButton = '#product_form_save_new_btn';
     this.previewProductLink = 'a#product_form_preview_btn';
     this.productOnlineSwitch = '.product-footer div.switch-input';
     this.productOnlineTitle = 'h2.for-switch.online-title';
@@ -28,11 +44,17 @@ module.exports = class AddProduct extends BOBasePage {
     this.productTaxRuleSelect = '#step2_id_tax_rules_group_rendered';
     this.productDeleteLink = '.product-footer a.delete';
     this.dangerMessageShortDescription = '#form_step1_description_short .has-danger li';
+    this.packItemsInput = '#form_step1_inputPackItems';
+    this.packsearchResult = '#js_form_step1_inputPackItems .tt-selectable tr:nth-child(1) td:nth-child(1)';
+    this.packQuantityInput = '#form_step1_inputPackItems-curPackItemQty';
+    this.addProductToPackButton = '#form_step1_inputPackItems-curPackItemAdd';
 
     // Form nav
     this.formNavList = '#form-nav';
-    this.forNavlistItemLink = id => `${this.formNavList} #tab_step${id} a`;
+    this.forNavListItemLink = id => `${this.formNavList} #tab_step${id} a`;
+
     // Selectors of Step 2 : Pricing
+    this.ecoTaxInput = '#form_step2_ecotax';
     this.addSpecificPriceButton = '#js-open-create-specific-price-form';
     this.specificPriceForm = '#specific_price_form';
     this.combinationSelect = '#form_step2_specific_price_sp_id_product_attribute';
@@ -40,6 +62,7 @@ module.exports = class AddProduct extends BOBasePage {
     this.applyDiscountOfInput = '#form_step2_specific_price_sp_reduction';
     this.reductionType = '#form_step2_specific_price_sp_reduction_type';
     this.applyButton = '#form_step2_specific_price_save';
+
     // Selector of Step 3 : Combinations
     this.addCombinationsInput = '#form_step3_attributes-tokenfield';
     this.generateCombinationsButton = '#create-combinations';
@@ -51,9 +74,26 @@ module.exports = class AddProduct extends BOBasePage {
     this.productCombinationsBulkForm = '#combinations-bulk-form';
     this.productCombinationsBulkFormTitle = `${this.productCombinationsBulkForm} p[aria-controls]`;
     this.bulkCombinationsContainer = '#bulk-combinations-container';
+
+    // Selector of step 3 : Quantities
+    this.quantityInput = '#form_step3_qty_0';
+    this.minimumQuantityInput = '#form_step3_minimal_quantity';
+    this.stockLocationInput = '#form_step3_location';
+    this.lowStockLevelInput = '#form_step3_low_stock_threshold';
+    this.behaviourOutOfStockInput = id => `#form_step3_out_of_stock_${id}`;
+    this.labelWhenInStockInput = '#form_step3_available_now_1';
+    this.labelWhenOutOfStock = '#form_step3_available_later_1';
+
     // Selector of Step 5 : SEO
     this.resetUrlButton = '#seo-url-regenerate';
     this.friendlyUrlInput = '#form_step5_link_rewrite_1';
+
+    // Selectors of step 6 : Options
+    this.customFieldsBlock = '#custom_fields';
+    this.addCustomizationFieldButton = `${this.customFieldsBlock} a[data-role='add-customization-field']`;
+    this.customFieldInput = row => `#form_step6_custom_fields_${row}_label_1`;
+    this.customFieldTypeSelect = row => `select#form_step6_custom_fields_${row}_type`;
+    this.customRequiredLabel = row => `${this.customFieldsBlock} li:nth-child(${row}) div.required-custom-field label`;
   }
 
   /*
@@ -62,322 +102,533 @@ module.exports = class AddProduct extends BOBasePage {
 
   /**
    * Set value on tinyMce textarea
-   * @param selector
-   * @param value
+   * @param page {Page} Browser tab
+   * @param selector {string} Value of selector to use
+   * @param value {string} Text to set on tinymce input
    * @returns {Promise<void>}
    */
-  async setValueOnTinymceInput(selector, value) {
+  async setValueOnTinymceInput(page, selector, value) {
     // Select all
-    await this.page.click(`${selector} .mce-edit-area`, {clickCount: 3});
+    await page.click(`${selector} .mce-edit-area`, {clickCount: 3});
 
     // Delete all text
-    await this.page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
 
     // Fill the text
-    await this.page.keyboard.type(value);
+    await page.keyboard.type(value);
   }
 
   /**
-   * Set Name, type of product, Reference, price ttc, description and short description
-   * @param productData
+   * Get Number of images to set on the product
+   * @param page {Page} Browser tab
+   * @returns {Promise<number>}
+   */
+  async getNumberOfImages(page) {
+    return (await page.$$(this.imagePreviewBlock)).length;
+  }
+
+  /**
+   * Add product images
+   * @param page {Page} Browser tab
+   * @param imagesPaths {Array<?string>} Paths of the images to add to the product
+   * @returns {Promise<void>}
+   */
+  async addProductImages(page, imagesPaths = []) {
+    const filteredImagePaths = imagesPaths.filter(el => el !== null);
+
+    if (filteredImagePaths !== null && filteredImagePaths.length !== 0) {
+      const numberOfImages = await this.getNumberOfImages(page);
+      await this.uploadOnFileChooser(
+        page,
+        numberOfImages === 0 ? this.productImageDropZoneDiv : this.openFileManagerDiv,
+        filteredImagePaths,
+      );
+
+      await this.waitForVisibleSelector(page, this.imagePreviewBlock);
+    }
+  }
+
+  /**
+   * Set Name, type of product, Reference, price ATI, description and short description
+   * @param page {Page} Browser tab
+   * @param productData {ProductData} Data to set on basic settings form
    * @return {Promise<void>}
    */
-  async setBasicSetting(productData) {
-    await this.setValue(this.productNameInput, productData.name);
-    await this.setValueOnTinymceInput(this.productDescriptionIframe, productData.description);
-    await this.setValueOnTinymceInput(this.productShortDescriptionIframe, productData.summary);
-    await this.selectByVisibleText(this.productTypeSelect, productData.type);
-    await this.setValue(this.productReferenceInput, productData.reference);
-    if (await this.elementVisible(this.productQuantityInput, 500)) {
-      await this.setValue(this.productQuantityInput, productData.quantity.toString());
+  async setBasicSetting(page, productData) {
+    await this.setValue(page, this.productNameInput, productData.name);
+
+    // Set product images
+    await this.addProductImages(page, [productData.coverImage, productData.thumbImage]);
+
+    await this.setValueOnTinymceInput(page, this.productDescriptionIframe, productData.description);
+    await this.setValueOnTinymceInput(page, this.productShortDescriptionIframe, productData.summary);
+    await this.selectByVisibleText(page, this.productTypeSelect, productData.type, true);
+    await this.setValue(page, this.productReferenceInput, productData.reference);
+    if (await this.elementVisible(page, this.productQuantityInput, 500)) {
+      await this.setValue(page, this.productQuantityInput, productData.quantity);
     }
-    await this.selectByVisibleText(this.productTaxRuleSelect, productData.taxRule);
-    await this.setValue(this.productPriceTtcInput, productData.price.toString());
+    await this.selectByVisibleText(page, this.productTaxRuleSelect, productData.taxRule);
+    await this.setValue(page, this.productPriceAtiInput, productData.price);
   }
 
   /**
    * Set product online or offline
-   * @param wantedStatus
+   * @param page {Page} Browser tab
+   * @param wantedStatus {boolean} True if we need to enable status, false if not
    * @return {Promise<void>}
    */
-  async setProductStatus(wantedStatus) {
-    const isProductOnline = await this.getOnlineButtonStatus();
+  async setProductStatus(page, wantedStatus) {
+    const isProductOnline = await this.getOnlineButtonStatus(page);
+
     if (isProductOnline !== wantedStatus) {
-      await this.page.click(this.productOnlineSwitch);
-      await this.closeGrowlMessage();
+      await page.click(this.productOnlineSwitch);
+      await this.closeGrowlMessage(page);
     }
   }
 
   /**
    * Save product and close the growl message linked to
+   * @param page {Page} Browser tab
    * @returns {Promise<string>}
    */
-  async saveProduct() {
-    await this.page.click(this.saveProductButton);
-    return this.closeGrowlMessage();
+  async saveProduct(page) {
+    await page.click(this.saveProductButton);
+    const growlTextMessage = await this.getGrowlMessageContent(page, 30000);
+    await this.closeGrowlMessage(page);
+
+    return growlTextMessage;
   }
 
   /**
    * Create basic product
-   * @param productData
+   * @param page {Page} Browser tab
+   * @param productData {ProductData} Data to set on new/edit product form
    * @returns {Promise<string>}
    */
-  async createEditBasicProduct(productData) {
-    await this.setBasicSetting(productData);
-    await this.setProductStatus(productData.status);
-    return this.saveProduct();
+  async createEditBasicProduct(page, productData) {
+    await this.setBasicSetting(page, productData);
+
+    if (productData.type === 'Pack of products') {
+      await this.addPackOfProducts(page, productData.pack);
+    }
+
+    await this.setProductStatus(page, productData.status);
+    return this.saveProduct(page);
   }
 
   /**
    * Set Combinations for product
-   * @param productData
+   * @param page {Page} Browser tab
+   * @param productData {ProductData} Data to set on combination form
    * @returns {Promise<string>}
    */
-  async setCombinationsInProduct(productData) {
-    await this.page.click(this.productWithCombinationsInput);
+  async setCombinationsInProduct(page, productData) {
+    await page.click(this.productWithCombinationsInput);
     // GOTO Combination tab : id = 3
-    await this.goToFormStep(3);
+    await this.goToFormStep(page, 3);
     // Delete All combinations if exists
-    await this.deleteAllCombinations();
+    await this.deleteAllCombinations(page);
     // Add combinations
-    await this.addCombinations(productData.combinations);
+    await this.addCombinations(page, productData.combinations);
     // Set quantity
-    await this.setCombinationsQuantity(productData.quantity);
+    await this.setCombinationsQuantity(page, productData.quantity);
     // GOTO Basic settings Tab : id = 1
-    await this.goToFormStep(1);
-    return this.saveProduct();
+    await this.goToFormStep(page, 1);
+
+    return this.saveProduct(page);
   }
 
   /**
    * Generate combinations in input
-   * @param combinations
+   * @param page {Page} Browser tab
+   * @param combinations {Object|{color: Array<string>, size: Array<string>}} Data to set on combination form
    * @return {Promise<void>}
    */
-  async addCombinations(combinations) {
+  async addCombinations(page, combinations) {
     const keys = Object.keys(combinations);
     /*eslint-disable*/
     for (const key of keys) {
       for (const value of combinations[key]) {
-        await this.addCombination(`${key} : ${value}`);
+        await this.addCombination(page, `${key} : ${value}`);
       }
     }
     /* eslint-enable */
-    await this.scrollTo(this.generateCombinationsButton);
-    await Promise.all([
-      this.waitForVisibleSelector(`${this.productCombinationsBulkForm}:not(.inactive)`),
-      this.waitForVisibleSelector(
-        `${this.productCombinationTableRow(1)}[style='display: table-row;']`,
-      ),
-      this.page.click(this.generateCombinationsButton),
-    ]);
-    await this.closeGrowlMessage();
-    await this.closeCombinationsForm();
+    await page.$eval(this.generateCombinationsButton, el => el.click());
+    await this.closeGrowlMessage(page);
   }
 
   /**
-   * add one combination
-   * @param combination
+   * Add one combination
+   * @param page {Page} Browser tab
+   * @param combination {string} Data to set on combination form
    * @return {Promise<void>}
    */
-  async addCombination(combination) {
-    await this.page.type(this.addCombinationsInput, combination);
-    await this.page.keyboard.press('ArrowDown');
-    await this.page.keyboard.press('Enter');
+  async addCombination(page, combination) {
+    await page.type(this.addCombinationsInput, combination);
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
   }
 
   /**
    * Set quantity for all combinations
-   * @param quantity
+   * @param page {Page} Browser tab
+   * @param quantity {number} Value of quantity to set on quantity input
    * @return {Promise<void>}
    */
-  async setCombinationsQuantity(quantity) {
-    // Unselect all
-    await this.changeCheckboxValue(this.productCombinationSelectAllCheckbox, false);
-    await Promise.all([
-      this.waitForVisibleSelector(`${this.productCombinationsBulkFormTitle}[aria-expanded='true']`),
-      await this.changeCheckboxValue(this.productCombinationSelectAllCheckbox, true),
-    ]);
+  async setCombinationsQuantity(page, quantity) {
+    // Select all combinations
+    await this.setChecked(page, this.productCombinationSelectAllCheckbox);
+
+    // Open combinations bulk form
+    if (await this.elementNotVisible(page, this.productCombinationBulkQuantityInput, 1000)) {
+      await page.click(this.productCombinationsBulkFormTitle);
+      await this.waitForVisibleSelector(page, this.productCombinationBulkQuantityInput, 5000);
+    }
+
     // Edit quantity
-    await this.waitForVisibleSelector(this.applyOnCombinationsButton);
-    await this.scrollTo(this.productCombinationBulkQuantityInput);
-    await this.page.type(this.productCombinationBulkQuantityInput, quantity.toString());
-    await this.scrollTo(this.applyOnCombinationsButton);
-    await this.page.click(this.applyOnCombinationsButton);
+    await page.type(this.productCombinationBulkQuantityInput, quantity.toString());
+    await this.scrollTo(page, this.applyOnCombinationsButton);
+    await page.click(this.applyOnCombinationsButton);
+
+    // Close growl message
+    await this.closeGrowlMessage(page);
   }
 
   /**
    * Preview product in new tab
+   * @param page {Page} Browser tab
    * @return page opened
    */
-  async previewProduct() {
-    await this.waitForVisibleSelector(this.previewProductLink);
-    this.page = await this.openLinkWithTargetBlank(this.previewProductLink, 'body a');
-    const textBody = await this.getTextContent('body');
-    if (await textBody.includes('[Debug] This page has moved')) {
-      await this.clickAndWaitForNavigation('a');
+  async previewProduct(page) {
+    await this.waitForVisibleSelector(page, this.previewProductLink);
+    const newPage = await this.openLinkWithTargetBlank(page, this.previewProductLink, 'body a');
+    const textBody = await this.getTextContent(newPage, 'body');
+
+    if (textBody.includes('[Debug] This page has moved')) {
+      await this.clickAndWaitForNavigation(newPage, 'a');
     }
-    return this.page;
+    return newPage;
   }
 
   /**
    * Delete product
+   * @param page {Page} Browser tab
    * @returns {Promise<string>}
    */
-  async deleteProduct() {
+  async deleteProduct(page) {
     await Promise.all([
-      this.waitForVisibleSelector(this.modalDialog),
-      this.page.click(this.productDeleteLink),
+      this.waitForVisibleSelector(page, this.modalDialog),
+      page.click(this.productDeleteLink),
     ]);
-    await this.clickAndWaitForNavigation(this.modalDialogYesButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, this.modalDialogYesButton);
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
 
   /**
    * Navigate between forms in add product
-   * @param id
+   * @param page {Page} Browser tab
+   * @param id {number} Value of form id to go
    * @return {Promise<void>}
    */
-  async goToFormStep(id = 1) {
-    const selector = this.forNavlistItemLink(id);
+  async goToFormStep(page, id = 1) {
+    const selector = this.forNavListItemLink(id);
     await Promise.all([
-      this.waitForVisibleSelector(`${selector}[aria-selected='true']`),
-      this.waitForSelectorAndClick(selector),
+      this.waitForVisibleSelector(page, `${selector}[aria-selected='true']`),
+      this.waitForSelectorAndClick(page, selector),
     ]);
   }
 
   /**
    * Return true if combinations table is displayed
-   * @return {boolean}
+   * @param page {Page} Browser tab
+   * @return {Promise<boolean>}
    */
-  hasCombinations() {
-    return this.elementVisible(this.productCombinationTableRow(1), 2000);
+  hasCombinations(page) {
+    return this.elementVisible(page, this.productCombinationTableRow(1), 2000);
   }
 
   /**
    * Delete all combinations
+   * @param page {Page} Browser tab
    * @return {Promise<void>}
    */
-  async deleteAllCombinations() {
-    if (await this.hasCombinations()) {
-      // Unselect all
-      await this.changeCheckboxValue(this.productCombinationSelectAllCheckbox, false);
-      // Select all and delete combinations
-      await Promise.all([
-        this.changeCheckboxValue(this.productCombinationSelectAllCheckbox, true),
-        this.waitForVisibleSelector(`${this.bulkCombinationsContainer}.show`),
-      ]);
-      await this.scrollTo(this.deleteCombinationsButton);
-      await Promise.all([
-        this.page.click(this.deleteCombinationsButton),
-        this.waitForVisibleSelector(this.modalDialog),
-      ]);
-      await this.page.waitForTimeout(250);
-      await Promise.all([
-        this.page.click(this.modalDialogYesButton),
-        this.waitForSelectorAndClick(this.growlCloseButton),
-      ]);
-      // Unselect all
-      await this.changeCheckboxValue(this.productCombinationSelectAllCheckbox, false);
-      await this.closeCombinationsForm();
-    }
-  }
+  async deleteAllCombinations(page) {
+    if (await this.hasCombinations(page)) {
+      // Select all combinations
+      await this.setChecked(page, this.productCombinationSelectAllCheckbox);
 
-  /**
-   * Close combinations form if open
-   * @return {Promise<void>}
-   */
-  async closeCombinationsForm() {
-    if (!(await this.elementVisible(`${this.productCombinationsBulkFormTitle}[aria-expanded='false']`, 1000))) {
+      // Open combinations bulk form
+      if (await this.elementNotVisible(page, this.productCombinationBulkQuantityInput, 1000)) {
+        await page.click(this.productCombinationsBulkFormTitle);
+        await this.waitForVisibleSelector(page, this.productCombinationBulkQuantityInput, 5000);
+      }
+
+      // Scroll and click on delete combinations button
+      await this.scrollTo(page, this.deleteCombinationsButton);
+
       await Promise.all([
-        this.page.click(this.productCombinationsBulkFormTitle),
-        this.waitForVisibleSelector(`${this.productCombinationsBulkFormTitle}[aria-expanded='false']`),
+        page.click(this.deleteCombinationsButton),
+        this.waitForVisibleSelector(page, this.modalDialog),
       ]);
+      await page.waitForTimeout(250);
+      await page.click(this.modalDialogYesButton);
+      await this.closeGrowlMessage(page);
     }
   }
 
   /**
    * Reset friendly URL
+   * @param page {Page} Browser tab
    * @returns {Promise<void>}
    */
-  async resetURL() {
-    await this.goToFormStep(5);
-    await this.waitForVisibleSelector(this.resetUrlButton);
-    await this.scrollTo(this.resetUrlButton);
-    await this.page.click(this.resetUrlButton);
-    await this.goToFormStep(1);
+  async resetURL(page) {
+    await this.goToFormStep(page, 5);
+    await this.waitForVisibleSelector(page, this.resetUrlButton);
+    await this.scrollTo(page, this.resetUrlButton);
+    await page.click(this.resetUrlButton);
+    await this.goToFormStep(page, 1);
   }
 
   /**
    * Get the error message when short description is too long
+   * @param page {Page} Browser tab
    * @returns {Promise<string>}
    */
-  async getErrorMessageWhenSummaryIsTooLong() {
-    return this.getTextContent(this.dangerMessageShortDescription);
+  async getErrorMessageWhenSummaryIsTooLong(page) {
+    return this.getTextContent(page, this.dangerMessageShortDescription);
   }
 
   /**
    * Get friendly URL
+   * @param page {Page} Browser tab
    * @returns {Promise<string>}
    */
-  async getFriendlyURL() {
-    await this.reloadPage();
-    await this.goToFormStep(5);
-    return this.getAttributeContent(this.friendlyUrlInput, 'value');
+  async getFriendlyURL(page) {
+    await this.reloadPage(page);
+    await this.goToFormStep(page, 5);
+
+    return this.getAttributeContent(page, this.friendlyUrlInput, 'value');
+  }
+
+  /**
+   * Add customized value
+   * @param page {Page} Browser tab
+   * @param customizationData {{label: string, type: string, required: boolean}} Data to set on customized form
+   * @param row {number} Row of input
+   * @returns {Promise<string>}
+   */
+  async addCustomization(page, customizationData, row = 0) {
+    // Go to options tab : id = 6
+    await this.goToFormStep(page, 6);
+    await Promise.all([
+      page.click(this.addCustomizationFieldButton),
+      this.waitForVisibleSelector(page, this.customFieldInput(row)),
+    ]);
+
+    await this.setValue(page, this.customFieldInput(row), customizationData.label);
+    await this.selectByVisibleText(page, this.customFieldTypeSelect(row), customizationData.type);
+
+    if (customizationData.required) {
+      await this.waitForSelectorAndClick(page, this.customRequiredLabel(row + 1));
+    }
+
+    return this.saveProduct(page);
   }
 
   /**
    * Add specific prices
-   * @param specificPriceData
+   * @param page {Page} Browser tab
+   * @param specificPriceData {Object|{combinations: ?string, discount: ?number, startingAt: ?number,
+   * reductionType: ?string}} Data to set on specific price form
    * @return {Promise<string>}
    */
-  async addSpecificPrices(specificPriceData) {
-    await this.reloadPage();
+  async addSpecificPrices(page, specificPriceData) {
+    await this.reloadPage(page);
+
     // Go to pricing tab : id = 2
-    await this.goToFormStep(2);
+    await this.goToFormStep(page, 2);
     await Promise.all([
-      this.page.click(this.addSpecificPriceButton),
-      this.waitForVisibleSelector(`${this.specificPriceForm}.show`),
+      page.click(this.addSpecificPriceButton),
+      this.waitForVisibleSelector(page, `${this.specificPriceForm}.show`),
     ]);
+
     // Choose combinations if exist
     if (specificPriceData.combinations) {
-      await this.waitForVisibleSelector(this.combinationSelect);
-      await this.scrollTo(this.combinationSelect);
-      await this.selectByVisibleText(this.combinationSelect, specificPriceData.combinations);
+      await this.waitForVisibleSelector(page, this.combinationSelect);
+      await this.scrollTo(page, this.combinationSelect);
+      await this.selectByVisibleText(page, this.combinationSelect, specificPriceData.combinations);
     }
-    await this.setValue(this.startingAtInput, specificPriceData.startingAt.toString());
-    await this.setValue(this.applyDiscountOfInput, specificPriceData.discount.toString());
-    await this.selectByVisibleText(this.reductionType, specificPriceData.reductionType);
+    await this.setValue(page, this.startingAtInput, specificPriceData.startingAt);
+    await this.setValue(page, this.applyDiscountOfInput, specificPriceData.discount);
+    await this.selectByVisibleText(page, this.reductionType, specificPriceData.reductionType);
+
     // Apply specific price
-    await Promise.all([
-      this.scrollTo(this.applyButton),
-      this.page.click(this.applyButton),
-    ]);
-    const growlMessageText = await this.closeGrowlMessage();
-    await this.goToFormStep(1);
+    await this.scrollTo(page, this.applyButton);
+    await page.click(this.applyButton);
+
+    // Get growl message
+    const growlMessageText = await this.getGrowlMessageContent(page, 30000);
+
+    await this.closeGrowlMessage(page);
+    await this.goToFormStep(page, 1);
+
     return growlMessageText;
   }
 
   /**
    * Get online product status
+   * @param page {Page} Browser tab
    * @returns {Promise<boolean>}
    */
-  getOnlineButtonStatus() {
-    return this.elementVisible(this.productOnlineTitle, 1000);
+  getOnlineButtonStatus(page) {
+    return this.elementVisible(page, this.productOnlineTitle, 1000);
   }
 
   /**
    * Is quantity input visible
-   * @returns {boolean}
+   * @param page {Page} Browser tab
+   * @returns {Promise<boolean>}
    */
-  isQuantityInputVisible() {
-    return this.elementVisible(this.productQuantityInput, 1000);
+  isQuantityInputVisible(page) {
+    return this.elementVisible(page, this.productQuantityInput, 1000);
   }
 
   /**
    * Go to catalog page
+   * @param page {Page} Browser tab
    * @returns {Promise<void>}
    */
-  async goToCatalogPage() {
-    await this.clickAndWaitForNavigation(this.goToCatalogButton);
+  async goToCatalogPage(page) {
+    await this.clickAndWaitForNavigation(page, this.goToCatalogButton);
   }
-};
+
+  /**
+   * Go to add product page
+   * @param page
+   * @returns {Promise<void>}
+   */
+  async goToAddProductPage(page) {
+    await this.clickAndWaitForNavigation(page, this.addNewProductButton);
+  }
+
+  /**
+   * Add product to pack
+   * @param page {Page} Browser tab
+   * @param product {string} Value of product name to set on input
+   * @param quantity {number} Value of quantity to set on input
+   * @returns {Promise<void>}
+   */
+  async addProductToPack(page, product, quantity) {
+    await page.type(this.packItemsInput, product);
+    await this.waitForSelectorAndClick(page, this.packsearchResult);
+    await this.setValue(page, this.packQuantityInput, quantity);
+    await page.click(this.addProductToPackButton);
+  }
+
+  /**
+   * Add pack of products
+   * @param page {Page} Browser tab
+   * @param pack {Object} Data to set on pack form
+   * @returns {Promise<void>}
+   */
+  async addPackOfProducts(page, pack) {
+    const keys = Object.keys(pack);
+
+    for (let i = 0; i < keys.length; i += 1) {
+      await this.addProductToPack(page, keys[i], pack[keys[i]]);
+    }
+  }
+
+  /**
+   * Get product name from input
+   * @param page {Page} Browser tab
+   * @return {Promise<string>}
+   */
+  getProductName(page) {
+    return this.getAttributeContent(page, this.productNameInput, 'value');
+  }
+
+  /**
+   * Set quantities settings
+   * @param page {Page} Browser tab
+   * @param productData {ProductData} Data to set on quantities setting form
+   * @returns {Promise<void>}
+   */
+  async setQuantitiesSettings(page, productData) {
+    let columnSelector;
+    // Go to Quantities tab
+    await this.goToFormStep(page, 3);
+    // Set Quantities form
+    await this.setValue(page, this.quantityInput, productData.quantity);
+    await this.setValue(page, this.minimumQuantityInput, productData.minimumQuantity);
+    // Set Stock form
+    await this.setValue(page, this.stockLocationInput, productData.stockLocation);
+    await this.setValue(page, this.lowStockLevelInput, productData.lowStockLevel);
+
+    // Set Availability preferences form
+    switch (productData.behaviourOutOfStock) {
+      case 'Deny orders':
+        columnSelector = this.behaviourOutOfStockInput(0);
+        break;
+
+      case 'Allow orders':
+        columnSelector = this.behaviourOutOfStockInput(1);
+        break;
+
+      case 'Default behavior':
+        columnSelector = this.behaviourOutOfStockInput(2);
+        break;
+
+      default:
+        throw new Error(`Column ${productData.behaviourOutOfStock} was not found`);
+    }
+
+    await page.$eval(columnSelector, el => el.click());
+
+    // Set value on label In and out of stock inputs
+    await this.scrollTo(page, this.labelWhenInStockInput);
+    await this.setValue(page, this.labelWhenInStockInput, productData.labelWhenInStock);
+    await this.setValue(page, this.labelWhenOutOfStock, productData.LabelWhenOutOfStock);
+  }
+
+  /**
+   * Set product
+   * @param page {Page} Browser tab
+   * @param productData {ProductData} Data to set on on add/edit product form
+   * @returns {Promise<string>}
+   */
+  async setProduct(page, productData) {
+    await this.setBasicSetting(page, productData);
+    if (productData.type === 'Pack of products') {
+      await this.addPackOfProducts(page, productData.pack);
+    }
+    if (productData.productHasCombinations) {
+      await this.setCombinationsInProduct(page, productData);
+    }
+    await this.setProductStatus(page, productData.status);
+    if (!productData.productHasCombinations) {
+      await this.setQuantitiesSettings(page, productData);
+    }
+    return this.saveProduct(page);
+  }
+
+  /**
+   * Set ecoTax value and save
+   * @param page
+   * @param ecoTax
+   * @returns {Promise<string>}
+   */
+  async addEcoTax(page, ecoTax) {
+    // Go to pricing tab : id = 2
+    await this.goToFormStep(page, 2);
+    await Promise.all([
+      page.click(this.addSpecificPriceButton),
+      this.waitForVisibleSelector(page, `${this.specificPriceForm}.show`),
+    ]);
+
+    await this.setValue(page, this.ecoTaxInput, ecoTax);
+    return this.saveProduct(page);
+  }
+}
+
+module.exports = new AddProduct();

@@ -1,37 +1,25 @@
-/**
- * Copyright since 2007 PrestaShop SA and Contributors
- * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
- *
- * NOTICE OF LICENSE
- *
- * This source file is subject to the Open Software License (OSL 3.0)
- * that is bundled with this package in the file LICENSE.md.
- * It is also available through the world-wide-web at this URL:
- * https://opensource.org/licenses/OSL-3.0
- * If you did not receive a copy of the license and are unable to
- * obtain it through the world-wide-web, please send an email
- * to license@prestashop.com so we can send you a copy immediately.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade PrestaShop to newer
- * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to https://devdocs.prestashop.com/ for more information.
- *
- * @author    PrestaShop SA and Contributors <contact@prestashop.com>
- * @copyright Since 2007 PrestaShop SA and Contributors
- * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
- */
+
 require('module-alias/register');
 const FOBasePage = require('@pages/FO/FObasePage');
 
-module.exports = class CMS extends FOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * CMS page, contains functions that can be used on the page
+ * @class
+ * @extends FOBasePage
+ */
+class CMS extends FOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on cms page
+   */
+  constructor() {
+    super();
     this.pageNotFound = 'The page you are looking for was not found.';
 
     // Selectors
     this.pageTitle = '#main header h1';
     this.pageContent = '#content';
   }
-};
+}
+
+module.exports = new CMS();

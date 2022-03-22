@@ -4,33 +4,23 @@ const {expect} = require('chai');
 
 // Import utils
 const helper = require('@utils/helpers');
-const loginCommon = require('@commonTests/loginBO');
-
-// Import pages
-const LoginPage = require('@pages/BO/login');
-const DashboardPage = require('@pages/BO/dashboard');
-const ProductSettingsPage = require('@pages/BO/shopParameters/productSettings');
-const HomePage = require('@pages/FO/home');
-const ProductPage = require('@pages/FO/product');
-
-// Import test context
 const testContext = require('@utils/testContext');
+
+// Import login steps
+const loginCommon = require('@commonTests/BO/loginBO');
+
+// Import BO pages
+const dashboardPage = require('@pages/BO/dashboard');
+const productSettingsPage = require('@pages/BO/shopParameters/productSettings');
+
+// Import FO pages
+const homePage = require('@pages/FO/home');
+const productPage = require('@pages/FO/product');
 
 const baseContext = 'functional_BO_shopParameters_productSettings_displayAvailableQuantities';
 
 let browserContext;
 let page;
-
-// Init objects needed
-const init = async function () {
-  return {
-    loginPage: new LoginPage(page),
-    dashboardPage: new DashboardPage(page),
-    productSettingsPage: new ProductSettingsPage(page),
-    homePage: new HomePage(page),
-    productPage: new ProductPage(page),
-  };
-};
 
 /*
 Disable display available quantities on product page
@@ -39,34 +29,34 @@ Enable display available quantities on product page
 Check that quantity is displayed
  */
 
-describe('Display available quantities on the product page', async () => {
+describe('BO - Shop Parameters - Product Settings : Display available quantities on the product page', async () => {
   // before and after functions
   before(async function () {
     browserContext = await helper.createBrowserContext(this.browser);
     page = await helper.newTab(browserContext);
-
-    this.pageObjects = await init();
   });
 
   after(async () => {
     await helper.closeBrowserContext(browserContext);
   });
 
-  // Login into BO and go to product settings page
-  loginCommon.loginBO();
+  it('should login in BO', async function () {
+    await loginCommon.loginBO(this, page);
+  });
 
   it('should go to \'Shop parameters > Product Settings\' page', async function () {
     await testContext.addContextItem(this, 'testIdentifier', 'goToProductSettingsPage', baseContext);
 
-    await this.pageObjects.dashboardPage.goToSubMenu(
-      this.pageObjects.dashboardPage.shopParametersParentLink,
-      this.pageObjects.dashboardPage.productSettingsLink,
+    await dashboardPage.goToSubMenu(
+      page,
+      dashboardPage.shopParametersParentLink,
+      dashboardPage.productSettingsLink,
     );
 
-    await this.pageObjects.productSettingsPage.closeSfToolBar();
+    await productSettingsPage.closeSfToolBar(page);
 
-    const pageTitle = await this.pageObjects.productSettingsPage.getPageTitle();
-    await expect(pageTitle).to.contains(this.pageObjects.productSettingsPage.pageTitle);
+    const pageTitle = await productSettingsPage.getPageTitle(page);
+    await expect(pageTitle).to.contains(productSettingsPage.pageTitle);
   });
 
   const tests = [
@@ -74,7 +64,7 @@ describe('Display available quantities on the product page', async () => {
     {args: {action: 'enable', enable: true}},
   ];
 
-  tests.forEach((test) => {
+  tests.forEach((test, index) => {
     it(`should ${test.args.action} Display available quantities on the product page`, async function () {
       await testContext.addContextItem(this,
         'testIdentifier',
@@ -82,27 +72,35 @@ describe('Display available quantities on the product page', async () => {
         baseContext,
       );
 
-      const result = await this.pageObjects.productSettingsPage.setDisplayAvailableQuantitiesStatus(test.args.enable);
-      await expect(result).to.contains(this.pageObjects.productSettingsPage.successfulUpdateMessage);
+      const result = await productSettingsPage.setDisplayAvailableQuantitiesStatus(page, test.args.enable);
+      await expect(result).to.contains(productSettingsPage.successfulUpdateMessage);
+    });
+
+    it('should view my shop and go to first product page', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', `viewMyShop${index}`, baseContext);
+
+      page = await productSettingsPage.viewMyShop(page);
+
+      const isHomePage = await homePage.isHomePage(page);
+      await expect(isHomePage, 'Home page was not opened').to.be.true;
+
+      await homePage.goToProductPage(page, 1);
     });
 
     it('should check the product quantity on the product page', async function () {
-      await testContext.addContextItem(
-        this,
-        'testIdentifier',
-        `checkQuantity${this.pageObjects.productSettingsPage.uppercaseFirstCharacter(test.args.action)}`,
-        baseContext,
-      );
+      await testContext.addContextItem(this, 'testIdentifier', `checkQuantity${index}`, baseContext);
 
-      page = await this.pageObjects.productSettingsPage.viewMyShop();
-      this.pageObjects = await init();
-
-      await this.pageObjects.homePage.goToProductPage(1);
-
-      const quantityIsVisible = await this.pageObjects.productPage.isQuantityDisplayed();
+      const quantityIsVisible = await productPage.isQuantityDisplayed(page);
       await expect(quantityIsVisible).to.be.equal(test.args.enable);
-      page = await this.pageObjects.homePage.closePage(browserContext, 0);
-      this.pageObjects = await init();
+    });
+
+    it('should close the page and go back to BO', async function () {
+      await testContext.addContextItem(this, 'testIdentifier', `closePageAndBackToBO${index}`, baseContext);
+
+      page = await productPage.closePage(browserContext, page, 0);
+
+      const pageTitle = await productSettingsPage.getPageTitle(page);
+      await expect(pageTitle).to.contains(productSettingsPage.pageTitle);
     });
   });
 });

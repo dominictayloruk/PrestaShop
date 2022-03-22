@@ -102,23 +102,32 @@ class SharedStorage
     }
 
     /**
-     * @param $key
+     * @param string $key
      *
      * @return bool
      */
-    public function exists($key): bool
+    public function exists(string $key): bool
     {
         return isset($this->storage[$key]);
     }
 
     /**
-     * @param string $key
+     * @param string|int $key
      */
-    public function clear($key)
+    public function clear($key): void
     {
         if ($this->exists($key)) {
             unset($this->storage[$key]);
         }
+    }
+
+    /**
+     * Clean all previously saved data
+     */
+    public function clean(): void
+    {
+        $this->storage = [];
+        $this->latestKey = null;
     }
 
     /**

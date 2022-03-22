@@ -45,11 +45,52 @@ use PrestaShop\PrestaShop\Core\Domain\Currency\Query\GetReferenceCurrency;
 use PrestaShop\PrestaShop\Core\Domain\Currency\QueryResult\ReferenceCurrency;
 use PrestaShop\PrestaShop\Core\Domain\Currency\ValueObject\CurrencyId;
 use PrestaShop\PrestaShop\Core\Exception\CoreException;
+use PrestaShopBundle\Install\DatabaseDump;
 use RuntimeException;
 use Tests\Integration\Behaviour\Features\Context\SharedStorage;
 
 class CurrencyFeatureContext extends AbstractDomainFeatureContext
 {
+    /**
+     * @BeforeFeature @restore-currencies-before-feature
+     */
+    public static function restoreCurrenciesTablesBeforeFeature(): void
+    {
+        static::restoreCurrenciesTables();
+    }
+
+    /**
+     * @AfterFeature @restore-currencies-after-feature
+     */
+    public static function restoreCurrenciesTablesAfterFeature(): void
+    {
+        static::restoreCurrenciesTables();
+    }
+
+    /**
+     * @BeforeScenario @restore-currencies-before-scenario
+     */
+    public static function restoreCurrenciesTablesBeforeScenario(): void
+    {
+        static::restoreCurrenciesTables();
+    }
+
+    private static function restoreCurrenciesTables(): void
+    {
+        DatabaseDump::restoreTables([
+            'currency',
+            'currency_lang',
+            'currency_shop',
+        ]);
+        Configuration::set('PS_CURRENCY_DEFAULT', 1);
+        Currency::resetStaticCache();
+    }
+
+    /**
+     * Random integer which should never exist in test database as currency id
+     */
+    private const NON_EXISTING_CURRENCY_ID = 1234567;
+
     /**
      * @var ReferenceCurrency
      */
@@ -62,9 +103,8 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
     {
         $defaultLangId = Configuration::get('PS_LANG_DEFAULT');
 
-        $data = $node->getRowsHash();
-        /** @var \Shop $shop */
-        $shop = SharedStorage::getStorage()->get($data['shop_association']);
+        $data = $this->localizeByRows($node);
+        $shopId = SharedStorage::getStorage()->get($data['shop_association']);
 
         if ($data['is_unofficial']) {
             $command = new AddUnofficialCurrencyCommand(
@@ -93,21 +133,18 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
         }
 
         if (isset($data['transformations'])) {
-            $command->setLocalizedTransformations($this->parseLocalizedArray($data['transformations']));
+            $command->setLocalizedTransformations($data['transformations']);
         }
 
-        $command->setShopIds([
-            (int) $shop->id,
-        ]);
+        $command->setShopIds([$shopId]);
 
         try {
-            $this->lastException = null;
             /** @var CurrencyId $currencyId */
             $currencyId = $this->getCommandBus()->handle($command);
 
-            SharedStorage::getStorage()->set($reference, new Currency($currencyId->getValue()));
+            SharedStorage::getStorage()->set($reference, $currencyId->getValue());
         } catch (CoreException $e) {
-            $this->lastException = $e;
+            $this->setLastException($e);
         }
     }
 
@@ -118,9 +155,8 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
     {
         $defaultLangId = Configuration::get('PS_LANG_DEFAULT');
 
-        $data = $node->getRowsHash();
-        /** @var Currency $currency */
-        $currency = SharedStorage::getStorage()->get($reference);
+        $data = $this->localizeByRows($node);
+        $currency = $this->getCurrency($reference);
 
         if (!empty($data['is_unofficial'])) {
             $command = new EditUnofficialCurrencyCommand((int) $currency->id);
@@ -156,16 +192,15 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
         }
 
         if (isset($data['transformations'])) {
-            $command->setLocalizedTransformations($this->parseLocalizedArray($data['transformations']));
+            $command->setLocalizedTransformations($data['transformations']);
         }
 
         try {
-            $this->lastException = null;
             $this->getCommandBus()->handle($command);
 
-            SharedStorage::getStorage()->set($reference, new Currency($currency->id));
+            SharedStorage::getStorage()->set($reference, (int) $currency->id);
         } catch (CoreException $e) {
-            $this->lastException = $e;
+            $this->setLastException($e);
         }
     }
 
@@ -174,14 +209,12 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
      */
     public function disableCurrency($reference)
     {
-        /** @var Currency $currency */
-        $currency = SharedStorage::getStorage()->get($reference);
+        $currency = $this->getCurrency($reference);
 
         try {
-            $this->lastException = null;
             $this->getCommandBus()->handle(new ToggleCurrencyStatusCommand((int) $currency->id));
         } catch (CannotDisableDefaultCurrencyException $e) {
-            $this->lastException = $e;
+            $this->setLastException($e);
         }
     }
 
@@ -190,15 +223,27 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
      */
     public function deleteCurrency($reference)
     {
-        /** @var Currency $currency */
-        $currency = SharedStorage::getStorage()->get($reference);
+        $currency = $this->getCurrency($reference);
 
         try {
-            $this->lastException = null;
             $this->getCommandBus()->handle(new DeleteCurrencyCommand((int) $currency->id));
         } catch (CannotDeleteDefaultCurrencyException $e) {
-            $this->lastException = $e;
+            $this->setLastException($e);
         }
+    }
+
+    /**
+     * @Given currency :reference does not exist
+     *
+     * @param string $reference
+     */
+    public function setNonExistingCurrencyReference(string $reference): void
+    {
+        if ($this->getSharedStorage()->exists($reference) && $this->getCurrency($reference)->id) {
+            throw new RuntimeException(sprintf('Expected that currency "%s" should not exist', $reference));
+        }
+
+        $this->getSharedStorage()->set($reference, self::NON_EXISTING_CURRENCY_ID);
     }
 
     /**
@@ -207,10 +252,9 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
     public function getCurrencyReferenceData($currencyIsoCode)
     {
         try {
-            $this->lastException = null;
             $this->currencyData = $this->getCommandBus()->handle(new GetReferenceCurrency($currencyIsoCode));
         } catch (CurrencyException $e) {
-            $this->lastException = $e;
+            $this->setLastException($e);
         }
     }
 
@@ -227,10 +271,10 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
             'symbols' => $this->currencyData->getSymbols(),
             'patterns' => $this->currencyData->getPatterns(),
         ];
-        $expectedData = $node->getRowsHash();
-        $expectedData['names'] = $this->parseLocalizedArray($expectedData['names']);
-        $expectedData['symbols'] = $this->parseLocalizedArray($expectedData['symbols']);
-        $expectedData['patterns'] = $this->parseLocalizedArray($expectedData['patterns']);
+        $expectedData = $this->localizeByRows($node);
+        $expectedData['names'] = $expectedData['names'];
+        $expectedData['symbols'] = $expectedData['symbols'];
+        $expectedData['patterns'] = $expectedData['patterns'];
 
         foreach ($expectedData as $key => $expectedValue) {
             if ($expectedValue === 'null') {
@@ -268,6 +312,14 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
     }
 
     /**
+     * @Then /^I should get error that currency name is invalid$/
+     */
+    public function assertLastErrorIsInvalidCurrencyName()
+    {
+        $this->assertLastErrorIs(CurrencyConstraintException::class, CurrencyConstraintException::INVALID_NAME);
+    }
+
+    /**
      * @Then I should get error that currency already exists
      */
     public function assertLastErrorIsCurrencyAlreadyExists()
@@ -284,10 +336,12 @@ class CurrencyFeatureContext extends AbstractDomainFeatureContext
     }
 
     /**
-     * @Then I should get no currency error
+     * @param string $reference
+     *
+     * @return Currency
      */
-    public function assertNoCurrencyError()
+    private function getCurrency(string $reference): Currency
     {
-        $this->assertLastErrorIsNull();
+        return new Currency($this->getSharedStorage()->get($reference));
     }
 }

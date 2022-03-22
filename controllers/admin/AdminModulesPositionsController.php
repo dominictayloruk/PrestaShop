@@ -69,7 +69,7 @@ class AdminModulesPositionsControllerCore extends AdminController
                 $id_hook = (int) Tools::getValue('id_hook');
                 $module = Module::getInstanceById($id_module);
                 if (Validate::isLoadedObject($module)) {
-                    $module->updatePosition($id_hook, (int) Tools::getValue('direction'));
+                    $module->updatePosition($id_hook, (bool) Tools::getValue('direction'));
                     Tools::redirectAdmin($baseUrl . ($this->display_key ? '&show_modules=' . $this->display_key : '') . '&token=' . $this->token);
                 } else {
                     $this->errors[] = $this->trans('This module cannot be loaded.', [], 'Admin.Modules.Notification');
@@ -184,7 +184,7 @@ class AdminModulesPositionsControllerCore extends AdminController
                         }
 
                         // Add files exceptions
-                        if (!$module->editExceptions($id_hook, $exceptions, Shop::getContextListShopID())) {
+                        if (!$module->editExceptions($id_hook, $exceptions)) {
                             $this->errors[] = $this->trans('An error occurred while transplanting the module to its hook.', [], 'Admin.Modules.Notification');
                         } else {
                             Tools::redirectAdmin($baseUrl . '&conf=16' . ($this->display_key ? '&show_modules=' . $this->display_key : '') . '&token=' . $this->token);
@@ -278,10 +278,9 @@ class AdminModulesPositionsControllerCore extends AdminController
         // Init toolbar
         $this->initToolbarTitle();
 
-        $admin_dir = basename(_PS_ADMIN_DIR_);
         $modules = Module::getModulesInstalled();
 
-        $assoc_modules_id = [];
+        $assoc_modules_id = $module_instances = [];
         foreach ($modules as $module) {
             if ($tmp_instance = Module::getInstanceById((int) $module['id_module'])) {
                 // We want to be able to sort modules by display name
@@ -414,7 +413,7 @@ class AdminModulesPositionsControllerCore extends AdminController
             'hooks' => $hooks,
             'exception_list' => $this->displayModuleExceptionList(array_shift($excepts_list), 0),
             'exception_list_diff' => $exception_list_diff,
-            'except_diff' => isset($excepts_diff) ? $excepts_diff : null,
+            'except_diff' => $excepts_diff,
             'display_key' => $this->display_key,
             'modules' => $modules,
             'show_toolbar' => true,
@@ -446,12 +445,11 @@ class AdminModulesPositionsControllerCore extends AdminController
                     . $this->trans('___________ CUSTOM ___________', [], 'Admin.Design.Feature')
                     . '</option>';
 
-        /** @todo do something better with controllers */
-        $controllers = Dispatcher::getControllers(_PS_FRONT_CONTROLLER_DIR_);
-        ksort($controllers);
+        $controllers = Dispatcher::getControllersPhpselfList(_PS_FRONT_CONTROLLER_DIR_);
+        asort($controllers);
 
         foreach ($file_list as $k => $v) {
-            if (!array_key_exists($v, $controllers)) {
+            if (!in_array($v, $controllers)) {
                 $content .= '<option value="' . $v . '">' . $v . '</option>';
             }
         }
@@ -459,7 +457,7 @@ class AdminModulesPositionsControllerCore extends AdminController
         $content .= '<option disabled="disabled">' . $this->trans('____________ CORE ____________', [], 'Admin.Design.Feature') . '</option>';
 
         foreach ($controllers as $k => $v) {
-            $content .= '<option value="' . $k . '">' . $k . '</option>';
+            $content .= '<option value="' . $v . '">' . $v . '</option>';
         }
 
         $modules_controllers_type = ['admin' => $this->trans('Admin modules controller', [], 'Admin.Design.Feature'), 'front' => $this->trans('Front modules controller', [], 'Admin.Design.Feature')];
@@ -484,7 +482,7 @@ class AdminModulesPositionsControllerCore extends AdminController
         if ($this->access('edit')) {
             $id_module = (int) (Tools::getValue('id_module'));
             $id_hook = (int) (Tools::getValue('id_hook'));
-            $way = (int) (Tools::getValue('way'));
+            $way = (bool) (Tools::getValue('way'));
             $positions = Tools::getValue((string) $id_hook);
             $position = (is_array($positions)) ? array_search($id_hook . '_' . $id_module, $positions) : null;
             $module = Module::getInstanceById($id_module);
@@ -504,6 +502,7 @@ class AdminModulesPositionsControllerCore extends AdminController
     {
         if ($this->access('view')) {
             /* PrestaShop demo mode */
+            /* @phpstan-ignore-next-line */
             if (_PS_MODE_DEMO_) {
                 die('{"hasError" : true, "errors" : ["Live Edit: This functionality has been disabled."]}');
             }
@@ -549,6 +548,7 @@ class AdminModulesPositionsControllerCore extends AdminController
     {
         if ($this->access('view')) {
             /* PrestaShop demo mode */
+            /* @phpstan-ignore-next-line */
             if (_PS_MODE_DEMO_) {
                 die('{"hasError" : true, "errors" : ["Live Edit: This functionality has been disabled."]}');
             }
@@ -579,6 +579,7 @@ class AdminModulesPositionsControllerCore extends AdminController
     {
         if ($this->access('edit')) {
             /* PrestaShop demo mode */
+            /* @phpstan-ignore-next-line */
             if (_PS_MODE_DEMO_) {
                 die('{"hasError" : true, "errors" : ["Live Edit: This functionality has been disabled."]}');
             }

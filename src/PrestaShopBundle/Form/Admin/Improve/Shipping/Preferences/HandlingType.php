@@ -29,12 +29,15 @@ namespace PrestaShopBundle\Form\Admin\Improve\Shipping\Preferences;
 use PrestaShop\PrestaShop\Adapter\Configuration;
 use PrestaShop\PrestaShop\Adapter\Currency\CurrencyDataProvider;
 use PrestaShopBundle\Form\Admin\Type\MoneyWithSuffixType;
+use PrestaShopBundle\Form\Admin\Type\MultistoreConfigurationType;
 use PrestaShopBundle\Form\Admin\Type\TextWithUnitType;
 use PrestaShopBundle\Form\Admin\Type\TranslatorAwareType;
 use Symfony\Component\Form\Extension\Core\Type\MoneyType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Translation\TranslatorInterface;
+use Symfony\Component\Validator\Constraints\GreaterThanOrEqual;
+use Symfony\Component\Validator\Constraints\Type;
 
 /**
  * Class generates "Handling" form
@@ -71,16 +74,43 @@ class HandlingType extends TranslatorAwareType
                 'suffix' => $this->trans('(tax excl.)', 'Admin.Global'),
                 'required' => false,
                 'empty_data' => '0',
+                'constraints' => [
+                    new GreaterThanOrEqual(['value' => '0']),
+                    new Type(['type' => 'numeric']),
+                ],
+                'label' => $this->trans(
+                    'Handling charges',
+                    'Admin.Shipping.Feature'
+                ),
+                'multistore_configuration_key' => 'PS_SHIPPING_HANDLING',
             ])
             ->add('free_shipping_price', MoneyType::class, [
                 'currency' => $defaultCurrency->iso_code,
                 'required' => false,
                 'empty_data' => '0',
+                'constraints' => [
+                    new GreaterThanOrEqual(['value' => 0]),
+                    new Type(['type' => 'numeric']),
+                ],
+                'label' => $this->trans(
+                    'Free shipping starts at',
+                    'Admin.Shipping.Feature'
+                ),
+                'multistore_configuration_key' => 'PS_SHIPPING_FREE_PRICE',
             ])
             ->add('free_shipping_weight', TextWithUnitType::class, [
                 'unit' => $weightUnit,
                 'required' => false,
                 'empty_data' => '0',
+                'label' => $this->trans(
+                    'Free shipping starts at',
+                    'Admin.Shipping.Feature'
+                ),
+                'constraints' => [
+                    new GreaterThanOrEqual(['value' => 0]),
+                    new Type(['type' => 'numeric']),
+                ],
+                'multistore_configuration_key' => 'PS_SHIPPING_FREE_WEIGHT',
             ]);
     }
 
@@ -100,5 +130,15 @@ class HandlingType extends TranslatorAwareType
     public function getBlockPrefix()
     {
         return 'shipping_preferences_handling_block';
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @see MultistoreConfigurationTypeExtension
+     */
+    public function getParent(): string
+    {
+        return MultistoreConfigurationType::class;
     }
 }

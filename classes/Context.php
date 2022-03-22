@@ -23,14 +23,21 @@
  * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
+
+use PrestaShop\PrestaShop\Adapter\ContainerFinder;
+use PrestaShop\PrestaShop\Adapter\Module\Repository\ModuleRepository;
 use PrestaShop\PrestaShop\Adapter\SymfonyContainer;
+use PrestaShop\PrestaShop\Core\Exception\ContainerNotFoundException;
 use PrestaShop\PrestaShop\Core\Localization\CLDR\ComputingPrecision;
 use PrestaShop\PrestaShop\Core\Localization\Locale;
+use PrestaShopBundle\Install\Language as InstallLanguage;
 use PrestaShopBundle\Translation\TranslatorComponent as Translator;
 use PrestaShopBundle\Translation\TranslatorLanguageLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
 /**
  * Class ContextCore.
@@ -39,43 +46,46 @@ use Symfony\Component\Finder\Finder;
  */
 class ContextCore
 {
-    /** @var Context */
+    /** @var Context|null */
     protected static $instance;
 
-    /** @var Cart */
+    /** @var Cart|null */
     public $cart;
 
-    /** @var Customer */
+    /** @var Customer|null */
     public $customer;
 
-    /** @var Cookie */
+    /** @var Cookie|null */
     public $cookie;
 
-    /** @var Link */
+    /** @var SessionInterface|null */
+    public $session;
+
+    /** @var Link|null */
     public $link;
 
     /** @var Country */
     public $country;
 
-    /** @var Employee */
+    /** @var Employee|null */
     public $employee;
 
-    /** @var AdminController|FrontController */
+    /** @var AdminController|FrontController|null */
     public $controller;
 
-    /** @var string $override_controller_name_for_translations */
+    /** @var string */
     public $override_controller_name_for_translations;
 
-    /** @var Language */
+    /** @var Language|InstallLanguage */
     public $language;
 
-    /** @var Currency */
+    /** @var Currency|null */
     public $currency;
 
     /**
      * Current locale instance.
      *
-     * @var Locale
+     * @var Locale|null
      */
     public $currentLocale;
 
@@ -85,7 +95,10 @@ class ContextCore
     /** @var Shop */
     public $shop;
 
-    /** @var Smarty */
+    /** @var Shop */
+    public $tmpOldShop;
+
+    /** @var Smarty|null */
     public $smarty;
 
     /** @var \Mobile_Detect */
@@ -94,8 +107,14 @@ class ContextCore
     /** @var int */
     public $mode;
 
-    /** @var ContainerBuilder */
+    /** @var ContainerBuilder|ContainerInterface */
     public $container;
+
+    /** @var float */
+    public $virtualTotalTaxExcluded = 0;
+
+    /** @var float */
+    public $virtualTotalTaxIncluded = 0;
 
     /** @var Translator */
     protected $translator = null;
@@ -244,7 +263,7 @@ class ContextCore
     }
 
     /**
-     * @return Locale
+     * @return Locale|null
      */
     public function getCurrentLocale()
     {
@@ -264,14 +283,14 @@ class ContextCore
         if (Tools::isSubmit('no_mobile_theme')) {
             Context::getContext()->cookie->no_mobile = true;
             if (Context::getContext()->cookie->id_guest) {
-                $guest = new Guest(Context::getContext()->cookie->id_guest);
+                $guest = new Guest((int) Context::getContext()->cookie->id_guest);
                 $guest->mobile_theme = false;
                 $guest->update();
             }
         } elseif (Tools::isSubmit('mobile_theme_ok')) {
             Context::getContext()->cookie->no_mobile = false;
             if (Context::getContext()->cookie->id_guest) {
-                $guest = new Guest(Context::getContext()->cookie->id_guest);
+                $guest = new Guest((int) Context::getContext()->cookie->id_guest);
                 $guest->mobile_theme = true;
                 $guest->update();
             }
@@ -279,6 +298,7 @@ class ContextCore
 
         return isset($_SERVER['HTTP_USER_AGENT'], Context::getContext()->cookie)
             && (bool) Configuration::get('PS_ALLOW_MOBILE_DEVICE')
+            && defined('_PS_THEME_MOBILE_DIR_')
             && @filemtime(_PS_THEME_MOBILE_DIR_)
             && !Context::getContext()->cookie->no_mobile;
     }
@@ -286,7 +306,7 @@ class ContextCore
     /**
      * Get a singleton instance of Context object.
      *
-     * @return Context
+     * @return Context|null
      */
     public static function getContext()
     {
@@ -298,8 +318,7 @@ class ContextCore
     }
 
     /**
-     * @param $testInstance Context
-     * Unit testing purpose only
+     * @param Context $testInstance Unit testing purpose only
      */
     public static function setInstanceForTesting($testInstance)
     {
@@ -317,7 +336,7 @@ class ContextCore
     /**
      * Clone current context object.
      *
-     * @return Context
+     * @return static
      */
     public function cloneContext()
     {
@@ -336,12 +355,12 @@ class ContextCore
         $this->cookie->customer_lastname = $customer->lastname;
         $this->cookie->customer_firstname = $customer->firstname;
         $this->cookie->passwd = $customer->passwd;
-        $this->cookie->logged = 1;
-        $customer->logged = 1;
+        $this->cookie->logged = true;
+        $customer->logged = true;
         $this->cookie->email = $customer->email;
         $this->cookie->is_guest = $customer->isGuest();
 
-        if (Configuration::get('PS_CART_FOLLOWING') && (empty($this->cookie->id_cart) || Cart::getNbProducts($this->cookie->id_cart) == 0) && $idCart = (int) Cart::lastNoneOrderedCart($this->customer->id)) {
+        if (Configuration::get('PS_CART_FOLLOWING') && (empty($this->cookie->id_cart) || Cart::getNbProducts((int) $this->cookie->id_cart) == 0) && $idCart = (int) Cart::lastNoneOrderedCart($this->customer->id)) {
             $this->cart = new Cart($idCart);
             $this->cart->secure_key = $customer->secure_key;
         } else {
@@ -411,7 +430,7 @@ class ContextCore
 
         // In case we have at least 1 translated message, we return the current translator.
         // If some translations are missing, clear cache
-        if ($locale === '' || null === $locale || count($translator->getCatalogue($locale)->all())) {
+        if (empty($locale) || count($translator->getCatalogue($locale)->all())) {
             return $translator;
         }
 
@@ -429,11 +448,26 @@ class ContextCore
         $translator->clearLanguage($locale);
 
         $adminContext = defined('_PS_ADMIN_DIR_');
-        // Do not load DB translations when $this->language is PrestashopBundle\Install\Language
+        // Do not load DB translations when $this->language is InstallLanguage
         // because it means that we're looking for the installer translations, so we're not yet connected to the DB
-        $withDB = !$this->language instanceof PrestashopBundle\Install\Language;
+        $withDB = !$this->language instanceof InstallLanguage;
         $theme = $this->shop !== null ? $this->shop->theme : null;
-        (new TranslatorLanguageLoader($adminContext))->loadLanguage($translator, $locale, $withDB, $theme);
+
+        if ($this instanceof Context) {
+            try {
+                $containerFinder = new ContainerFinder($this);
+                $containerFinder->getContainer()->get('prestashop.translation.translator_language_loader')
+                    ->setIsAdminContext($adminContext)
+                    ->loadLanguage($translator, $locale, $withDB, $theme);
+            } catch (ContainerNotFoundException $exception) {
+                // If a container is still not found, instantiate manually the translator loader
+                // This will happen in the Front as we have legacy controllers, the Sf container won't be available.
+                // As we get the translator in the controller's constructor and the container is built in the init method, we won't find it here
+                (new TranslatorLanguageLoader(new ModuleRepository()))
+                    ->setIsAdminContext($adminContext)
+                    ->loadLanguage($translator, $locale, $withDB, $theme);
+            }
+        }
 
         return $translator;
     }
@@ -443,7 +477,7 @@ class ContextCore
      */
     protected function getTranslationResourcesDirectories()
     {
-        $locations = [_PS_ROOT_DIR_ . '/app/Resources/translations'];
+        $locations = [_PS_ROOT_DIR_ . '/translations'];
 
         if (null !== $this->shop) {
             $activeThemeLocation = _PS_ROOT_DIR_ . '/themes/' . $this->shop->theme_name . '/translations';

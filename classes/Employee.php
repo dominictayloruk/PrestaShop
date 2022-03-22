@@ -32,13 +32,13 @@ use PrestaShop\PrestaShop\Core\Crypto\Hashing;
  */
 class EmployeeCore extends ObjectModel
 {
-    /** @var int $id Employee ID */
+    /** @var int|null Employee ID */
     public $id;
 
-    /** @var string Determine employee profile */
+    /** @var int Employee profile */
     public $id_profile;
 
-    /** @var string employee language */
+    /** @var int Employee language */
     public $id_lang;
 
     /** @var string Lastname */
@@ -53,7 +53,7 @@ class EmployeeCore extends ObjectModel
     /** @var string Password */
     public $passwd;
 
-    /** @var datetime Password */
+    /** @var string Password */
     public $last_passwd_gen;
 
     public $stats_date_from;
@@ -79,14 +79,14 @@ class EmployeeCore extends ObjectModel
     /** @var int employee desired screen width */
     public $bo_width;
 
-    /** @var bool, false */
-    public $bo_menu = 1;
+    /** @var bool */
+    public $bo_menu = true;
 
     /* Deprecated */
     public $bo_show_screencast = false;
 
     /** @var bool Status */
-    public $active = 1;
+    public $active = true;
 
     public $remote_addr;
 
@@ -95,11 +95,16 @@ class EmployeeCore extends ObjectModel
     public $id_last_customer_message;
     public $id_last_customer;
 
-    /** @var string Unique token for forgot passsword feature */
+    /** @var string|null Unique token for forgot password feature */
     public $reset_password_token;
 
-    /** @var string token validity date for forgot password feature */
+    /** @var string|null token validity date for forgot password feature */
     public $reset_password_validity;
+
+    /**
+     * @var bool
+     */
+    public $has_enabled_gravatar = false;
 
     /**
      * @see ObjectModel::$definition
@@ -112,7 +117,7 @@ class EmployeeCore extends ObjectModel
             'firstname' => ['type' => self::TYPE_STRING, 'validate' => 'isName', 'required' => true, 'size' => 255],
             'email' => ['type' => self::TYPE_STRING, 'validate' => 'isEmail', 'required' => true, 'size' => 255],
             'id_lang' => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt', 'required' => true],
-            'passwd' => ['type' => self::TYPE_STRING, 'validate' => 'isPasswd', 'required' => true, 'size' => 255],
+            'passwd' => ['type' => self::TYPE_STRING, 'validate' => 'isPlaintextPassword', 'required' => true, 'size' => 255],
             'last_passwd_gen' => ['type' => self::TYPE_STRING],
             'active' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
             'id_profile' => ['type' => self::TYPE_INT, 'validate' => 'isInt', 'required' => true],
@@ -133,6 +138,7 @@ class EmployeeCore extends ObjectModel
             'id_last_customer' => ['type' => self::TYPE_INT, 'validate' => 'isUnsignedInt'],
             'reset_password_token' => ['type' => self::TYPE_STRING, 'validate' => 'isSha1', 'size' => 40, 'copy_post' => false],
             'reset_password_validity' => ['type' => self::TYPE_DATE, 'validate' => 'isDateOrNull', 'copy_post' => false],
+            'has_enabled_gravatar' => ['type' => self::TYPE_BOOL, 'validate' => 'isBool'],
         ],
     ];
 
@@ -360,7 +366,7 @@ class EmployeeCore extends ObjectModel
 		    SELECT `id_employee`
 		    FROM `' . _DB_PREFIX_ . 'employee`
 		    WHERE `email` = \'' . pSQL($email) . '\'
-        ');
+        ', false);
     }
 
     /**
@@ -520,7 +526,7 @@ class EmployeeCore extends ObjectModel
     /**
      * Check if the employee is associated to a specific shop group.
      *
-     * @param int $id_shop_group ShopGroup ID
+     * @param int $idShopGroup ShopGroup ID
      *
      * @return bool
      *
@@ -533,7 +539,9 @@ class EmployeeCore extends ObjectModel
         }
 
         foreach ($this->associated_shops as $idShop) {
-            if ($idShopGroup == Shop::getGroupFromShop($idShop, true)) {
+            /** @var int $groupFromShop */
+            $groupFromShop = Shop::getGroupFromShop($idShop, true);
+            if ($idShopGroup == $groupFromShop) {
                 return true;
             }
         }
@@ -551,7 +559,7 @@ class EmployeeCore extends ObjectModel
     public function getDefaultShopID()
     {
         if ($this->isSuperAdmin() || in_array(Configuration::get('PS_SHOP_DEFAULT'), $this->associated_shops)) {
-            return Configuration::get('PS_SHOP_DEFAULT');
+            return (int) Configuration::get('PS_SHOP_DEFAULT');
         }
 
         return $this->associated_shops[0];
@@ -593,20 +601,46 @@ class EmployeeCore extends ObjectModel
      */
     public function getImage()
     {
+        $defaultSystem = Tools::getAdminImageUrl('pr/default.jpg');
+        $imageUrl = null;
+
+        // Default from Profile
+        $profile = new Profile($this->id_profile);
+        $defaultProfile = (int) $profile->id === (int) $this->id_profile ? $profile->getProfileImage() : null;
+        $imageUrl = $imageUrl ?? $defaultProfile;
+
+        // Gravatar
+        if ($this->has_enabled_gravatar) {
+            $imageUrl = $imageUrl ?? 'https://www.gravatar.com/avatar/' . md5(strtolower(trim($this->email))) . '?d=' . urlencode($defaultSystem);
+        }
+
+        // Local Image
         $imagePath = $this->image_dir . $this->id . '.jpg';
         if (file_exists($imagePath)) {
-            return Context::getContext()->link->getMediaLink(
+            $imageUrl = $imageUrl ?? Context::getContext()->link->getMediaLink(
                 str_replace($this->image_dir, _THEME_EMPLOYEE_DIR_, $imagePath)
             );
         }
 
-        return Tools::getAdminImageUrl('prestashop-avatar.png');
+        // Default from System
+        $imageUrl = $imageUrl ?? $defaultSystem;
+
+        // Hooks
+        Hook::exec(
+            'actionOverrideEmployeeImage',
+            [
+                'employee' => $this,
+                'imageUrl' => &$imageUrl,
+            ]
+        );
+
+        return $imageUrl;
     }
 
     /**
      * Get last elements for notify.
      *
-     * @param $element
+     * @param string $element
      *
      * @return int
      */
@@ -648,7 +682,7 @@ class EmployeeCore extends ObjectModel
      */
     public function stampResetPasswordToken()
     {
-        $salt = $this->id . '+' . uniqid(mt_rand(0, mt_getrandmax()), true);
+        $salt = $this->id . '+' . uniqid((string) mt_rand(0, mt_getrandmax()), true);
         $this->reset_password_token = sha1(time() . $salt);
         $validity = (int) Configuration::get('PS_PASSWD_RESET_VALIDITY') ?: 1440;
         $this->reset_password_validity = date('Y-m-d H:i:s', strtotime('+' . $validity . ' minutes'));
@@ -699,8 +733,8 @@ class EmployeeCore extends ObjectModel
     /**
      * Is the Employee allowed to do the given action.
      *
-     * @param $action
-     * @param $tab
+     * @param string $action
+     * @param string $tab
      *
      * @return bool
      */
@@ -708,7 +742,7 @@ class EmployeeCore extends ObjectModel
     {
         $access = Profile::getProfileAccess($this->id_profile, Tab::getIdFromClassName($tab));
 
-        return $access[$action] == '1';
+        return is_array($access) && $access[$action] == '1';
     }
 
     /**

@@ -22,6 +22,7 @@
  * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
+import ComponentsMap from '@components/components-map';
 import {EventEmitter} from './event-emitter';
 
 const {$} = window;
@@ -79,7 +80,7 @@ class TinyMCEEditor {
   initTinyMCE(config) {
     const cfg = {
       selector: '.rte',
-      plugins: 'align colorpicker link image filemanager table media placeholder advlist code table autoresize',
+      plugins: 'align colorpicker link image filemanager table media placeholder lists advlist code table autoresize',
       browser_spellcheck: true,
       toolbar1:
         /* eslint-disable-next-line max-len */
@@ -93,6 +94,13 @@ class TinyMCEEditor {
       },
       content_style: config.langIsRtl ? 'body {direction:rtl;}' : '',
       skin: 'prestashop',
+      mobile: {
+        theme: 'mobile',
+        plugins: ['lists', 'align', 'link', 'table', 'placeholder', 'advlist', 'code'],
+        toolbar:
+          /* eslint-disable-next-line max-len */
+          'undo code colorpicker bold italic underline strikethrough blockquote link align bullist numlist table formatselect styleselect',
+      },
       menubar: false,
       statusbar: false,
       relative_urls: false,
@@ -102,7 +110,7 @@ class TinyMCEEditor {
       valid_children: '+*[*]',
       valid_elements: '*[*]',
       rel_list: [{title: 'nofollow', value: 'nofollow'}],
-      editor_selector: 'autoload_rte',
+      editor_selector: ComponentsMap.tineMceEditor.selectorClass,
       init_instance_callback: () => {
         this.changeToMaterial();
       },
@@ -111,6 +119,10 @@ class TinyMCEEditor {
       },
       ...config,
     };
+
+    if (typeof window.defaultTinyMceConfig !== 'undefined') {
+      Object.assign(cfg, window.defaultTinyMceConfig);
+    }
 
     if (typeof cfg.editor_selector !== 'undefined') {
       cfg.selector = `.${cfg.editor_selector}`;
@@ -141,6 +153,9 @@ class TinyMCEEditor {
     editor.on('blur', () => {
       window.tinyMCE.triggerSave();
     });
+    EventEmitter.emit('tinymceEditorSetup', {
+      editor,
+    });
   }
 
   /**
@@ -162,6 +177,7 @@ class TinyMCEEditor {
         $(textareaLinkSelector, tabContainer).on('shown.bs.tab', () => {
           const form = $(textarea).closest('form');
           const editor = window.tinyMCE.get(textarea.id);
+
           if (editor) {
             // Reset content to force refresh of editor
             editor.setContent(editor.getContent());
@@ -236,7 +252,9 @@ class TinyMCEEditor {
   }
 
   /**
-   * Updates the characters counter
+   * Updates the characters counter. This counter is used for front but if you don't want to encounter Validation
+   * problems you should be in sync with the TinyMceMaxLengthValidator PHP class. Both codes must behave the same
+   * way.
    *
    * @param id
    */
@@ -244,7 +262,8 @@ class TinyMCEEditor {
     const textarea = $(`#${id}`);
     const counter = textarea.attr('counter');
     const counterType = textarea.attr('counter_type');
-    const max = window.tinyMCE.activeEditor.getContent().textContent;
+    const editor = window.tinyMCE.get(id);
+    const max = editor.getBody() ? editor.getBody().textContent.length : 0;
 
     textarea
       .parent()

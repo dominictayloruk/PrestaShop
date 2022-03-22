@@ -27,15 +27,19 @@
 namespace Tests\Integration\Behaviour\Features\Context\Domain;
 
 use Behat\Behat\Context\Context;
-use Behat\Behat\Hook\Scope\AfterScenarioScope;
+use Behat\Behat\Hook\Scope\AfterStepScope;
+use Behat\Behat\Hook\Scope\StepScope;
+use Behat\Gherkin\Node\ScenarioInterface;
+use Behat\Gherkin\Node\StepNode;
+use Behat\Gherkin\Node\TableNode;
 use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
-use Behat\Testwork\Tester\Result\TestResult;
+use Configuration;
+use Currency;
 use Exception;
 use Language;
 use ObjectModel;
 use PrestaShop\PrestaShop\Core\CommandBus\CommandBusInterface;
 use RuntimeException;
-use Shop;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Tests\Integration\Behaviour\Features\Context\CommonFeatureContext;
 use Tests\Integration\Behaviour\Features\Context\SharedStorage;
@@ -43,14 +47,19 @@ use Tests\Integration\Behaviour\Features\Context\SharedStorage;
 abstract class AbstractDomainFeatureContext implements Context
 {
     /**
-     * @var Exception|null
+     * Shared storage key for last thrown exception
      */
-    protected $lastException;
+    private const LAST_EXCEPTION_STORAGE_KEY = 'LAST_EXCEPTION';
 
     /**
-     * @var int
+     * Shared storage key for expected thrown exception
      */
-    protected $lastErrorCode;
+    private const EXPECTED_EXCEPTION_STORAGE_KEY = 'EXPECTED_EXCEPTION';
+
+    /**
+     * Shared storage key for the step where the expected exception was raised
+     */
+    private const EXPECTED_EXCEPTION_STEP_STORAGE_KEY = 'EXPECTED_EXCEPTION_STEP';
 
     /**
      * @BeforeSuite
@@ -64,13 +73,103 @@ abstract class AbstractDomainFeatureContext implements Context
     }
 
     /**
-     * @AfterScenario
+     * @AfterStep
      */
-    public function checkLastException(AfterScenarioScope $scope)
+    public function checkLastExceptionAfterStep(AfterStepScope $scope): void
     {
-        if (TestResult::FAILED === $scope->getTestResult()->getResultCode() && null !== $this->lastException) {
-            throw new RuntimeException(sprintf('Might be related to the last exception: %s %s', get_class($this->lastException), $this->lastException->getTraceAsString()));
+        // If no exception nothing to do, if there is already an exception to handle we don't override it
+        if (null === $this->getLastException() || null !== $this->getExpectedException()) {
+            return;
         }
+
+        $e = $this->getLastException();
+        // We clean the last exception so that it doesn't pollute the following steps or scenarios, besides multiple
+        // contexts could have this hook, and we only need to handle it once
+        $this->cleanLastException();
+
+        // When the last step ends with an exception we throw it because there is no next step to assert it
+        $lastStep = $this->getLastStepFromScope($scope);
+        if ($lastStep === $scope->getStep()) {
+            throw $e;
+        }
+
+        // If there are steps left the exception must be checked in the next step, it is stored as the expected exception
+        $this->setExpectedException($e, $scope->getStep());
+    }
+
+    /**
+     * @AfterStep
+     */
+    public function checkExpectedExceptionAfterStep(AfterStepScope $scope): void
+    {
+        if (null === $this->getExpectedException() || $scope->getStep() === $this->getExpectedExceptionStep()) {
+            return;
+        }
+
+        // When an expected exception is stored from another step it means it was not checked, so it is unexpected
+        $unexpectedException = $this->getExpectedException();
+        $exceptionStep = $this->getExpectedExceptionStep();
+
+        // We clean the expected exception so that it doesn't pollute the following scenarios
+        $this->cleanExpectedException();
+
+        throw new RuntimeException(implode(PHP_EOL, [
+            'An unexpected exception was raised in previous step:',
+            sprintf('Line %d: %s', $exceptionStep->getLine(), $exceptionStep->getText()),
+            sprintf('%s: %s', get_class($unexpectedException), $unexpectedException->getMessage()),
+            'Either it was unexpected and an error occurred or you forgot to add an intermediate step to assert that exception using assertLastErrorIs',
+        ]), 0, $unexpectedException);
+    }
+
+    /**
+     * This method shouldn't be public, but it is mandatory to be a behat hook. But you shouldn't call it manually.
+     *
+     * @BeforeScenario
+     */
+    public function cleanStoredExceptionsBeforeScenario(): void
+    {
+        $this->cleanLastException();
+        $this->cleanExpectedException();
+    }
+
+    protected function setLastException(Exception $e): void
+    {
+        $this->getSharedStorage()->set(self::LAST_EXCEPTION_STORAGE_KEY, $e);
+    }
+
+    protected function getLastStepFromScope(StepScope $scope): StepNode
+    {
+        $scenario = $this->getScenarioFromScope($scope);
+        if (null !== $scenario) {
+            $steps = $scenario->getSteps();
+        } else {
+            foreach ($scope->getFeature()->getBackground()->getSteps() as $step) {
+                if ($step === $scope->getStep()) {
+                    $steps = $scope->getFeature()->getBackground()->getSteps();
+                    break;
+                }
+            }
+        }
+
+        // The step was not found in any scenario nor the background
+        if (!isset($steps)) {
+            throw new RuntimeException('Could not find step in the feature');
+        }
+
+        return $steps[count($steps) - 1];
+    }
+
+    protected function getScenarioFromScope(StepScope $scope): ?ScenarioInterface
+    {
+        foreach ($scope->getFeature()->getScenarios() as $scenario) {
+            foreach ($scenario->getSteps() as $step) {
+                if ($step === $scope->getStep()) {
+                    return $scenario;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -102,68 +201,221 @@ abstract class AbstractDomainFeatureContext implements Context
         return CommonFeatureContext::getContainer();
     }
 
-    protected function assertLastErrorIsNull()
+    /**
+     * @throws RuntimeException
+     */
+    protected function assertLastErrorIsNull(): void
     {
-        if (null !== $this->lastException) {
-            throw new RuntimeException(sprintf('An unexpected exception was thrown %s: %s', get_class($this->lastException), $this->lastException->getMessage()), 0, $this->lastException);
+        $e = $this->getExpectedException();
+
+        if (null !== $e) {
+            throw new RuntimeException(sprintf('An unexpected exception was thrown %s: %s', get_class($e), $e->getMessage()), 0, $e);
         }
     }
 
     /**
+     * Assert the last caught exception matches the expected class and error code, then the saved
+     * exception is cleaned, so you can only assert it once.
+     *
      * @param string $expectedError
      * @param int|null $errorCode
+     *
+     * @return Exception Returns the exception in case additional assertions are needed
      */
-    protected function assertLastErrorIs($expectedError, $errorCode = null)
+    protected function assertLastErrorIs(string $expectedError, ?int $errorCode = null): Exception
     {
-        if (!$this->lastException instanceof $expectedError) {
-            throw new RuntimeException(sprintf('Last error should be "%s", but got "%s"', $expectedError, $this->lastException ? get_class($this->lastException) : 'null'), 0, $this->lastException);
+        $lastException = $this->getExpectedException();
+        if (null === $lastException) {
+            // Sometimes the last exception is asserted in the same step, so it is not stored as expected yet
+            $lastException = $this->getLastException();
+            $this->cleanLastException();
+        } else {
+            // The exception has been asserted, so it is indeed an expected one, and we can clean it
+            $this->cleanExpectedException();
         }
-        if (null !== $errorCode && $this->lastException->getCode() !== $errorCode) {
-            throw new RuntimeException(sprintf('Last error should have code "%s", but has "%s"', $errorCode, $this->lastException ? $this->lastException->getCode() : 'null'), 0, $this->lastException);
+
+        if (!$lastException instanceof $expectedError) {
+            throw new RuntimeException(sprintf('Last error should be "%s", but got "%s"', $expectedError, $lastException ? get_class($lastException) : 'null'), 0, $lastException);
         }
+
+        if (null !== $errorCode && $lastException->getCode() !== $errorCode) {
+            throw new RuntimeException(sprintf('Last error should have code "%s", but has "%s"', $errorCode, $lastException->getCode()), 0, $lastException);
+        }
+
+        return $lastException;
     }
 
     /**
-     * Parse a localized string into a localized array, the expected format can be:
-     *   fr-FR:valueFr;en-EN:valueEn:{localeCode}:{localeValue}
-     *   1:valueFr;2:valueEn:{langId}:{localeValue}
-     * and will be converted into an array indexed by language id
-     *
-     * @param string $parsedArray
+     * @param TableNode $tableNode
      *
      * @return array
      */
-    protected function parseLocalizedArray(string $parsedArray): array
+    protected function localizeByRows(TableNode $tableNode): array
     {
-        $arrayValues = array_map('trim', explode(';', $parsedArray));
-        $localizedArray = [];
-        foreach ($arrayValues as $arrayValue) {
-            $data = explode(':', $arrayValue);
-            $langKey = $data[0];
-            $langValue = $data[1];
-            if (ctype_digit($langKey)) {
-                $localizedArray[$langKey] = $langValue;
-            } else {
-                $localizedArray[Language::getIdByLocale($langKey, true)] = $langValue;
+        return $this->parseLocalizedRow($tableNode->getRowsHash());
+    }
+
+    /**
+     * @param TableNode $table
+     *
+     * @return array
+     */
+    protected function localizeByColumns(TableNode $table): array
+    {
+        $rows = [];
+        foreach ($table->getColumnsHash() as $key => $column) {
+            $row = [];
+            foreach ($column as $columnName => $value) {
+                $row[$columnName] = $value;
             }
+
+            $rows[] = $this->parseLocalizedRow($row);
         }
 
-        return $localizedArray;
+        return $rows;
     }
 
     /**
-     * @Given single shop context is loaded
+     * @param string $localizedValue
+     *
+     * @return array
      */
-    protected function singleShopContextIsLoaded()
+    protected function localizeByCell(string $localizedValue): array
     {
-        Shop::setContext(Shop::CONTEXT_SHOP);
+        $localizedValues = [];
+        $valuesByLang = explode(';', $localizedValue);
+        foreach ($valuesByLang as $valueByLang) {
+            $value = explode(':', $valueByLang);
+            $langId = (int) Language::getIdByLocale($value[0], true);
+            $localizedValues[$langId] = $value[1];
+        }
+
+        return $localizedValues;
     }
 
     /**
-     * @Given multiple shop context is loaded
+     * @return int
      */
-    protected function multipleShopContextIsLoaded()
+    protected function getDefaultLangId(): int
     {
-        Shop::setContext(Shop::CONTEXT_ALL);
+        return (int) Configuration::get('PS_LANG_DEFAULT');
+    }
+
+    protected function getDefaultCurrencyId(): int
+    {
+        return (int) Configuration::get('PS_CURRENCY_DEFAULT');
+    }
+
+    protected function getDefaultCurrencyIsoCode(): string
+    {
+        return Currency::getIsoCodeById($this->getDefaultCurrencyId());
+    }
+
+    /**
+     * This method is private because last exception should only be handled inside this abstract class, you can only
+     * use setLastException from inherited classes.
+     */
+    private function cleanLastException(): void
+    {
+        $this->getSharedStorage()->clear(self::LAST_EXCEPTION_STORAGE_KEY);
+    }
+
+    /**
+     * This method is private because last exception should only be accessed inside this abstract class, you can only
+     * use setLastException from inherited classes.
+     *
+     * @return Exception|null
+     */
+    private function getLastException(): ?Exception
+    {
+        if (!$this->getSharedStorage()->exists(self::LAST_EXCEPTION_STORAGE_KEY)) {
+            return null;
+        }
+
+        return $this->getSharedStorage()->get(self::LAST_EXCEPTION_STORAGE_KEY);
+    }
+
+    /**
+     * This method is private because expected exception should only be handled inside this abstract class, to clean it
+     * you need to assert it using the assertLastError function, this will automatically clean the stored exception.
+     */
+    private function cleanExpectedException(): void
+    {
+        $this->getSharedStorage()->clear(self::EXPECTED_EXCEPTION_STORAGE_KEY);
+        $this->getSharedStorage()->clear(self::EXPECTED_EXCEPTION_STEP_STORAGE_KEY);
+    }
+
+    /**
+     * This method is private because expected exception should only be handled inside this abstract class, the expected
+     * exception is automatically stored after each step.
+     *
+     * @param Exception $e
+     * @param StepNode $step
+     */
+    private function setExpectedException(Exception $e, StepNode $step): void
+    {
+        $this->getSharedStorage()->set(self::EXPECTED_EXCEPTION_STORAGE_KEY, $e);
+        $this->getSharedStorage()->set(self::EXPECTED_EXCEPTION_STEP_STORAGE_KEY, $step);
+    }
+
+    /**
+     * This method is private because expected exception should only be handled inside this abstract class, if you need
+     * to assert it you should use the assertLastError function which returns the exception if you need more assertions.
+     *
+     * @return Exception|null
+     */
+    private function getExpectedException(): ?Exception
+    {
+        if (!$this->getSharedStorage()->exists(self::EXPECTED_EXCEPTION_STORAGE_KEY)) {
+            return null;
+        }
+
+        return $this->getSharedStorage()->get(self::EXPECTED_EXCEPTION_STORAGE_KEY);
+    }
+
+    /**
+     * This method is private because expected exception step should only be handled inside this abstract class, it is
+     * only necessary to throw the unexpected exception in the next step only.
+     *
+     * @return StepNode|null
+     */
+    private function getExpectedExceptionStep(): ?StepNode
+    {
+        if (!$this->getSharedStorage()->exists(self::EXPECTED_EXCEPTION_STEP_STORAGE_KEY)) {
+            return null;
+        }
+
+        return $this->getSharedStorage()->get(self::EXPECTED_EXCEPTION_STEP_STORAGE_KEY);
+    }
+
+    /**
+     * @param array $row
+     *
+     * @return array
+     */
+    private function parseLocalizedRow(array $row): array
+    {
+        $parsedRow = [];
+        foreach ($row as $key => $value) {
+            $localeMatch = preg_match('/\[.*?\]/', $key, $matches) ? reset($matches) : null;
+
+            if (!$localeMatch) {
+                $parsedRow[$key] = $value;
+                continue;
+            }
+
+            $propertyName = str_replace($localeMatch, '', $key);
+            $locale = str_replace(['[', ']'], '', $localeMatch);
+
+            $langId = (int) Language::getIdByLocale($locale, true);
+
+            if (!$langId) {
+                throw new RuntimeException(sprintf('Language by locale "%s" was not found', $locale));
+            }
+
+            $parsedRow[$propertyName][$langId] = $value;
+        }
+
+        return $parsedRow;
     }
 }

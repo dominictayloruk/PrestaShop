@@ -58,15 +58,18 @@ class WebserviceKeyCore extends ObjectModel
         if ($result) {
             PrestaShopLogger::addLog(
                 Context::getContext()->getTranslator()->trans(
-                    'Webservice key created by employee "%d" %s %s (%s)',
+                    'Webservice key created: %s',
                     [
-                        Context::getContext()->employee->id,
-                        Context::getContext()->employee->firstname,
-                        Context::getContext()->employee->lastname,
-                        Context::getContext()->employee->email,
+                        $this->key,
                     ],
                     'Admin.Advparameters.Feature'
-                )
+                ),
+                1,
+                0,
+                'WebserviceKey',
+                (int) $this->id,
+                false,
+                (int) Context::getContext()->employee->id
             );
         }
 
@@ -111,6 +114,9 @@ class WebserviceKeyCore extends ObjectModel
         return Db::getInstance()->delete('webservice_permission', 'id_webservice_account = ' . (int) $this->id);
     }
 
+    /**
+     * @param string $auth_key
+     */
     public static function getPermissionForAccount($auth_key)
     {
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS('
@@ -129,6 +135,9 @@ class WebserviceKeyCore extends ObjectModel
         return $permissions;
     }
 
+    /**
+     * @param string $auth_key
+     */
     public static function isKeyActive($auth_key)
     {
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
@@ -137,6 +146,9 @@ class WebserviceKeyCore extends ObjectModel
 		WHERE `key` = "' . pSQL($auth_key) . '"');
     }
 
+    /**
+     * @param string $auth_key
+     */
     public static function getClassFromKey($auth_key)
     {
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
@@ -145,6 +157,28 @@ class WebserviceKeyCore extends ObjectModel
 		WHERE `key` = "' . pSQL($auth_key) . '"');
     }
 
+    /**
+     * @param string $auth_key
+     *
+     * @return int
+     */
+    public static function getIdFromKey(string $auth_key)
+    {
+        $sql = sprintf(
+            'SELECT id_webservice_account FROM `%swebservice_account` WHERE `key` = "%s"',
+            _DB_PREFIX_,
+            pSQL($auth_key)
+        );
+
+        return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
+    }
+
+    /**
+     * @param int $id_account
+     * @param array $permissions_to_set
+     *
+     * @return bool
+     */
     public static function setPermissionForAccount($id_account, $permissions_to_set)
     {
         $ok = true;
@@ -152,7 +186,7 @@ class WebserviceKeyCore extends ObjectModel
         if (!Db::getInstance()->execute($sql)) {
             $ok = false;
         }
-        if (isset($permissions_to_set)) {
+        if (is_array($permissions_to_set)) {
             $permissions = [];
             $resources = WebserviceRequest::getResources();
             $methods = ['GET', 'PUT', 'POST', 'DELETE', 'HEAD'];

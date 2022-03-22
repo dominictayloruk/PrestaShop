@@ -1,11 +1,20 @@
 require('module-alias/register');
 const BOBasePage = require('@pages/BO/BObasePage');
 
-module.exports = class AddLinkWidget extends BOBasePage {
-  constructor(page) {
-    super(page);
+/**
+ * New link block page, contains functions that can be used on the page
+ * @class
+ * @extends BOBasePage
+ */
+class AddLinkBlock extends BOBasePage {
+  /**
+   * @constructs
+   * Setting up texts and selectors to use on new link block page
+   */
+  constructor() {
+    super();
 
-    this.pageTitle = 'Link Widget •';
+    this.pageTitle = 'Link List •';
 
     // Selectors
     this.changeNamelangButton = '#form_link_block_block_name';
@@ -24,29 +33,32 @@ module.exports = class AddLinkWidget extends BOBasePage {
   /* Methods */
   /**
    * Change input name language
-   * @param lang
+   * @param page {Page} Browser tab
+   * @param lang {string} Value of language to select
    * @return {Promise<void>}
    */
-  async changeLanguage(lang) {
+  async changeLanguage(page, lang) {
     await Promise.all([
-      this.page.click(this.changeNamelangButton),
-      this.waitForVisibleSelector(`${this.changeNamelangButton}[aria-expanded='false']`),
+      page.click(this.changeNamelangButton),
+      this.waitForVisibleSelector(page, `${this.changeNamelangButton}[aria-expanded='false']`),
     ]);
     await Promise.all([
-      this.page.click(this.changeNameLangSpan(lang)),
-      this.waitForVisibleSelector(`${this.changeNamelangButton}[aria-expanded='true']`),
+      page.click(this.changeNameLangSpan(lang)),
+      this.waitForVisibleSelector(page, `${this.changeNamelangButton}[aria-expanded='true']`),
     ]);
   }
 
   /**
    * Select content pages
-   * @param contentPages
+   * @param page {Page} Browser tab
+   * @param contentPages {Array<string>} List of content pages
    * @return {Promise<void>}
    */
-  async selectContentPages(contentPages) {
+  async selectContentPages(page, contentPages) {
     /* eslint-disable no-restricted-syntax */
     for (const contentPage of contentPages) {
       let selector;
+
       switch (contentPage) {
         case 'Delivery':
           selector = this.cmsPagesCheckbox(0);
@@ -64,22 +76,24 @@ module.exports = class AddLinkWidget extends BOBasePage {
           selector = this.cmsPagesCheckbox(4);
           break;
         default:
-          // Do nothing
+        // Do nothing
       }
-      await this.page.$eval(selector, el => el.click());
+      await page.$eval(selector, el => el.click());
     }
     /* eslint-enable no-restricted-syntax */
   }
 
   /**
    * Select product pages
-   * @param productPages
+   * @param page {Page} Browser tab
+   * @param productPages {Array<string>} List of product pages
    * @return {Promise<void>}
    */
-  async selectProductPages(productPages) {
+  async selectProductPages(page, productPages) {
     /* eslint-disable no-restricted-syntax */
     for (const productPage of productPages) {
       let selector;
+
       switch (productPage) {
         case 'Prices drop':
           selector = this.productsPagesCheckbox(0);
@@ -93,20 +107,22 @@ module.exports = class AddLinkWidget extends BOBasePage {
         default:
         // Do nothing
       }
-      await this.page.$eval(selector, el => el.click());
+      await page.$eval(selector, el => el.click());
     }
     /* eslint-enable no-restricted-syntax */
   }
 
   /**
    * Select static pages
-   * @param staticPages
+   * @param page {Page} Browser tab
+   * @param staticPages {Array<string>} List of statistic pages
    * @return {Promise<void>}
    */
-  async selectStaticPages(staticPages) {
+  async selectStaticPages(page, staticPages) {
     /* eslint-disable no-restricted-syntax */
     for (const staticPage of staticPages) {
       let selector;
+
       switch (staticPage) {
         case 'Contact us':
           selector = this.staticContentCheckbox(0);
@@ -126,54 +142,61 @@ module.exports = class AddLinkWidget extends BOBasePage {
         default:
         // Do nothing
       }
-      await this.page.$eval(selector, el => el.click());
+      await page.$eval(selector, el => el.click());
     }
     /* eslint-enable no-restricted-syntax */
   }
 
   /**
    * Add custom pages
-   * @param customPages
+   * @param page {Page} Browser tab
+   * @param customPages {Array<{name: string, url: string}>} List of custom pages
    * @return {Promise<void>}
    */
-  async addCustomPages(customPages) {
+  async addCustomPages(page, customPages) {
     for (let i = 1; i <= customPages.length; i++) {
       // Set english title and url
-      await this.changeLanguage('en');
-      await this.setValue(this.customTitleInput(i, 1), customPages[i - 1].name);
-      await this.setValue(this.customUrlInput(i, 1), customPages[i - 1].url);
+      await this.changeLanguage(page, 'en');
+      await this.setValue(page, this.customTitleInput(i, 1), customPages[i - 1].name);
+      await this.setValue(page, this.customUrlInput(i, 1), customPages[i - 1].url);
       // Set french title and url
-      await this.changeLanguage('fr');
-      await this.setValue(this.customTitleInput(i, 2), customPages[i - 1].name);
-      await this.setValue(this.customUrlInput(i, 2), customPages[i - 1].url);
+      await this.changeLanguage(page, 'fr');
+      await this.setValue(page, this.customTitleInput(i, 2), customPages[i - 1].name);
+      await this.setValue(page, this.customUrlInput(i, 2), customPages[i - 1].url);
       // Add another custom page block
-      await this.page.click(this.addCustomBlockButton);
+      await page.click(this.addCustomBlockButton);
     }
   }
 
   /**
    * Add linkWidget
-   * @param linkWidgetData
+   * @param page {Page} Browser tab
+   * @param linkWidgetData {{name: string, frName: string, hook: string, contentPages: Array<string>,
+   * productsPages: Array<string>, staticPages: Array<string>, customPages: Array<{name:string, url: string}>}}
+   * Data of link widget to set on link widget form
    * @return {Promise<string>}
    */
-  async addLinkWidget(linkWidgetData) {
+  async addLinkWidget(page, linkWidgetData) {
     // Set name in languages
-    await this.changeLanguage('en');
-    await this.setValue(this.nameInput(1), linkWidgetData.name);
-    await this.changeLanguage('fr');
-    await this.setValue(this.nameInput(2), linkWidgetData.frName);
+    await this.changeLanguage(page, 'en');
+    await this.setValue(page, this.nameInput(1), linkWidgetData.name);
+    await this.changeLanguage(page, 'fr');
+    await this.setValue(page, this.nameInput(2), linkWidgetData.frName);
     // Choose hook
-    await this.selectByVisibleText(this.hookSelect, linkWidgetData.hook);
+    await this.selectByVisibleText(page, this.hookSelect, linkWidgetData.hook);
     // select content pages
-    await this.selectContentPages(linkWidgetData.contentPages);
+    await this.selectContentPages(page, linkWidgetData.contentPages);
     // select product pages
-    await this.selectProductPages(linkWidgetData.productsPages);
+    await this.selectProductPages(page, linkWidgetData.productsPages);
     // select static pages
-    await this.selectStaticPages(linkWidgetData.staticPages);
+    await this.selectStaticPages(page, linkWidgetData.staticPages);
     // Add custom pages
-    await this.addCustomPages(linkWidgetData.customPages);
+    await this.addCustomPages(page, linkWidgetData.customPages);
     // Save
-    await this.clickAndWaitForNavigation(this.saveButton);
-    return this.getTextContent(this.alertSuccessBlockParagraph);
+    await this.clickAndWaitForNavigation(page, this.saveButton);
+
+    return this.getAlertSuccessBlockParagraphContent(page);
   }
-};
+}
+
+module.exports = new AddLinkBlock();

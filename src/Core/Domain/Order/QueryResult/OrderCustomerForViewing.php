@@ -71,7 +71,7 @@ class OrderCustomerForViewing
     private $validOrdersPlaced;
 
     /**
-     * @var string
+     * @var string|null
      */
     private $privateNote;
 
@@ -79,6 +79,26 @@ class OrderCustomerForViewing
      * @var bool
      */
     private $isGuest;
+
+    /**
+     * @var string
+     */
+    private $ape;
+
+    /**
+     * @var string
+     */
+    private $siret;
+
+    /**
+     * @var int
+     */
+    private $languageId;
+
+    /**
+     * @var array
+     */
+    private $groups;
 
     /**
      * @param int $id
@@ -91,6 +111,10 @@ class OrderCustomerForViewing
      * @param int $validOrdersPlaced
      * @param string|null $privateNote
      * @param bool $isGuest
+     * @param int $languageId
+     * @param string $ape
+     * @param string $siret
+     * @param array $groups
      */
     public function __construct(
         int $id,
@@ -102,7 +126,11 @@ class OrderCustomerForViewing
         string $totalSpentSinceRegistration,
         int $validOrdersPlaced,
         ?string $privateNote,
-        bool $isGuest
+        bool $isGuest,
+        int $languageId,
+        string $ape = '',
+        string $siret = '',
+        array $groups = []
     ) {
         $this->id = $id;
         $this->firstName = $firstName;
@@ -114,6 +142,10 @@ class OrderCustomerForViewing
         $this->validOrdersPlaced = $validOrdersPlaced;
         $this->privateNote = $privateNote;
         $this->isGuest = $isGuest;
+        $this->languageId = $languageId;
+        $this->ape = $ape;
+        $this->siret = $siret;
+        $this->groups = $groups;
     }
 
     /**
@@ -194,5 +226,37 @@ class OrderCustomerForViewing
     public function isGuest(): bool
     {
         return $this->isGuest;
+    }
+
+    /**
+     * @return string
+     */
+    public function getApe(): string
+    {
+        return $this->ape;
+    }
+
+    /**
+     * @return string
+     */
+    public function getSiret(): string
+    {
+        return $this->siret;
+    }
+
+    /**
+     * @return int
+     */
+    public function getLanguageId(): int
+    {
+        return $this->languageId;
+    }
+
+    /**
+     * @return array
+     */
+    public function getGroups(): array
+    {
+        return $this->groups;
     }
 }

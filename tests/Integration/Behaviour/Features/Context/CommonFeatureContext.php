@@ -26,16 +26,99 @@
 
 namespace Tests\Integration\Behaviour\Features\Context;
 
+use Access;
+use Address;
+use AddressFormat;
+use Alias;
 use AppKernel;
+use Attachment;
+use AttributeGroup;
 use Cache;
+use Carrier;
+use Cart;
+use CartRule;
 use Category;
+use CMS;
+use CMSCategory;
+use CMSRole;
+use Configuration;
+use Connection;
+use ConnectionsSource;
+use Contact;
 use Context;
+use Currency;
+use CustomerMessage;
+use CustomerSession;
+use CustomerThread;
+use CustomizationField;
+use DateRange;
 use Employee;
+use EmployeeSession;
+use Feature;
+use FeatureValue;
+use Gender;
+use Group;
+use GroupReduction;
+use Hook;
+use Image;
+use ImageType;
 use Language;
-use LegacyTests\PrestaShopBundle\Utils\DatabaseCreator;
+use Mail;
+use Manufacturer;
+use Message;
+use Meta;
+use OrderCartRule;
+use OrderHistory;
+use OrderInvoice;
+use OrderMessage;
+use OrderPayment;
+use OrderReturn;
+use OrderReturnState;
+use OrderSlip;
+use OrderState;
 use Pack;
+use Page;
+use PrestaShop\PrestaShop\Adapter\LegacyContext;
+use PrestaShopBundle\Install\DatabaseDump;
 use Product;
+use ProductAttribute;
+use ProductDownload;
+use ProductSupplier;
+use Profile;
+use QuickAccess;
+use RangePrice;
+use RangeWeight;
+use RequestSql;
+use Risk;
+use SearchEngine;
+use Shop;
+use ShopGroup;
+use ShopUrl;
+use SpecificPrice;
+use State;
+use Stock;
+use StockAvailable;
+use StockMvt;
+use StockMvtReason;
+use StockMvtWS;
+use Store;
+use Supplier;
+use SupplyOrder;
+use SupplyOrderDetail;
+use SupplyOrderHistory;
+use SupplyOrderState;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Tab;
+use Tag;
+use Tax;
+use TaxManagerFactory;
+use TaxRule;
+use TaxRulesGroup;
+use Tests\Integration\Utility\ContextMocker;
+use Tests\Resources\ResourceResetter;
+use WarehouseProductLocation;
+use WebserviceKey;
+use Zone;
 
 class CommonFeatureContext extends AbstractPrestaShopFeatureContext
 {
@@ -47,6 +130,11 @@ class CommonFeatureContext extends AbstractPrestaShopFeatureContext
      * @var AppKernel
      */
     protected static $kernel;
+
+    /**
+     * @var ContextMocker
+     */
+    protected static $contextMocker;
 
     /**
      * @BeforeSuite
@@ -68,26 +156,60 @@ class CommonFeatureContext extends AbstractPrestaShopFeatureContext
     /**
      * This hook can be used to flag a feature for database hard reset
      *
+     * @deprecated since 8.0.0 and will be removed in next major.
+     *
      * @BeforeFeature @reset-database-before-feature
      */
     public static function cleanDatabaseHardPrepareFeature()
     {
-        DatabaseCreator::restoreTestDB();
+        @trigger_error(
+            'The @reset-database-before-feature tag is deprecated because there is a more optimized alternative use the @restore-all-tables-before-feature tag instead ',
+            E_USER_DEPRECATED
+        );
+
+        static::restoreTestDB();
         require_once _PS_ROOT_DIR_ . '/config/config.inc.php';
     }
 
     /**
-     * This hook can be used to flag a feature for kernel reboot, this is useful
-     * to force recreation of services (e.g: when you add some currencies in the
-     * database, you may need to reset the CLDR related services to use the new ones)
+     * This hook can be used to flag a feature for database hard reset
+     *
+     * @BeforeFeature @restore-all-tables-before-feature
+     */
+    public static function restoreAllTablesBeforeFeature()
+    {
+        DatabaseDump::restoreAllTables();
+        require_once _PS_ROOT_DIR_ . '/config/config.inc.php';
+    }
+
+    /**
+     * This hook can be used to flag a feature for kernel reboot
      *
      * @BeforeFeature @reboot-kernel-before-feature
      */
-    public static function rebootKernelPrepareFeature()
+    public static function rebootKernelBeforeFeature()
     {
-        $realCacheDir = self::$kernel->getContainer()->getParameter('kernel.cache_dir');
-        $warmupDir = substr($realCacheDir, 0, -1) . ('_' === substr($realCacheDir, -1) ? '-' : '_');
-        self::$kernel->reboot($warmupDir);
+        self::rebootKernel();
+    }
+
+    /**
+     * This hook can be used to flag a feature for kernel reboot
+     *
+     * @AfterFeature @reboot-kernel-after-feature
+     */
+    public static function rebootKernelAfterFeature()
+    {
+        self::rebootKernel();
+    }
+
+    /**
+     * This hook can be used to flag a scenario for kernel reboot
+     *
+     * @BeforeScenario @reboot-kernel-before-scenario
+     */
+    public static function rebootKernelBeforeScenario()
+    {
+        self::rebootKernel();
     }
 
     /**
@@ -98,6 +220,22 @@ class CommonFeatureContext extends AbstractPrestaShopFeatureContext
     public static function getContainer()
     {
         return static::$kernel->getContainer();
+    }
+
+    /**
+     * @AfterFeature @reset-downloads-after-feature
+     */
+    public static function resetDownloads(): void
+    {
+        (new ResourceResetter())->resetDownloads();
+    }
+
+    /**
+     * @AfterFeature @reset-img-after-feature
+     */
+    public static function resetImgDir(): void
+    {
+        (new ResourceResetter())->resetImages();
     }
 
     /**
@@ -117,13 +255,53 @@ class CommonFeatureContext extends AbstractPrestaShopFeatureContext
     }
 
     /**
+     * @BeforeScenario @mock-context-on-scenario
+     */
+    public static function mockContextBeforeScenario()
+    {
+        self::mockContext();
+    }
+
+    /**
+     * @AfterScenario @mock-context-on-scenario
+     */
+    public static function resetContextAfterScenario()
+    {
+        self::resetContext();
+    }
+
+    /**
+     * @BeforeFeature @mock-context-on-feature
+     */
+    public static function mockContextBeforeFeature()
+    {
+        self::mockContext();
+    }
+
+    /**
+     * @AfterFeature @mock-context-on-feature
+     */
+    public static function resetContextAfterFeature()
+    {
+        self::resetContext();
+    }
+
+    /**
+     * @BeforeScenario @clear-cache-before-scenario
+     */
+    public static function clearCacheBeforeScenario()
+    {
+        self::clearCache();
+    }
+
+    /**
      * This hook can be used to flag a scenario for database hard reset
      *
-     * @BeforeScenario @database-scenario
+     * @BeforeScenario @reset-database-before-scenario
      */
-    public function cleanDatabaseHardPrepare()
+    public static function cleanDatabaseHardPrepareScenario()
     {
-        DatabaseCreator::restoreTestDB();
+        static::restoreTestDB();
         require_once _PS_ROOT_DIR_ . '/config/config.inc.php';
     }
 
@@ -138,14 +316,153 @@ class CommonFeatureContext extends AbstractPrestaShopFeatureContext
     }
 
     /**
+     * @Given I reboot kernel
+     */
+    public function rebootKernelOnDemand()
+    {
+        self::rebootKernel();
+    }
+
+    /**
+     * @Given I restore tables :tableNames
+     *
+     * @param string $tableNames
+     */
+    public function restoreTables(string $tableNames): void
+    {
+        $tables = explode(',', $tableNames);
+        DatabaseDump::restoreTables($tables);
+    }
+
+    private static function mockContext()
+    {
+        /** @var LegacyContext $legacyContext */
+        $legacyContext = self::getContainer()->get('prestashop.adapter.legacy.context');
+        /*
+         * We need to call this before initializing the ContextMocker because this method forcefully init
+         * the shop context thus overriding the expected value
+         */
+        $legacyContext->getContext();
+
+        self::$contextMocker = new ContextMocker();
+        self::$contextMocker->mockContext();
+    }
+
+    private static function resetContext()
+    {
+        if (empty(self::$contextMocker)) {
+            throw new \Exception('Context was not mocked');
+        }
+        self::$contextMocker->resetContext();
+    }
+
+    /**
+     * This method reboots Symfony kernel, this is used to force recreation of services
+     * (e.g: when you add some currencies in the database, you may need to reset the CLDR
+     * related services to use the new ones)
+     */
+    private static function rebootKernel(): void
+    {
+        $realCacheDir = self::$kernel->getContainer()->getParameter('kernel.cache_dir');
+        $warmupDir = substr($realCacheDir, 0, -1) . ('_' === substr($realCacheDir, -1) ? '-' : '_');
+        self::$kernel->reboot($warmupDir);
+    }
+
+    private static function restoreTestDB(): void
+    {
+        DatabaseDump::restoreDb();
+    }
+
+    /**
      * Clears cache
      */
     private static function clearCache(): void
     {
+        Address::resetStaticCache();
         Cache::clear();
-        Pack::resetStaticCache();
+        Carrier::resetStaticCache();
+        Cart::resetStaticCache();
+        CartRule::resetStaticCache();
         Category::resetStaticCache();
+        Pack::resetStaticCache();
         Product::resetStaticCache();
-        Language::resetCache();
+        Language::resetStaticCache();
+        Currency::resetStaticCache();
+        TaxManagerFactory::resetStaticCache();
+        Group::clearCachedValues();
+        Access::resetStaticCache();
+        AddressFormat::resetStaticCache();
+        Alias::resetStaticCache();
+        Attachment::resetStaticCache();
+        ProductAttribute::resetStaticCache();
+        AttributeGroup::resetStaticCache();
+        CMS::resetStaticCache();
+        CMSCategory::resetStaticCache();
+        CMSRole::resetStaticCache();
+        Configuration::resetStaticCache();
+        Connection::resetStaticCache();
+        ConnectionsSource::resetStaticCache();
+        Contact::resetStaticCache();
+        CustomerMessage::resetStaticCache();
+        CustomerSession::resetStaticCache();
+        CustomerThread::resetStaticCache();
+        CustomizationField::resetStaticCache();
+        DateRange::resetStaticCache();
+        EmployeeSession::resetStaticCache();
+        Feature::resetStaticCache();
+        FeatureValue::resetStaticCache();
+        Gender::resetStaticCache();
+        GroupReduction::resetStaticCache();
+        Hook::resetStaticCache();
+        Image::resetStaticCache();
+        ImageType::resetStaticCache();
+        Mail::resetStaticCache();
+        Manufacturer::resetStaticCache();
+        Message::resetStaticCache();
+        Meta::resetStaticCache();
+        Page::resetStaticCache();
+        ProductDownload::resetStaticCache();
+        ProductSupplier::resetStaticCache();
+        Profile::resetStaticCache();
+        QuickAccess::resetStaticCache();
+        RequestSql::resetStaticCache();
+        Risk::resetStaticCache();
+        SearchEngine::resetStaticCache();
+        State::resetStaticCache();
+        Store::resetStaticCache();
+        Supplier::resetStaticCache();
+        Tab::resetStaticCache();
+        Tag::resetStaticCache();
+        Zone::resetStaticCache();
+        OrderCartRule::resetStaticCache();
+        OrderHistory::resetStaticCache();
+        OrderInvoice::resetStaticCache();
+        OrderMessage::resetStaticCache();
+        OrderPayment::resetStaticCache();
+        OrderReturn::resetStaticCache();
+        OrderReturnState::resetStaticCache();
+        OrderSlip::resetStaticCache();
+        OrderState::resetStaticCache();
+        RangePrice::resetStaticCache();
+        RangeWeight::resetStaticCache();
+        Shop::resetStaticCache();
+        ShopGroup::resetStaticCache();
+        ShopUrl::resetStaticCache();
+        Stock::resetStaticCache();
+        StockAvailable::resetStaticCache();
+        StockMvt::resetStaticCache();
+        StockMvtReason::resetStaticCache();
+        StockMvtWS::resetStaticCache();
+        SupplyOrder::resetStaticCache();
+        SupplyOrderDetail::resetStaticCache();
+        SupplyOrderHistory::resetStaticCache();
+        SupplyOrderState::resetStaticCache();
+        WarehouseProductLocation::resetStaticCache();
+        Tax::resetStaticCache();
+        TaxRule::resetStaticCache();
+        TaxRulesGroup::resetStaticCache();
+        WebserviceKey::resetStaticCache();
+        SpecificPrice::flushCache();
+        SharedStorage::getStorage()->clean();
     }
 }

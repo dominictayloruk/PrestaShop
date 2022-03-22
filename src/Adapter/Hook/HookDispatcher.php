@@ -52,7 +52,7 @@ class HookDispatcher extends EventDispatcher implements HookDispatcherInterface
     private $renderingContent = [];
 
     /**
-     * @var bool
+     * @var bool|callable
      */
     private $propagationStoppedCalledBy = false;
 
@@ -70,15 +70,19 @@ class HookDispatcher extends EventDispatcher implements HookDispatcherInterface
     }
 
     /**
-     * {@inheritdoc}
      * This override will check if $event is an instance of HookEvent.
+     *
+     * @param string|Hook $eventName
+     * @param Event|null $event
+     *
+     * @return Event|HookEvent
      *
      * @throws \Exception if the Event is not HookEvent or a subclass
      */
     public function dispatch($eventName, Event $event = null)
     {
         if ($event === null) {
-            $event = $this->createHookEventWithContextParameters();
+            $event = new HookEvent($this->getHookEventContextParameters());
         }
 
         if (!$event instanceof HookEvent) {
@@ -118,7 +122,7 @@ class HookDispatcher extends EventDispatcher implements HookDispatcherInterface
         foreach ($eventNames as $name) {
             $this->dispatch(
                 $name,
-                ($this->createHookEventWithContextParameters())->setHookParameters($eventParameters)
+                (new HookEvent($this->getHookEventContextParameters()))->setHookParameters($eventParameters)
             );
         }
     }
@@ -140,10 +144,7 @@ class HookDispatcher extends EventDispatcher implements HookDispatcherInterface
             if ($event instanceof RenderingHookEvent) {
                 $listenerName = $event->popListener() ?: $listener[1];
 
-                $eventContent = $event->popContent();
-                $this->renderingContent[$listenerName] = (!is_string($eventContent) || strlen($eventContent) > strlen($obContent))
-                    ? $eventContent
-                    : $obContent;
+                $this->renderingContent[$listenerName] = $event->popContent();
             }
             if ($event->isPropagationStopped()) {
                 $this->propagationStoppedCalledBy = $listener;
@@ -158,7 +159,7 @@ class HookDispatcher extends EventDispatcher implements HookDispatcherInterface
     /**
      * Creates a HookEvent, sets its parameters, and dispatches it.
      *
-     * @param $eventName string The hook name
+     * @param string $eventName The hook name
      * @param array $parameters Hook parameters
      *
      * @return Event the event that has been passed to each listener
@@ -167,7 +168,7 @@ class HookDispatcher extends EventDispatcher implements HookDispatcherInterface
      */
     public function dispatchForParameters($eventName, array $parameters = [])
     {
-        $event = $this->createHookEventWithContextParameters();
+        $event = new HookEvent($this->getHookEventContextParameters());
         $event->setHookParameters($parameters);
 
         return $this->dispatch($eventName, $event);
@@ -179,16 +180,19 @@ class HookDispatcher extends EventDispatcher implements HookDispatcherInterface
      * @param string $eventName the hook name
      * @param array $parameters Hook parameters
      *
-     * @return Event The event that has been passed to each listener. Contains the responses.
+     * @return RenderingHookEvent The event that has been passed to each listener. Contains the responses.
      *
      * @throws \Exception
      */
     public function renderForParameters($eventName, array $parameters = [])
     {
-        $event = new RenderingHookEvent();
+        $event = new RenderingHookEvent($this->getHookEventContextParameters());
         $event->setHookParameters($parameters);
 
-        return $this->dispatch($eventName, $event);
+        /** @var RenderingHookEvent $eventDispatched */
+        $eventDispatched = $this->dispatch($eventName, $event);
+
+        return $eventDispatched;
     }
 
     /**
@@ -196,7 +200,7 @@ class HookDispatcher extends EventDispatcher implements HookDispatcherInterface
      */
     public function dispatchWithParameters($hookName, array $hookParameters = [])
     {
-        $this->dispatch(new Hook($hookName, $hookParameters));
+        $this->dispatchForParameters($hookName, $hookParameters);
     }
 
     /**
@@ -221,28 +225,28 @@ class HookDispatcher extends EventDispatcher implements HookDispatcherInterface
     }
 
     /**
-     * @return hookEvent
+     * @return array
      *
-     * Context parameters are injected into the new HookEvent
+     * Returns context parameters that will be injected into the new HookEvent
      *
      * Note: _ps_version contains PrestaShop version, and is here only if the Hook is triggered by Symfony architecture
      */
-    private function createHookEventWithContextParameters(): HookEvent
+    private function getHookEventContextParameters(): array
     {
         $globalParameters = ['_ps_version' => \AppKernel::VERSION];
 
         if (null === $this->requestStack) {
-            return new HookEvent($globalParameters);
+            return $globalParameters;
         }
 
         $request = $this->requestStack->getCurrentRequest();
         if (null === $request) {
-            return new HookEvent($globalParameters);
+            return $globalParameters;
         }
 
         $globalParameters['request'] = $request;
         $globalParameters['route'] = $request->get('_route');
 
-        return new HookEvent($globalParameters);
+        return $globalParameters;
     }
 }
