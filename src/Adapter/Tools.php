@@ -40,32 +40,12 @@ class Tools
     /**
      * Return the friendly url from the provided string.
      *
-     * @deprecated use linkRewrite
-     *
      * @param string $str
-     * @param bool $utf8Decode (deprecated)
      *
      * @return string
      */
-    public function link_rewrite($str, $utf8Decode = null)
+    public function linkRewrite($str)
     {
-        return $this->linkRewrite($str, $utf8Decode);
-    }
-
-    /**
-     * Return the friendly url from the provided string.
-     *
-     * @param string $str
-     * @param bool $utf8Decode (deprecated)
-     *
-     * @return string
-     */
-    public function linkRewrite($str, $utf8Decode = null)
-    {
-        if ($utf8Decode !== null) {
-            LegacyTools::displayParameterAsDeprecated('utf8_decode');
-        }
-
         return LegacyTools::str2url($str);
     }
 
@@ -97,24 +77,6 @@ class Tools
     public function generateHtaccess()
     {
         return LegacyTools::generateHtaccess();
-    }
-
-    /**
-     * @see HtaccessFileGenerator::generateFile()
-     *
-     * @param bool $disableMultiView enable/disable Multiviews option
-     *
-     * @return bool
-     */
-    private function generateHtaccessOnMultiViews($disableMultiView = false)
-    {
-        return LegacyTools::generateHtaccess(
-            null,
-            null,
-            null,
-            '',
-            $disableMultiView
-        );
     }
 
     /**
@@ -229,6 +191,8 @@ class Tools
 
     /**
      * Delete unicode class from regular expression patterns.
+     *
+     * @deprecated Since 8.0.0 and will be removed in the next major.
      *
      * @param string $pattern
      *

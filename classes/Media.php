@@ -136,7 +136,6 @@ class MediaCore
             try {
                 $jsContent = JSMin::minify($jsContent);
             } catch (Exception $e) {
-                /* @phpstan-ignore-next-line */
                 if (_PS_MODE_DEV_) {
                     echo $e->getMessage();
                 }
@@ -258,12 +257,12 @@ class MediaCore
         }
 
         $urlData = parse_url($mediaUri);
-        if (!is_array($urlData)) {
+        if (!is_array($urlData) || !array_key_exists('path', $urlData)) {
             return false;
         }
 
         if (!array_key_exists('host', $urlData)) {
-            $mediaUri = '/' . ltrim(str_replace(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, _PS_ROOT_DIR_), __PS_BASE_URI__, $mediaUri), '/\\');
+            $mediaUri = '/' . ltrim(str_replace(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, _PS_ROOT_DIR_), __PS_BASE_URI__, $urlData['path']), '/\\');
             // remove PS_BASE_URI on _PS_ROOT_DIR_ for the following
             $fileUri = _PS_ROOT_DIR_ . Tools::str_replace_once(__PS_BASE_URI__, DIRECTORY_SEPARATOR, $mediaUri);
             if (!file_exists($fileUri) || !@filemtime($fileUri) || @filesize($fileUri) === 0) {
@@ -271,6 +270,9 @@ class MediaCore
             }
 
             $mediaUri = str_replace('//', '/', $mediaUri);
+            if (array_key_exists('query', $urlData)) {
+                $mediaUri .= '?' . $urlData['query'];
+            }
         }
 
         if ($cssMediaType) {
@@ -792,7 +794,12 @@ class MediaCore
         $inline = isset($matches[2]) ? trim($matches[2]) : '';
 
         /* This is an inline script, add its content to inline scripts stack then remove it from content */
-        if (!empty($inline) && preg_match(Media::$pattern_js, $original) !== false && !preg_match('/' . Media::$pattern_keepinline . '/', $original) && Media::$inline_script[] = $inline) {
+        if (!empty($inline)
+            && preg_match(Media::$pattern_js, $original) !== false
+            && !preg_match('/' . Media::$pattern_keepinline . '/', $original)
+        ) {
+            Media::$inline_script[] = $inline;
+
             return '';
         }
         /* This is an external script, if it already belongs to js_files then remove it from content */

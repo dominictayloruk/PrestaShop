@@ -44,10 +44,10 @@ class CartCore extends ObjectModel
 
     public $id_shop;
 
-    /** @var int Customer delivery address ID */
+    /** @var int|null Customer delivery address ID */
     public $id_address_delivery;
 
-    /** @var int Customer invoicing address ID */
+    /** @var int|null Customer invoicing address ID */
     public $id_address_invoice;
 
     /** @var int Customer currency ID */
@@ -956,13 +956,13 @@ class CartCore extends ObjectModel
             case Order::ROUND_ITEM:
             default:
                 $row['total'] = Tools::ps_round(
-                        $row['price_with_reduction_without_tax'],
-                        Context::getContext()->getComputingPrecision()
-                    ) * $productQuantity;
+                    $row['price_with_reduction_without_tax'],
+                    Context::getContext()->getComputingPrecision()
+                ) * $productQuantity;
                 $row['total_wt'] = Tools::ps_round(
-                        $row['price_with_reduction'],
-                        Context::getContext()->getComputingPrecision()
-                    ) * $productQuantity;
+                    $row['price_with_reduction'],
+                    Context::getContext()->getComputingPrecision()
+                ) * $productQuantity;
 
                 break;
         }
@@ -3129,7 +3129,8 @@ class CartCore extends ObjectModel
             uasort($array, ['Cart', 'sortDeliveryOptionList']);
         }
 
-        Hook::exec('actionFilterDeliveryOptionList',
+        Hook::exec(
+            'actionFilterDeliveryOptionList',
             [
                 'delivery_option_list' => &$delivery_option_list,
             ]
@@ -3296,7 +3297,8 @@ class CartCore extends ObjectModel
      */
     public static function desintifier($int, $delimiter = ',')
     {
-        $delimiter_len = $int[0];
+        /** @var positive-int $delimiter_len */
+        $delimiter_len = intval($int[0]);
         $int = strrev(substr($int, 1));
         $elm = explode(str_repeat('0', $delimiter_len + 1), $int);
 
@@ -3357,7 +3359,7 @@ class CartCore extends ObjectModel
      */
     public function setDeliveryOption($delivery_option = null)
     {
-        if (empty($delivery_option) || count($delivery_option) == 0) {
+        if (empty($delivery_option)) {
             $this->delivery_option = '';
             $this->id_carrier = 0;
 
@@ -3418,7 +3420,7 @@ class CartCore extends ObjectModel
      * @param bool $dontAutoSelectOptions Do not auto select delivery option
      * @param bool $use_cache Use cache
      *
-     * @return array|bool|mixed Delivery option
+     * @return array|false Delivery option
      */
     public function getDeliveryOption($default_country = null, $dontAutoSelectOptions = false, $use_cache = true)
     {
@@ -3554,16 +3556,6 @@ class CartCore extends ObjectModel
         }
 
         return $total_shipping;
-    }
-
-    /**
-     * @deprecated 1.5.0, use Cart->getPackageShippingCost()
-     */
-    public function getOrderShippingCost($id_carrier = null, $use_tax = true, Country $default_country = null, $product_list = null)
-    {
-        Tools::displayAsDeprecated('Use Cart->getPackageShippingCost()');
-
-        return $this->getPackageShippingCost((int) $id_carrier, $use_tax, $default_country, $product_list);
     }
 
     /**
@@ -3976,23 +3968,6 @@ class CartCore extends ObjectModel
     }
 
     /**
-     * @deprecated 1.5.0
-     *
-     * @param CartRule $obj
-     *
-     * @return bool|string
-     */
-    public function checkDiscountValidity($obj, $discounts, $order_total, $products, $check_cart_discount = false)
-    {
-        Tools::displayAsDeprecated();
-        $context = Context::getContext()->cloneContext();
-        /* @phpstan-ignore-next-line */
-        $context->cart = $this;
-
-        return $obj->checkValidity($context);
-    }
-
-    /**
      * Return useful information about the cart for display purpose.
      * Products are splitted between paid ones and gift
      * Gift price and shipping (if shipping is free) are removed from Discounts
@@ -4115,19 +4090,20 @@ class CartCore extends ObjectModel
 
         foreach ($this->getProducts() as $product) {
             if (
-                !$this->allow_seperated_package &&
-                !$product['allow_oosp'] &&
-                StockAvailable::dependsOnStock($product['id_product']) &&
-                $product['advanced_stock_management'] &&
-                (bool) Context::getContext()->customer->isLogged() &&
-                ($delivery = $this->getDeliveryOption()) &&
-                !empty($delivery)
+                !$this->allow_seperated_package
+                && !$product['allow_oosp']
+                && StockAvailable::dependsOnStock($product['id_product'])
+                && $product['advanced_stock_management']
+                && (bool) Context::getContext()->customer->isLogged()
             ) {
-                $product['stock_quantity'] = StockManager::getStockByCarrier(
-                    (int) $product['id_product'],
-                    (int) $product['id_product_attribute'],
-                    $delivery
-                );
+                $delivery = $this->getDeliveryOption();
+                if (!empty($delivery)) {
+                    $product['stock_quantity'] = StockManager::getStockByCarrier(
+                        (int) $product['id_product'],
+                        (int) $product['id_product_attribute'],
+                        $delivery
+                    );
+                }
             }
 
             if (
@@ -4297,7 +4273,7 @@ class CartCore extends ObjectModel
     public static function getCartIdByOrderId($id_order)
     {
         $result = Db::getInstance()->getRow('SELECT `id_cart` FROM ' . _DB_PREFIX_ . 'orders WHERE `id_order` = ' . (int) $id_order);
-        if (!$result || empty($result) || !array_key_exists('id_cart', $result)) {
+        if (empty($result) || !array_key_exists('id_cart', $result)) {
             return false;
         }
 
@@ -4350,21 +4326,6 @@ class CartCore extends ObjectModel
             0,
             $returnCustomizationId
         );
-    }
-
-    /**
-     * @deprecated 1.5.5.0
-     *
-     * @param int $id_product Product ID
-     * @param int $index Customization field identifier as id_customization_field in table customization_field
-     *
-     * @return bool
-     */
-    public function deletePictureToProduct($id_product, $index)
-    {
-        Tools::displayAsDeprecated('Use deleteCustomizationToProduct() instead');
-
-        return $this->deleteCustomizationToProduct($id_product, (int) $index);
     }
 
     /**
@@ -4464,18 +4425,6 @@ class CartCore extends ObjectModel
     }
 
     /**
-     * If the carrier name is 0, use this function to replace it with the shop name.
-     *
-     * @param string $echo Text to use
-     *
-     * @return string
-     */
-    public static function replaceZeroByShopName($echo)
-    {
-        return $echo == '0' ? Carrier::getCarrierNameFromShopName() : $echo;
-    }
-
-    /**
      * Duplicate this Cart in the database.
      *
      * @return array|bool Duplicated cart, with success bool
@@ -4542,11 +4491,11 @@ class CartCore extends ObjectModel
 
         // Backward compatibility: if true set customizations quantity to 0, they will be updated in Cart::_updateCustomizationQuantity
         $new_customization_method = (int) Db::getInstance()->getValue(
-                '
+            '
             SELECT COUNT(`id_customization`) FROM `' . _DB_PREFIX_ . 'cart_product`
             WHERE `id_cart` = ' . (int) $this->id .
                 ' AND `id_customization` != 0'
-            ) > 0;
+        ) > 0;
 
         // Insert new customizations
         $custom_ids = [];

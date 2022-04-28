@@ -4,7 +4,7 @@ Thank you for contributing to the PrestaShop project!
 Please take the time to edit the "Answers" rows below with the necessary information.
 
 Check out our contribution guidelines to find out how to complete it:
-https://devdocs.prestashop.com/1.7/contribute/contribution-guidelines/#pull-requests
+https://devdocs.prestashop.com/8/contribute/contribution-guidelines/#pull-requests
 ------------------------------------------------------------------------------>
 
 | Questions         | Answers
@@ -16,6 +16,7 @@ https://devdocs.prestashop.com/1.7/contribute/contribution-guidelines/#pull-requ
 | BC breaks?        | yes / no
 | Deprecations?     | yes / no
 | Fixed ticket?     | Fixes #{issue number here}.
+| Related PRs       | If theme, autoupgrade or other module change is needed, provide a link to related PRs here.
 | How to test?      | Please indicate how to best verify that this PR is correct.
 | Possible impacts? | Please indicate what parts of the software we need to check to make sure everything is alright.
 

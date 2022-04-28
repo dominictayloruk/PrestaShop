@@ -28,7 +28,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Core\Form\IdentifiableObject\DataProvider;
 
-use Category;
 use DateTime;
 use DateTimeImmutable;
 use Generator;
@@ -36,8 +35,8 @@ use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\Constraint\LogicalOr;
 use PHPUnit\Framework\TestCase;
 use PrestaShop\Decimal\DecimalNumber;
-use PrestaShop\PrestaShop\Adapter\Category\CategoryDataProvider;
 use PrestaShop\PrestaShop\Core\CommandBus\CommandBusInterface;
+use PrestaShop\PrestaShop\Core\ConfigurationInterface;
 use PrestaShop\PrestaShop\Core\Domain\Attachment\QueryResult\AttachmentInformation;
 use PrestaShop\PrestaShop\Core\Domain\Manufacturer\ValueObject\NoManufacturerId;
 use PrestaShop\PrestaShop\Core\Domain\Product\Customization\Query\GetProductCustomizationFields;
@@ -61,6 +60,7 @@ use PrestaShop\PrestaShop\Core\Domain\Product\QueryResult\ProductSeoOptions;
 use PrestaShop\PrestaShop\Core\Domain\Product\QueryResult\ProductShippingInformation;
 use PrestaShop\PrestaShop\Core\Domain\Product\QueryResult\ProductStockInformation;
 use PrestaShop\PrestaShop\Core\Domain\Product\QueryResult\RelatedProduct;
+use PrestaShop\PrestaShop\Core\Domain\Product\SpecificPrice\ValueObject\PriorityList;
 use PrestaShop\PrestaShop\Core\Domain\Product\Stock\Query\GetEmployeesStockMovements;
 use PrestaShop\PrestaShop\Core\Domain\Product\Stock\QueryResult\EmployeeStockMovement;
 use PrestaShop\PrestaShop\Core\Domain\Product\Stock\QueryResult\StockMovement;
@@ -85,188 +85,57 @@ class ProductFormDataProviderTest extends TestCase
     private const PRODUCT_ID = 42;
     private const HOME_CATEGORY_ID = 49;
     private const DEFAULT_CATEGORY_ID = 51;
-    private const HOME_CATEGORY_NAME = 'Home';
     private const DEFAULT_VIRTUAL_PRODUCT_FILE_ID = 69;
     private const CONTEXT_LANG_ID = 1;
     private const DEFAULT_QUANTITY = 12;
     private const DEFAULT_SHOP_ID = 99;
     private const COVER_URL = 'http://localhost/cover.jpg';
+    private const DEFAULT_PRIORITY_LIST = [
+        PriorityList::PRIORITY_GROUP,
+        PriorityList::PRIORITY_CURRENCY,
+        PriorityList::PRIORITY_COUNTRY,
+        PriorityList::PRIORITY_SHOP,
+    ];
 
     public function testGetDefaultData(): void
     {
         $queryBusMock = $this->createMock(CommandBusInterface::class);
-
-        $provider = $this->buildProvider($queryBusMock, false);
-
-        $expectedDefaultData = [
-            'header' => [
-                'type' => ProductType::TYPE_STANDARD,
-            ],
-            'description' => [
-                'categories' => [
-                    'product_categories' => [
-                        [
-                            'id' => self::HOME_CATEGORY_ID,
-                            'name' => self::HOME_CATEGORY_NAME,
-                        ],
-                    ],
-                    'default_category_id' => self::HOME_CATEGORY_ID,
-                ],
-                'manufacturer' => NoManufacturerId::NO_MANUFACTURER_ID,
-                'related_products' => [],
-            ],
-            'specifications' => [
-                'condition' => ProductCondition::NEW,
-            ],
-            'stock' => [
-                'quantities' => [
-                    'delta_quantity' => [
-                        'quantity' => 0,
-                        'delta' => 0,
-                    ],
-                    'stock_movements' => [],
-                    'minimal_quantity' => 0,
-                ],
-            ],
-            'pricing' => [
-                'retail_price' => [
-                    'price_tax_excluded' => 0,
-                    'price_tax_included' => 0,
-                ],
-                'tax_rules_group_id' => 42,
-                'wholesale_price' => 0,
-                'unit_price' => [
-                    'price_tax_excluded' => 0,
-                    'price_tax_included' => 0,
-                ],
-            ],
-            'shipping' => [
-                'dimensions' => [
-                    'width' => 0,
-                    'height' => 0,
-                    'depth' => 0,
-                    'weight' => 0,
-                ],
-                'additional_shipping_cost' => 0,
-                'delivery_time_note_type' => DeliveryTimeNoteType::TYPE_DEFAULT,
-            ],
-            'options' => [
-                'visibility' => [
-                    'visibility' => ProductVisibility::VISIBLE_EVERYWHERE,
-                ],
-            ],
-            'footer' => [
-                'active' => false,
-            ],
-        ];
-
-        $defaultData = $provider->getDefaultData();
-
-        // assertSame is very important here We can't assume null and 0 are the same thing
-        $this->assertSame($expectedDefaultData, $defaultData);
-
-        $provider = $this->buildProvider($queryBusMock, true);
+        $provider = $this->buildProvider($queryBusMock);
 
         $expectedDefaultData = [
-            'header' => [
-                'type' => ProductType::TYPE_STANDARD,
-            ],
-            'description' => [
-                'categories' => [
-                    'product_categories' => [
-                        [
-                            'id' => self::HOME_CATEGORY_ID,
-                            'name' => self::HOME_CATEGORY_NAME,
-                        ],
-                    ],
-                    'default_category_id' => self::HOME_CATEGORY_ID,
-                ],
-                'manufacturer' => NoManufacturerId::NO_MANUFACTURER_ID,
-                'related_products' => [],
-            ],
-            'specifications' => [
-                'condition' => ProductCondition::NEW,
-            ],
-            'stock' => [
-                'quantities' => [
-                    'delta_quantity' => [
-                        'quantity' => 0,
-                        'delta' => 0,
-                    ],
-                    'stock_movements' => [],
-                    'minimal_quantity' => 0,
-                ],
-            ],
-            'pricing' => [
-                'retail_price' => [
-                    'price_tax_excluded' => 0,
-                    'price_tax_included' => 0,
-                ],
-                'tax_rules_group_id' => 42,
-                'wholesale_price' => 0,
-                'unit_price' => [
-                    'price_tax_excluded' => 0,
-                    'price_tax_included' => 0,
-                ],
-            ],
-            'shipping' => [
-                'dimensions' => [
-                    'width' => 0,
-                    'height' => 0,
-                    'depth' => 0,
-                    'weight' => 0,
-                ],
-                'additional_shipping_cost' => 0,
-                'delivery_time_note_type' => DeliveryTimeNoteType::TYPE_DEFAULT,
-            ],
-            'options' => [
-                'visibility' => [
-                    'visibility' => ProductVisibility::VISIBLE_EVERYWHERE,
-                ],
-            ],
-            'footer' => [
-                'active' => true,
-            ],
+            'type' => ProductType::TYPE_STANDARD,
         ];
-
         $defaultData = $provider->getDefaultData();
-
-        // assertSame is very important here We can't assume null and 0 are the same thing
         $this->assertSame($expectedDefaultData, $defaultData);
     }
 
     public function testSwitchDefaultContextShop(): void
     {
+        $configurationMock = $this->getDefaultConfigurationMock();
         // The real test is performed by the mock here, which assert the correct shopId is used
         $queryBusMock = $this->createQueryBusCheckingShopMock(self::DEFAULT_SHOP_ID);
         $provider = new ProductFormDataProvider(
             $queryBusMock,
-            false,
-            42,
-            self::HOME_CATEGORY_ID,
-            $this->mockCategoryDataProvider(),
+            $configurationMock,
             self::CONTEXT_LANG_ID,
             self::DEFAULT_SHOP_ID,
             null
         );
 
-        $formData = $provider->getData(static::PRODUCT_ID);
+        $formData = $provider->getData(self::PRODUCT_ID);
         $this->assertNotNull($formData);
 
         $contextShopId = 51;
         $queryBusMock = $this->createQueryBusCheckingShopMock($contextShopId);
         $provider = new ProductFormDataProvider(
             $queryBusMock,
-            false,
-            42,
-            self::HOME_CATEGORY_ID,
-            $this->mockCategoryDataProvider(),
+            $configurationMock,
             self::CONTEXT_LANG_ID,
             self::DEFAULT_SHOP_ID,
             $contextShopId
         );
 
-        $formData = $provider->getData(static::PRODUCT_ID);
+        $formData = $provider->getData(self::PRODUCT_ID);
         $this->assertNotNull($formData);
     }
 
@@ -279,9 +148,9 @@ class ProductFormDataProviderTest extends TestCase
     public function testGetData(array $productData, array $expectedData)
     {
         $queryBusMock = $this->createQueryBusMock($productData);
-        $provider = $this->buildProvider($queryBusMock, false);
+        $provider = $this->buildProvider($queryBusMock);
 
-        $formData = $provider->getData(static::PRODUCT_ID);
+        $formData = $provider->getData(self::PRODUCT_ID);
         Assert::assertSame($expectedData, $formData);
     }
 
@@ -464,6 +333,7 @@ class ProductFormDataProviderTest extends TestCase
         ];
 
         $expectedOutputData = $this->getDefaultOutputData();
+
         $productData = [
             'price_tax_excluded' => new DecimalNumber('42.00'),
             'price_tax_included' => new DecimalNumber('50.40'),
@@ -485,6 +355,24 @@ class ProductFormDataProviderTest extends TestCase
         $expectedOutputData['pricing']['unit_price']['price_tax_excluded'] = 6.656;
         $expectedOutputData['pricing']['unit_price']['price_tax_included'] = 7.9872;
         $expectedOutputData['pricing']['unit_price']['unity'] = 'candies';
+
+        $datasets[] = [
+            $productData,
+            $expectedOutputData,
+        ];
+
+        // dataset 2
+        $priorities = [
+            PriorityList::PRIORITY_CURRENCY,
+            PriorityList::PRIORITY_COUNTRY,
+            PriorityList::PRIORITY_GROUP,
+            PriorityList::PRIORITY_SHOP,
+        ];
+        $productData['priority_list'] = new PriorityList($priorities);
+        $expectedOutputData['pricing']['priority_management'] = [
+            'use_custom_priority' => true,
+            'priorities' => $priorities,
+        ];
 
         $datasets[] = [
             $productData,
@@ -800,7 +688,7 @@ class ProductFormDataProviderTest extends TestCase
         $productData = [
             'redirect_type' => RedirectType::TYPE_CATEGORY_TEMPORARY,
             'redirect_target' => new ProductRedirectTarget(
-                static::DEFAULT_CATEGORY_ID,
+                self::DEFAULT_CATEGORY_ID,
                 ProductRedirectTarget::CATEGORY_TYPE,
                 $categoryName,
                 $categoryImage
@@ -808,7 +696,7 @@ class ProductFormDataProviderTest extends TestCase
         ];
         $expectedOutputData['seo']['redirect_option']['type'] = RedirectType::TYPE_CATEGORY_TEMPORARY;
         $expectedOutputData['seo']['redirect_option']['target'] = [
-            'id' => static::DEFAULT_CATEGORY_ID,
+            'id' => self::DEFAULT_CATEGORY_ID,
             'name' => $categoryName,
             'image' => $categoryImage,
         ];
@@ -1022,7 +910,7 @@ class ProductFormDataProviderTest extends TestCase
     private function createProductForEditing(array $product): ProductForEditing
     {
         return new ProductForEditing(
-            static::PRODUCT_ID,
+            self::PRODUCT_ID,
             $product['type'] ?? ProductType::TYPE_STANDARD,
             $product['active'] ?? true,
             ProductCustomizationOptions::createNotCustomizable(),
@@ -1036,7 +924,7 @@ class ProductFormDataProviderTest extends TestCase
             $product['attachments'] ?? [],
             $this->createProductStockInformation($product),
             $this->createVirtualProductFile($product),
-            $product['cover_thumbnail'] ?? static::COVER_URL
+            $product['cover_thumbnail'] ?? self::COVER_URL
         );
     }
 
@@ -1206,7 +1094,7 @@ class ProductFormDataProviderTest extends TestCase
         return new ProductStockInformation(
             $product['pack_stock_type'] ?? PackStockType::STOCK_TYPE_DEFAULT,
             $product['out_of_stock'] ?? OutOfStockType::OUT_OF_STOCK_DEFAULT,
-            $product['quantity'] ?? static::DEFAULT_QUANTITY,
+            $product['quantity'] ?? self::DEFAULT_QUANTITY,
             $product['minimal_quantity'] ?? 0,
             $product['low_stock_threshold'] ?? 0,
             $product['low_stock_alert'] ?? false,
@@ -1304,7 +1192,8 @@ class ProductFormDataProviderTest extends TestCase
             $product['unit_price'] ?? new DecimalNumber('19.86'),
             $product['unit_price_tax_included'] ?? new DecimalNumber('23.832'),
             $product['unity'] ?? '',
-            $product['unit_price_ratio'] ?? new DecimalNumber('1')
+            $product['unit_price_ratio'] ?? new DecimalNumber('1'),
+            $product['priority_list'] ?? null
         );
     }
 
@@ -1433,11 +1322,11 @@ class ProductFormDataProviderTest extends TestCase
     private function getDefaultOutputData(): array
     {
         return [
-            'id' => static::PRODUCT_ID,
+            'id' => self::PRODUCT_ID,
             'header' => [
                 'type' => ProductType::TYPE_STANDARD,
                 'name' => [],
-                'cover_thumbnail' => static::COVER_URL,
+                'cover_thumbnail' => self::COVER_URL,
             ],
             'description' => [
                 'description' => [],
@@ -1466,7 +1355,7 @@ class ProductFormDataProviderTest extends TestCase
             'stock' => [
                 'quantities' => [
                     'delta_quantity' => [
-                        'quantity' => static::DEFAULT_QUANTITY,
+                        'quantity' => self::DEFAULT_QUANTITY,
                         'delta' => 0,
                     ],
                     'stock_movements' => [],
@@ -1474,7 +1363,7 @@ class ProductFormDataProviderTest extends TestCase
                 ],
                 'options' => [
                     'stock_location' => 'location',
-                    'low_stock_threshold' => null,
+                    'low_stock_threshold' => 0,
                     'low_stock_alert' => false,
                 ],
                 'virtual_product_file' => [
@@ -1501,6 +1390,10 @@ class ProductFormDataProviderTest extends TestCase
                     'price_tax_excluded' => 19.86,
                     'price_tax_included' => 23.832,
                     'unity' => '',
+                ],
+                'priority_management' => [
+                    'use_custom_priority' => false,
+                    'priorities' => self::DEFAULT_PRIORITY_LIST,
                 ],
             ],
             'seo' => [
@@ -1545,35 +1438,31 @@ class ProductFormDataProviderTest extends TestCase
 
     /**
      * @param CommandBusInterface $queryBusMock
-     * @param bool $activation
      *
      * @return ProductFormDataProvider
      */
-    private function buildProvider(CommandBusInterface $queryBusMock, bool $activation): ProductFormDataProvider
+    private function buildProvider(CommandBusInterface $queryBusMock): ProductFormDataProvider
     {
         return new ProductFormDataProvider(
             $queryBusMock,
-            $activation,
-            42,
-            self::HOME_CATEGORY_ID,
-            $this->mockCategoryDataProvider(),
+            $this->getDefaultConfigurationMock(),
             self::CONTEXT_LANG_ID,
             self::DEFAULT_SHOP_ID,
             null
         );
     }
 
-    private function mockCategoryDataProvider(): CategoryDataProvider
+    /**
+     * @return ConfigurationInterface
+     */
+    private function getDefaultConfigurationMock(): ConfigurationInterface
     {
-        $defaultCategoryMock = $this->createMock(Category::class);
-        $defaultCategoryMock->id = self::HOME_CATEGORY_ID;
-        $defaultCategoryMock->name = [
-            self::CONTEXT_LANG_ID => self::HOME_CATEGORY_NAME,
-        ];
+        $configurationMock = $this->getMockBuilder(ConfigurationInterface::class)->getMock();
 
-        $categoryDataProvider = $this->createMock(CategoryDataProvider::class);
-        $categoryDataProvider->method('getCategory')->willReturn($defaultCategoryMock);
+        $configurationMock->method('get')->willReturnMap([
+            ['PS_SPECIFIC_PRICE_PRIORITIES', implode(';', self::DEFAULT_PRIORITY_LIST)],
+        ]);
 
-        return $categoryDataProvider;
+        return $configurationMock;
     }
 }

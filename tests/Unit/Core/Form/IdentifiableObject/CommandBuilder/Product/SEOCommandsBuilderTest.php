@@ -28,15 +28,16 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Core\Form\IdentifiableObject\CommandBuilder\Product;
 
+use PrestaShop\PrestaShop\Core\Domain\Product\Command\RemoveAllProductTagsCommand;
+use PrestaShop\PrestaShop\Core\Domain\Product\Command\SetProductTagsCommand;
 use PrestaShop\PrestaShop\Core\Domain\Product\Command\UpdateProductSeoCommand;
 use PrestaShop\PrestaShop\Core\Domain\Product\ValueObject\RedirectType;
 use PrestaShop\PrestaShop\Core\Domain\Shop\ValueObject\ShopConstraint;
+use PrestaShop\PrestaShop\Core\Exception\InvalidArgumentException;
 use PrestaShop\PrestaShop\Core\Form\IdentifiableObject\CommandBuilder\Product\SEOCommandsBuilder;
 
 class SEOCommandsBuilderTest extends AbstractProductCommandBuilderTest
 {
-    private const MULTI_SHOP_PREFIX = 'seo_multi_shop';
-
     /**
      * @dataProvider getExpectedCommandsForSingleShop
      *
@@ -45,11 +46,11 @@ class SEOCommandsBuilderTest extends AbstractProductCommandBuilderTest
      */
     public function testBuildCommandsForSingleShop(array $formData, array $expectedCommands)
     {
-        $builder = new SEOCommandsBuilder(self::MULTI_SHOP_PREFIX);
+        $builder = new SEOCommandsBuilder(self::MODIFY_ALL_SHOPS_PREFIX);
         $builtCommands = $builder->buildCommands(
             $this->getProductId(),
             $formData,
-            $this->singleShopConstraint
+            $this->getSingleShopConstraint()
         );
         $this->assertEquals($expectedCommands, $builtCommands);
     }
@@ -197,6 +198,109 @@ class SEOCommandsBuilderTest extends AbstractProductCommandBuilderTest
             ],
             [$command],
         ];
+
+        $localizedTagsData = [
+            1 => 'coton,bonbon',
+            2 => 'cotton,candy',
+        ];
+        $localizedTags = [
+            1 => ['coton', 'bonbon'],
+            2 => ['cotton', 'candy'],
+        ];
+        $tagCommands = new SetProductTagsCommand($this->getProductId()->getValue(), $localizedTags);
+        yield 'tags command' => [
+            [
+                'seo' => [
+                    'tags' => $localizedTagsData,
+                ],
+            ],
+            [$tagCommands],
+        ];
+
+        $command = $this
+            ->getSingleShopCommand()
+            ->setRedirectOption(RedirectType::TYPE_CATEGORY_TEMPORARY, 51)
+        ;
+        yield 'seo command and tags command' => [
+            [
+                'seo' => [
+                    'redirect_option' => [
+                        'type' => RedirectType::TYPE_CATEGORY_TEMPORARY,
+                        'target' => [
+                            'id' => 51,
+                        ],
+                    ],
+                    'tags' => $localizedTagsData,
+                ],
+            ],
+            [$command, $tagCommands],
+        ];
+
+        $localizedTagsData = [
+            1 => 'coton,bonbon',
+            2 => null,
+        ];
+        $localizedTags = [
+            1 => ['coton', 'bonbon'],
+            2 => [],
+        ];
+        $tagCommands = new SetProductTagsCommand($this->getProductId()->getValue(), $localizedTags);
+        yield 'tags with empty value for one language' => [
+            [
+                'seo' => [
+                    'tags' => $localizedTagsData,
+                ],
+            ],
+            [$tagCommands],
+        ];
+
+        $localizedTagsData = [
+            1 => null,
+            2 => null,
+        ];
+        $tagCommands = new RemoveAllProductTagsCommand($this->getProductId()->getValue());
+        yield 'remove tags command with all localized values empty' => [
+            [
+                'seo' => [
+                    'tags' => $localizedTagsData,
+                ],
+            ],
+            [$tagCommands],
+        ];
+
+        $tagCommands = new RemoveAllProductTagsCommand($this->getProductId()->getValue());
+        yield 'remove tags command with empty array' => [
+            [
+                'seo' => [
+                    'tags' => [],
+                ],
+            ],
+            [$tagCommands],
+        ];
+
+        $tagCommands = new RemoveAllProductTagsCommand($this->getProductId()->getValue());
+        yield 'remove tags commands with empty string' => [
+            [
+                'seo' => [
+                    'tags' => '',
+                ],
+            ],
+            [$tagCommands],
+        ];
+    }
+
+    public function testInvalidTags(): void
+    {
+        $builder = new SEOCommandsBuilder(self::MODIFY_ALL_SHOPS_PREFIX);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected tags to be a localized array');
+
+        $builder->buildCommands($this->getProductId(), [
+            'seo' => [
+                'tags' => 'cotton, candy',
+            ],
+        ], $this->getSingleShopConstraint());
     }
 
     /**
@@ -207,11 +311,11 @@ class SEOCommandsBuilderTest extends AbstractProductCommandBuilderTest
      */
     public function testBuildCommandsForMultiShop(array $formData, array $expectedCommands): void
     {
-        $builder = new SEOCommandsBuilder(self::MULTI_SHOP_PREFIX);
+        $builder = new SEOCommandsBuilder(self::MODIFY_ALL_SHOPS_PREFIX);
         $builtCommands = $builder->buildCommands(
             $this->getProductId(),
             $formData,
-            $this->singleShopConstraint
+            $this->getSingleShopConstraint()
         );
         $this->assertEquals($expectedCommands, $builtCommands);
     }
@@ -242,11 +346,11 @@ class SEOCommandsBuilderTest extends AbstractProductCommandBuilderTest
             [
                 'seo' => [
                     'meta_title' => $localizedMetaTitles,
-                    self::MULTI_SHOP_PREFIX . 'meta_title' => false,
+                    self::MODIFY_ALL_SHOPS_PREFIX . 'meta_title' => false,
                     'meta_description' => $localizedMetaDescriptions,
-                    self::MULTI_SHOP_PREFIX . 'meta_description' => '0',
+                    self::MODIFY_ALL_SHOPS_PREFIX . 'meta_description' => '0',
                     'link_rewrite' => $localizedLinkRewrites,
-                    self::MULTI_SHOP_PREFIX . 'link_rewrite' => '',
+                    self::MODIFY_ALL_SHOPS_PREFIX . 'link_rewrite' => '',
                     'redirect_option' => [
                         'type' => RedirectType::TYPE_PRODUCT_TEMPORARY,
                         'target' => [
@@ -269,14 +373,14 @@ class SEOCommandsBuilderTest extends AbstractProductCommandBuilderTest
             [
                 'seo' => [
                     'meta_title' => $localizedMetaTitles,
-                    self::MULTI_SHOP_PREFIX . 'meta_title' => true,
+                    self::MODIFY_ALL_SHOPS_PREFIX . 'meta_title' => true,
                     'meta_description' => $localizedMetaDescriptions,
-                    self::MULTI_SHOP_PREFIX . 'meta_description' => 'enabled',
+                    self::MODIFY_ALL_SHOPS_PREFIX . 'meta_description' => 'enabled',
                     'link_rewrite' => $localizedLinkRewrites,
-                    self::MULTI_SHOP_PREFIX . 'link_rewrite' => 1,
+                    self::MODIFY_ALL_SHOPS_PREFIX . 'link_rewrite' => 1,
                     'redirect_option' => [
                         'type' => RedirectType::TYPE_PRODUCT_TEMPORARY,
-                        self::MULTI_SHOP_PREFIX . 'type' => true,
+                        self::MODIFY_ALL_SHOPS_PREFIX . 'type' => true,
                         'target' => [
                             'id' => 42,
                         ],
@@ -300,16 +404,16 @@ class SEOCommandsBuilderTest extends AbstractProductCommandBuilderTest
             [
                 'seo' => [
                     'meta_title' => $localizedMetaTitles,
-                    self::MULTI_SHOP_PREFIX . 'meta_title' => false,
+                    self::MODIFY_ALL_SHOPS_PREFIX . 'meta_title' => false,
                     'meta_description' => $localizedMetaDescriptions,
-                    self::MULTI_SHOP_PREFIX . 'meta_description' => true,
+                    self::MODIFY_ALL_SHOPS_PREFIX . 'meta_description' => true,
                     'link_rewrite' => $localizedLinkRewrites,
-                    self::MULTI_SHOP_PREFIX . 'link_rewrite' => false,
+                    self::MODIFY_ALL_SHOPS_PREFIX . 'link_rewrite' => false,
                     'redirect_option' => [
                         'type' => RedirectType::TYPE_PRODUCT_TEMPORARY,
                         'target' => [
                             'id' => 42,
-                            self::MULTI_SHOP_PREFIX . 'id' => true,
+                            self::MODIFY_ALL_SHOPS_PREFIX . 'id' => true,
                         ],
                     ],
                 ],

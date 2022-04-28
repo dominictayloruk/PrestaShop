@@ -246,7 +246,7 @@
     <value>3</value>
   </configuration>
   <configuration id="PS_SPECIFIC_PRICE_PRIORITIES" name="PS_SPECIFIC_PRICE_PRIORITIES">
-    <value>id_shop;id_currency;id_country;id_group</value>
+    <value>id_group;id_currency;id_country;id_shop</value>
   </configuration>
   <configuration id="PS_TAX_DISPLAY" name="PS_TAX_DISPLAY">
     <value>0</value>
@@ -840,9 +840,6 @@ Country</value>
     </configuration>
     <configuration id="PS_PRODUCT_WEIGHT_PRECISION" name="PS_PRODUCT_WEIGHT_PRECISION">
       <value>2</value>
-    </configuration>
-    <configuration id="PS_ACTIVE_CRONJOB_EXCHANGE_RATE" name="PS_ACTIVE_CRONJOB_EXCHANGE_RATE">
-        <value>0</value>
     </configuration>
     <configuration id="PS_ORDER_RECALCULATE_SHIPPING" name="PS_ORDER_RECALCULATE_SHIPPING">
       <value>1</value>

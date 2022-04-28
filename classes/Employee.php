@@ -82,9 +82,6 @@ class EmployeeCore extends ObjectModel
     /** @var bool */
     public $bo_menu = true;
 
-    /* Deprecated */
-    public $bo_show_screencast = false;
-
     /** @var bool Status */
     public $active = true;
 
@@ -602,12 +599,10 @@ class EmployeeCore extends ObjectModel
     public function getImage()
     {
         $defaultSystem = Tools::getAdminImageUrl('pr/default.jpg');
-        $imageUrl = null;
 
         // Default from Profile
         $profile = new Profile($this->id_profile);
-        $defaultProfile = (int) $profile->id === (int) $this->id_profile ? $profile->getProfileImage() : null;
-        $imageUrl = $imageUrl ?? $defaultProfile;
+        $imageUrl = (int) $profile->id === (int) $this->id_profile ? $profile->getProfileImage() : null;
 
         // Gravatar
         if ($this->has_enabled_gravatar) {
@@ -693,7 +688,7 @@ class EmployeeCore extends ObjectModel
      */
     public function hasRecentResetPasswordToken()
     {
-        if (!$this->reset_password_token || $this->reset_password_token == '') {
+        if (!$this->reset_password_token) {
             return false;
         }
 
@@ -710,7 +705,7 @@ class EmployeeCore extends ObjectModel
      */
     public function getValidResetPasswordToken()
     {
-        if (!$this->reset_password_token || $this->reset_password_token == '') {
+        if (!$this->reset_password_token) {
             return false;
         }
 

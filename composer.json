@@ -53,6 +53,7 @@
         "pear/archive_tar": "^1.4.12",
         "pelago/emogrifier": "^v5.0.1",
         "phpoffice/phpspreadsheet": "~1.5",
+        "prestashop/blockreassurance": "^5.1",
         "prestashop/blockwishlist": "^2.0",
         "prestashop/circuit-breaker": "^4.0",
         "prestashop/classic": "dev-develop",
@@ -86,6 +87,7 @@
         "prestashop/ps_facetedsearch": "^3.2.1",
         "prestashop/ps_faviconnotificationbo": "^2",
         "prestashop/ps_featuredproducts": "^2",
+        "prestashop/ps_googleanalytics": "^4.1",
         "prestashop/ps_imageslider": "^3",
         "prestashop/ps_languageselector": "^2",
         "prestashop/ps_linklist": "^5",
@@ -100,6 +102,7 @@
         "prestashop/ps_themecusto": "^1",
         "prestashop/ps_viewedproduct": "^1.2",
         "prestashop/ps_wirepayment": "^2",
+        "prestashop/psgdpr": "^1.4",
         "prestashop/statsbestcategories": "^2",
         "prestashop/statsbestcustomers": "^2",
         "prestashop/statsbestmanufacturers": "^2",
@@ -138,9 +141,9 @@
         "friendsofphp/php-cs-fixer": "^2.16.1",
         "johnkary/phpunit-speedtrap": "^3",
         "mikey179/vfsstream": "^1.6",
-        "phpstan/phpstan": "^0.12.48",
+        "phpstan/phpstan": "^1",
         "phpunit/phpunit": "~8.5.16",
-        "prestashop/phpstan-prestashop": "^1.0",
+        "prestashop/phpstan-prestashop": "^2.0",
         "symfony/phpunit-bridge": "^3.4"
     },
     "config": {
@@ -180,7 +183,6 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "LegacyTests\\": "tests-legacy/",
             "Tests\\": "tests/"
         },
         "files": [
@@ -206,10 +208,6 @@
         "integration-tests": [
             "@composer create-test-db",
             "@php -d date.timezone=UTC ./vendor/phpunit/phpunit/phpunit -c tests/Integration/phpunit.xml"
-        ],
-        "phpunit-endpoints": [
-            "@composer create-test-db",
-            "@php -d date.timezone=UTC ./vendor/phpunit/phpunit/phpunit -c tests-legacy/phpunit-endpoints.xml"
         ],
         "restore-test-db": [
             "@php ./tests/bin/restore-test-db.php"

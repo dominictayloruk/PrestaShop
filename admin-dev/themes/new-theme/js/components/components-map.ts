@@ -86,6 +86,9 @@ export default {
     newQuantitySelector: '.new-quantity',
     initialQuantityPreviewSelector: '.initial-quantity',
   },
+  disablingSwitch: {
+    disablingSelector: '.ps-disabling-switch input.ps-switch',
+  },
   currentLength: '.js-current-length',
   recommendedLengthInput: '.js-recommended-length-input',
   multistoreCheckbox: '.multistore-checkbox',
@@ -100,6 +103,7 @@ export default {
   contextualNotification: {
     close: '.contextual-notification .close',
     messageBoxId: 'content-message-box',
+    notificationBoxId: 'contextual-notification-box',
     notificationClass: 'contextual-notification',
   },
   ajaxConfirmation: '#ajax_confirmation',

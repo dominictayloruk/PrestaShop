@@ -33,9 +33,6 @@ use Symfony\Component\HttpFoundation\IpUtils;
 
 class FrontControllerCore extends Controller
 {
-    /** @var array Controller errors */
-    public $errors = [];
-
     /** @var array Controller warning notifications */
     public $warning = [];
 
@@ -300,7 +297,7 @@ class FrontControllerCore extends Controller
         ob_start();
 
         $protocol_link = (Configuration::get('PS_SSL_ENABLED') || Tools::usingSecureMode()) ? 'https://' : 'http://';
-        $useSSL = ((isset($this->ssl) && $this->ssl && Configuration::get('PS_SSL_ENABLED')) || Tools::usingSecureMode()) ? true : false;
+        $useSSL = ($this->ssl && Configuration::get('PS_SSL_ENABLED')) || Tools::usingSecureMode();
         $protocol_content = ($useSSL) ? 'https://' : 'http://';
         $link = new Link($protocol_link, $protocol_content);
         $this->context->link = $link;
@@ -337,9 +334,11 @@ class FrontControllerCore extends Controller
             if ((!$has_currency || $has_country) && !$has_address_type) {
                 if ($has_country && Validate::isLanguageIsoCode($this->context->cookie->iso_code_country)) {
                     $id_country = (int) Country::getByIso(strtoupper($this->context->cookie->iso_code_country));
-                } elseif (Configuration::get('PS_DETECT_COUNTRY') && isset($_SERVER['HTTP_ACCEPT_LANGUAGE'])
-                        && preg_match('#(?<=-)\w\w|\w\w(?!-)#', $_SERVER['HTTP_ACCEPT_LANGUAGE'], $array)
-                        && Validate::isLanguageIsoCode($array[0])) {
+                } elseif (
+                    isset($_SERVER['HTTP_ACCEPT_LANGUAGE'])
+                    && preg_match('#(?<=-)\w\w|\w\w(?!-)#', $_SERVER['HTTP_ACCEPT_LANGUAGE'], $array)
+                    && Validate::isLanguageIsoCode($array[0])
+                ) {
                     $id_country = (int) Country::getByIso($array[0], true);
                 } else {
                     $id_country = Tools::getCountry();
@@ -372,7 +371,7 @@ class FrontControllerCore extends Controller
                 $cart = new Cart((int) $this->context->cookie->id_cart);
             }
 
-            if (Validate::isLoadedObject($cart) && $cart->orderExists()) {
+            if (!Validate::isLoadedObject($cart) || $cart->orderExists()) {
                 PrestaShopLogger::addLog('Frontcontroller::init - Cart cannot be loaded or an order has already been placed using this cart', 1, null, 'Cart', (int) $this->context->cookie->id_cart, true);
                 unset($this->context->cookie->id_cart, $cart, $this->context->cookie->checkedTOS);
                 $this->context->cookie->check_cgv = false;
@@ -627,7 +626,7 @@ class FrontControllerCore extends Controller
      */
     protected function redirect()
     {
-        Tools::redirectLink($this->redirect_after);
+        Tools::redirect($this->redirect_after);
     }
 
     public function redirectWithNotifications()
@@ -809,7 +808,6 @@ class FrontControllerCore extends Controller
 
             // Don't send any cookie
             Context::getContext()->cookie->disallowWriting();
-            /* @phpstan-ignore-next-line */
             if (defined('_PS_MODE_DEV_') && _PS_MODE_DEV_ && $_SERVER['REQUEST_URI'] != __PS_BASE_URI__) {
                 die('[Debug] This page has moved<br />Please use the following URL instead: <a href="' . $final_url . '">' . $final_url . '</a>');
             }
@@ -817,7 +815,7 @@ class FrontControllerCore extends Controller
             $redirect_type = Configuration::get('PS_CANONICAL_REDIRECT') == 2 ? '301' : '302';
             header('HTTP/1.0 ' . $redirect_type . ' Moved');
             header('Cache-Control: no-cache');
-            Tools::redirectLink($final_url);
+            Tools::redirect($final_url);
         }
     }
 
@@ -987,11 +985,9 @@ class FrontControllerCore extends Controller
         }
 
         $ips = array_map('trim', $ips);
-        if (is_array($ips) && count($ips)) {
-            foreach ($ips as $ip) {
-                if (!empty($ip) && preg_match('/^' . $ip . '.*/', $user_ip)) {
-                    $allowed = true;
-                }
+        foreach ($ips as $ip) {
+            if (!empty($ip) && preg_match('/^' . $ip . '.*/', $user_ip)) {
+                $allowed = true;
             }
         }
 
@@ -1355,7 +1351,7 @@ class FrontControllerCore extends Controller
         }
 
         if ($overridden_template = Hook::exec(
-            'DisplayOverrideTemplate',
+            'displayOverrideTemplate',
             [
                 'controller' => $this,
                 'template_file' => $template,
@@ -1840,7 +1836,6 @@ class FrontControllerCore extends Controller
         } catch (PrestaShopException $e) {
             PrestaShopLogger::addLog($e->getMessage());
 
-            /* @phpstan-ignore-next-line */
             if (defined('_PS_MODE_DEV_') && _PS_MODE_DEV_) {
                 $this->warning[] = $e->getMessage();
                 $scope->assign(['notifications' => $this->prepareNotifications()]);

@@ -34,6 +34,7 @@ const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const FontPreloadPlugin = require('webpack-font-preload-plugin');
 const CssoWebpackPlugin = require('csso-webpack-plugin').default;
+const LicensePlugin = require('webpack-license-plugin');
 
 module.exports = {
   externals: {
@@ -55,6 +56,7 @@ module.exports = {
     cldr: './js/app/cldr',
     cms_page: './js/pages/cms-page',
     cms_page_form: './js/pages/cms-page/form',
+    combination_bulk: './js/pages/product/combination/bulk',
     combination_edit: './js/pages/product/combination/edit',
     contacts: './js/pages/contacts',
     credit_slip: './js/pages/credit-slip',
@@ -102,6 +104,8 @@ module.exports = {
     order_view: './js/pages/order/view',
     orders: './scss/pages/orders/orders.scss',
     payment_preferences: './js/pages/payment-preferences',
+    permission: './js/pages/permission',
+    permissions: './scss/pages/permissions/permissions.scss',
     product: './scss/pages/product/product_page.scss',
     product_catalog: './scss/pages/product/products_catalog.scss',
     product_edit: './js/pages/product/edit',
@@ -122,8 +126,11 @@ module.exports = {
     supplier_form: './js/pages/supplier/supplier-form',
     tax: './js/pages/tax',
     tax_rules_group: './js/pages/tax-rules-group',
+    light_theme: './scss/light_theme.scss',
     theme: './scss/theme.scss',
+    rtl: './scss/rtl.scss',
     themes: './js/pages/themes',
+    title: './js/pages/title',
     translation_settings: './js/pages/translation-settings',
     translations: './js/app/pages/translations',
     webservice: './js/pages/webservice',
@@ -402,6 +409,14 @@ module.exports = {
     }),
     new CssoWebpackPlugin({
       forceMediaMerge: true,
+    }),
+    new LicensePlugin({
+      outputFilename: 'thirdPartyNotice.json',
+      licenseOverrides: {
+        'vazirmatn@32.102.0': 'OFL-1.1',
+        'typeahead.js@0.11.1': 'MIT',
+      },
+      replenishDefaultLicenseTexts: true,
     }),
   ],
 };

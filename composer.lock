@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4ad959abea14e91569886a41fa0352bc",
+    "content-hash": "7cdbb5f44bee9dae840f726098cd6d2e",
     "packages": [
         {
             "name": "beberlei/doctrineextensions",
@@ -2503,29 +2503,32 @@
         },
         {
             "name": "guzzlehttp/psr7",
-            "version": "1.8.2",
+            "version": "2.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/psr7.git",
-                "reference": "dc960a912984efb74d0a90222870c72c87f10c91"
+                "reference": "c94a94f120803a18554c1805ef2e539f8285f9a2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/psr7/zipball/dc960a912984efb74d0a90222870c72c87f10c91",
-                "reference": "dc960a912984efb74d0a90222870c72c87f10c91",
+                "url": "https://api.github.com/repos/guzzle/psr7/zipball/c94a94f120803a18554c1805ef2e539f8285f9a2",
+                "reference": "c94a94f120803a18554c1805ef2e539f8285f9a2",
                 "shasum": ""
             },
             "require": {
-                "php": ">=5.4.0",
-                "psr/http-message": "~1.0",
-                "ralouphie/getallheaders": "^2.0.5 || ^3.0.0"
+                "php": "^7.2.5 || ^8.0",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^1.0",
+                "ralouphie/getallheaders": "^3.0"
             },
             "provide": {
+                "psr/http-factory-implementation": "1.0",
                 "psr/http-message-implementation": "1.0"
             },
             "require-dev": {
-                "ext-zlib": "*",
-                "phpunit/phpunit": "~4.8.36 || ^5.7.27 || ^6.5.14 || ^7.5.20 || ^8.5.8 || ^9.3.10"
+                "bamarni/composer-bin-plugin": "^1.4.1",
+                "http-interop/http-factory-tests": "^0.9",
+                "phpunit/phpunit": "^8.5.8 || ^9.3.10"
             },
             "suggest": {
                 "laminas/laminas-httphandlerrunner": "Emit PSR-7 responses"
@@ -2533,13 +2536,10 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "1.7-dev"
+                    "dev-master": "2.2-dev"
                 }
             },
             "autoload": {
-                "files": [
-                    "src/functions_include.php"
-                ],
                 "psr-4": {
                     "GuzzleHttp\\Psr7\\": "src/"
                 }
@@ -2550,13 +2550,39 @@
             ],
             "authors": [
                 {
+                    "name": "Graham Campbell",
+                    "email": "hello@gjcampbell.co.uk",
+                    "homepage": "https://github.com/GrahamCampbell"
+                },
+                {
                     "name": "Michael Dowling",
                     "email": "mtdowling@gmail.com",
                     "homepage": "https://github.com/mtdowling"
                 },
                 {
+                    "name": "George Mponos",
+                    "email": "gmponos@gmail.com",
+                    "homepage": "https://github.com/gmponos"
+                },
+                {
+                    "name": "Tobias Nyholm",
+                    "email": "tobias.nyholm@gmail.com",
+                    "homepage": "https://github.com/Nyholm"
+                },
+                {
+                    "name": "Márk Sági-Kazár",
+                    "email": "mark.sagikazar@gmail.com",
+                    "homepage": "https://github.com/sagikazarmark"
+                },
+                {
                     "name": "Tobias Schultze",
+                    "email": "webmaster@tubo-world.de",
                     "homepage": "https://github.com/Tobion"
+                },
+                {
+                    "name": "Márk Sági-Kazár",
+                    "email": "mark.sagikazar@gmail.com",
+                    "homepage": "https://sagikazarmark.hu"
                 }
             ],
             "description": "PSR-7 message implementation that also provides common utility methods",
@@ -2572,9 +2598,23 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/psr7/issues",
-                "source": "https://github.com/guzzle/psr7/tree/1.8.2"
+                "source": "https://github.com/guzzle/psr7/tree/2.2.1"
             },
-            "time": "2021-04-26T09:17:50+00:00"
+            "funding": [
+                {
+                    "url": "https://github.com/GrahamCampbell",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/Nyholm",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/guzzlehttp/psr7",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2022-03-20T21:55:58+00:00"
         },
         {
             "name": "incenteev/composer-parameter-handler",
@@ -4936,6 +4976,54 @@
             "time": "2021-03-06T08:28:00+00:00"
         },
         {
+            "name": "prestashop/blockreassurance",
+            "version": "v5.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PrestaShop/blockreassurance.git",
+                "reference": "7ec28ecf52fcc0ca9787a81edb00f9e7e85d4400"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PrestaShop/blockreassurance/zipball/7ec28ecf52fcc0ca9787a81edb00f9e7e85d4400",
+                "reference": "7ec28ecf52fcc0ca9787a81edb00f9e7e85d4400",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.6.0"
+            },
+            "require-dev": {
+                "prestashop/php-dev-tools": "^3.4"
+            },
+            "type": "prestashop-module",
+            "autoload": {
+                "psr-4": {
+                    "PrestaShop\\Module\\BlockReassurance\\": "src/"
+                },
+                "classmap": [
+                    "blockreassurance.php",
+                    "classes/ReassuranceActivity.php"
+                ],
+                "exclude-from-classmap": []
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "AFL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "PrestaShop SA",
+                    "email": "contact@prestashop.com"
+                }
+            ],
+            "description": "PrestaShop module blockreassurance",
+            "homepage": "https://github.com/PrestaShop/blockreassurance",
+            "support": {
+                "source": "https://github.com/PrestaShop/blockreassurance/tree/v5.1.1"
+            },
+            "time": "2022-04-08T15:28:20+00:00"
+        },
+        {
             "name": "prestashop/blockwishlist",
             "version": "v2.0.1",
             "source": {
@@ -6371,6 +6459,51 @@
             "time": "2021-12-14T09:04:39+00:00"
         },
         {
+            "name": "prestashop/ps_googleanalytics",
+            "version": "v4.1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PrestaShop/ps_googleanalytics.git",
+                "reference": "ced588980dcc3eeff06a2a8e275cf76c27a35e9e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PrestaShop/ps_googleanalytics/zipball/ced588980dcc3eeff06a2a8e275cf76c27a35e9e",
+                "reference": "ced588980dcc3eeff06a2a8e275cf76c27a35e9e",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.6"
+            },
+            "require-dev": {
+                "prestashop/php-dev-tools": "3.*"
+            },
+            "type": "prestashop-module",
+            "autoload": {
+                "classmap": [
+                    "ps_googleanalytics.php",
+                    "controllers",
+                    "classes"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "AFL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "PrestaShop SA",
+                    "email": "contact@prestashop.com"
+                }
+            ],
+            "description": "PrestaShop module ps_googleanalytics",
+            "homepage": "https://github.com/PrestaShop/ps_googleanalytics",
+            "support": {
+                "source": "https://github.com/PrestaShop/ps_googleanalytics/tree/v4.1.2"
+            },
+            "time": "2022-03-24T08:50:37+00:00"
+        },
+        {
             "name": "prestashop/ps_imageslider",
             "version": "v3.1.0",
             "source": {
@@ -6914,6 +7047,48 @@
                 "source": "https://github.com/PrestaShop/ps_wirepayment/tree/v2.1.1"
             },
             "time": "2021-12-28T16:47:05+00:00"
+        },
+        {
+            "name": "prestashop/psgdpr",
+            "version": "v1.4.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PrestaShop/psgdpr.git",
+                "reference": "3266aee66e4853920d17551e3c33259b3970bd62"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PrestaShop/psgdpr/zipball/3266aee66e4853920d17551e3c33259b3970bd62",
+                "reference": "3266aee66e4853920d17551e3c33259b3970bd62",
+                "shasum": ""
+            },
+            "require-dev": {
+                "prestashop/php-dev-tools": "^3.4"
+            },
+            "type": "prestashop-module",
+            "autoload": {
+                "classmap": [
+                    "classes",
+                    "controllers",
+                    "psgdpr.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "AFL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "PrestaShop SA",
+                    "email": "contact@prestashop.com"
+                }
+            ],
+            "description": "PrestaShop module psgdpr",
+            "homepage": "https://github.com/PrestaShopCorp/psgdpr",
+            "support": {
+                "source": "https://github.com/PrestaShop/psgdpr/tree/v1.4.1"
+            },
+            "time": "2022-04-06T14:40:30+00:00"
         },
         {
             "name": "prestashop/statsbestcategories",
@@ -9604,16 +9779,16 @@
         },
         {
             "name": "symfony/symfony",
-            "version": "v4.4.32",
+            "version": "v4.4.40",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/symfony.git",
-                "reference": "70674a2bd2e08f357d8bb98642fa47273d7f8940"
+                "reference": "406847f8c944b577c116531cb342d2875324a2c1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/symfony/zipball/70674a2bd2e08f357d8bb98642fa47273d7f8940",
-                "reference": "70674a2bd2e08f357d8bb98642fa47273d7f8940",
+                "url": "https://api.github.com/repos/symfony/symfony/zipball/406847f8c944b577c116531cb342d2875324a2c1",
+                "reference": "406847f8c944b577c116531cb342d2875324a2c1",
                 "shasum": ""
             },
             "require": {
@@ -9656,7 +9831,7 @@
                 "psr/http-client-implementation": "1.0",
                 "psr/link-implementation": "1.0",
                 "psr/log-implementation": "1.0|2.0",
-                "psr/simple-cache-implementation": "1.0",
+                "psr/simple-cache-implementation": "1.0|2.0",
                 "symfony/cache-implementation": "1.0|2.0",
                 "symfony/event-dispatcher-implementation": "1.1",
                 "symfony/http-client-implementation": "1.1|2.0",
@@ -9746,7 +9921,7 @@
                 "phpdocumentor/reflection-docblock": "^3.0|^4.0|^5.0",
                 "predis/predis": "~1.1",
                 "psr/http-client": "^1.0",
-                "psr/simple-cache": "^1.0",
+                "psr/simple-cache": "^1.0|^2.0",
                 "symfony/phpunit-bridge": "^5.2",
                 "symfony/security-acl": "~2.8|~3.0",
                 "twig/cssinliner-extra": "^2.12|^3",
@@ -9791,7 +9966,7 @@
             ],
             "support": {
                 "issues": "https://github.com/symfony/symfony/issues",
-                "source": "https://github.com/symfony/symfony/tree/v4.4.32"
+                "source": "https://github.com/symfony/symfony/tree/v4.4.40"
             },
             "funding": [
                 {
@@ -9807,7 +9982,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2021-09-28T10:20:15+00:00"
+            "time": "2022-04-02T05:56:07+00:00"
         },
         {
             "name": "tecnickcom/tcpdf",
@@ -11156,20 +11331,20 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "0.12.88",
+            "version": "1.5.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "464d1a81af49409c41074aa6640ed0c4cbd9bb68"
+                "reference": "bbf68cae24f6dc023c607ea0f87da55dd9d55c2b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/464d1a81af49409c41074aa6640ed0c4cbd9bb68",
-                "reference": "464d1a81af49409c41074aa6640ed0c4cbd9bb68",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/bbf68cae24f6dc023c607ea0f87da55dd9d55c2b",
+                "reference": "bbf68cae24f6dc023c607ea0f87da55dd9d55c2b",
                 "shasum": ""
             },
             "require": {
-                "php": "^7.1|^8.0"
+                "php": "^7.2|^8.0"
             },
             "conflict": {
                 "phpstan/phpstan-shim": "*"
@@ -11179,11 +11354,6 @@
                 "phpstan.phar"
             ],
             "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "0.12-dev"
-                }
-            },
             "autoload": {
                 "files": [
                     "bootstrap.php"
@@ -11196,11 +11366,15 @@
             "description": "PHPStan - PHP Static Analysis Tool",
             "support": {
                 "issues": "https://github.com/phpstan/phpstan/issues",
-                "source": "https://github.com/phpstan/phpstan/tree/0.12.88"
+                "source": "https://github.com/phpstan/phpstan/tree/1.5.4"
             },
             "funding": [
                 {
                     "url": "https://github.com/ondrejmirtes",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/phpstan",
                     "type": "github"
                 },
                 {
@@ -11212,7 +11386,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2021-05-17T12:24:49+00:00"
+            "time": "2022-04-03T12:39:00+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -11610,27 +11784,27 @@
         },
         {
             "name": "prestashop/phpstan-prestashop",
-            "version": "1.1.1",
+            "version": "2.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PrestaShop/phpstan-prestashop.git",
-                "reference": "8935c0702980ed05ff9faf2f646d1df5be9effef"
+                "reference": "8e915210f8071f517fcbcbcc2fde6078ce7fbc36"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PrestaShop/phpstan-prestashop/zipball/8935c0702980ed05ff9faf2f646d1df5be9effef",
-                "reference": "8935c0702980ed05ff9faf2f646d1df5be9effef",
+                "url": "https://api.github.com/repos/PrestaShop/phpstan-prestashop/zipball/8e915210f8071f517fcbcbcc2fde6078ce7fbc36",
+                "reference": "8e915210f8071f517fcbcbcc2fde6078ce7fbc36",
                 "shasum": ""
             },
             "require": {
-                "php": "^7.1",
-                "phpstan/phpstan": "^0.12.48"
+                "php": "^7.2|^8.0",
+                "phpstan/phpstan": "^1.2.0"
             },
             "require-dev": {
                 "nikic/php-parser": "^4.10",
-                "phpstan/phpstan-phpunit": "^0.12.16",
-                "phpstan/phpstan-strict-rules": "^0.12.5",
-                "phpunit/phpunit": "^7.5.20",
+                "phpstan/phpstan-phpunit": "^1.0.0",
+                "phpstan/phpstan-strict-rules": "^1.1.0",
+                "phpunit/phpunit": "^8.5",
                 "symfony/console": "^5.2"
             },
             "type": "phpstan-extension",
@@ -11663,9 +11837,9 @@
             "description": "PrestaShop extension for PHPStan",
             "support": {
                 "issues": "https://github.com/PrestaShop/phpstan-prestashop/issues",
-                "source": "https://github.com/PrestaShop/phpstan-prestashop/tree/1.1.1"
+                "source": "https://github.com/PrestaShop/phpstan-prestashop/tree/2.0.0"
             },
-            "time": "2021-03-09T21:54:31+00:00"
+            "time": "2021-11-23T09:22:24+00:00"
         },
         {
             "name": "sebastian/code-unit-reverse-lookup",

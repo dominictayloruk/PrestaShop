@@ -45,7 +45,7 @@ use PrestaShop\PrestaShop\Adapter\Entity\ImageManager;
 use PrestaShop\PrestaShop\Adapter\Entity\ImageType;
 use PrestaShop\PrestaShop\Adapter\Entity\Language as EntityLanguage;
 use PrestaShop\PrestaShop\Adapter\Entity\LocalizationPack;
-use PrestaShop\PrestaShop\Adapter\Entity\Module;
+use PrestaShop\PrestaShop\Adapter\Entity\Module as ModuleEntity;
 use PrestaShop\PrestaShop\Adapter\Entity\PrestaShopCollection;
 use PrestaShop\PrestaShop\Adapter\Entity\Search;
 use PrestaShop\PrestaShop\Adapter\Entity\Shop;
@@ -53,6 +53,7 @@ use PrestaShop\PrestaShop\Adapter\Entity\ShopGroup;
 use PrestaShop\PrestaShop\Adapter\Entity\ShopUrl;
 use PrestaShop\PrestaShop\Adapter\Entity\Tools;
 use PrestaShop\PrestaShop\Adapter\Entity\Validate;
+use PrestaShop\PrestaShop\Adapter\Module\Module;
 use PrestaShop\PrestaShop\Core\Addon\Module\ModuleManagerBuilder;
 use PrestaShop\PrestaShop\Core\Addon\Theme\ThemeManagerBuilder;
 use PrestaShop\PrestaShop\Core\Module\ConfigReader as ModuleConfigReader;
@@ -482,7 +483,7 @@ class Install extends AbstractInstall
         $xml_loader->setTranslator($this->translator);
         $xml_loader->setLanguages($languages);
 
-        if (isset($this->xml_loader_ids) && $this->xml_loader_ids) {
+        if ($this->xml_loader_ids) {
             $xml_loader->setIds($this->xml_loader_ids);
         }
 
@@ -710,14 +711,14 @@ class Install extends AbstractInstall
 
     public function getLocalizationPackContent($version, $country)
     {
-        if (static::$_cache_localization_pack_content === null || array_key_exists($country, static::$_cache_localization_pack_content)) {
+        if (self::$_cache_localization_pack_content === null || array_key_exists($country, self::$_cache_localization_pack_content)) {
             $localizationWarmer = new LocalizationWarmer($version, $country);
             $localization_file_content = $localizationWarmer->warmUp(_PS_CACHE_DIR_ . 'sandbox' . DIRECTORY_SEPARATOR);
 
-            static::$_cache_localization_pack_content[$country] = $localization_file_content;
+            self::$_cache_localization_pack_content[$country] = $localization_file_content;
         }
 
-        return isset(static::$_cache_localization_pack_content[$country]) ? static::$_cache_localization_pack_content[$country] : false;
+        return self::$_cache_localization_pack_content[$country] ?? false;
     }
 
     /**
@@ -977,7 +978,7 @@ class Install extends AbstractInstall
      */
     public function installModules(array $modules): bool
     {
-        Module::updateTranslationsAfterInstall(false);
+        ModuleEntity::updateTranslationsAfterInstall(false);
 
         $result = $this->executeAction(
             $modules,
@@ -992,7 +993,7 @@ class Install extends AbstractInstall
             return false;
         }
 
-        Module::updateTranslationsAfterInstall(true);
+        ModuleEntity::updateTranslationsAfterInstall(true);
         EntityLanguage::updateModulesTranslations($modules);
 
         return true;
@@ -1000,7 +1001,10 @@ class Install extends AbstractInstall
 
     public function postInstall(): bool
     {
-        $modules = array_keys(ModuleManagerBuilder::getInstance()->buildRepository()->getInstalledModules());
+        $moduleCollection = ModuleManagerBuilder::getInstance()->buildRepository()->getInstalledModules();
+        $modules = array_map(function (Module $module): string {
+            return $module->get('name');
+        }, iterator_to_array($moduleCollection));
 
         return $this->executeAction(
             $modules,
@@ -1021,6 +1025,10 @@ class Install extends AbstractInstall
         $errors = [];
         foreach ($modules as $module_name) {
             $moduleException = null;
+
+            if ($action === 'install' && $moduleManager->isInstalled($module_name)) {
+                continue;
+            }
 
             try {
                 $moduleActionIsExecuted = $moduleManager->{$action}($module_name);
@@ -1089,7 +1097,7 @@ class Install extends AbstractInstall
 
         // Install XML data (data/xml/ folder)
         $xml_loader->setFixturesPath($fixtures_path);
-        if (isset($this->xml_loader_ids) && $this->xml_loader_ids) {
+        if ($this->xml_loader_ids) {
             $xml_loader->setIds($this->xml_loader_ids);
         }
 

@@ -59,7 +59,7 @@ class CommonProductFeatureContext extends AbstractProductFeatureContext
      */
     public static function restoreProductTablesAfterSuite(): void
     {
-        static::restoreProductTables();
+        self::restoreProductTables();
         LanguageFeatureContext::restoreLanguagesTablesAfterFeature();
     }
 
@@ -68,7 +68,7 @@ class CommonProductFeatureContext extends AbstractProductFeatureContext
      */
     public static function restoreProductTablesBeforeFeature(): void
     {
-        static::restoreProductTables();
+        self::restoreProductTables();
     }
 
     private static function restoreProductTables(): void
@@ -92,6 +92,8 @@ class CommonProductFeatureContext extends AbstractProductFeatureContext
             'product_tag',
             // Related products
             'accessory',
+            // Packs
+            'pack',
             // Customizations
             'customization',
             'customization_field',
@@ -344,13 +346,21 @@ class CommonProductFeatureContext extends AbstractProductFeatureContext
      */
     public function assertIsIndexed(string $productReference): void
     {
-        $productId = $this->getSharedStorage()->get($productReference);
-        $product = new Product($productId);
-        Assert::assertSame(
-            1,
-            (int) $product->indexed,
-            sprintf('Unexpected indexed field value %s for product "%s"', $product->indexed, $productReference)
-        );
+        $this->assertIndexation($productReference, true);
+    }
+
+    /**
+     * @Then product :productReference should be indexed for shops ":shopReferences"
+     *
+     * @param string $productReference
+     * @param string $shopReferences
+     */
+    public function assertProductIsIndexedForShops(string $productReference, string $shopReferences): void
+    {
+        $shopReferences = explode(',', $shopReferences);
+        foreach ($shopReferences as $shopReference) {
+            $this->assertIndexation($productReference, true, $shopReference);
+        }
     }
 
     /**
@@ -360,12 +370,42 @@ class CommonProductFeatureContext extends AbstractProductFeatureContext
      */
     public function assertIsNotIndexed(string $productReference): void
     {
+        $this->assertIndexation($productReference, false);
+    }
+
+    /**
+     * @Then product :productReference should not be indexed for shops ":shopReferences"
+     *
+     * @param string $productReference
+     * @param string $shopReferences
+     */
+    public function assertProductNotIndexedForShops(string $productReference, string $shopReferences): void
+    {
+        $shopReferences = explode(',', $shopReferences);
+        foreach ($shopReferences as $shopReference) {
+            $this->assertIndexation($productReference, false, $shopReference);
+        }
+    }
+
+    /**
+     * @param string $productReference
+     * @param bool $expectedIsIndexed
+     * @param string|null $shopReference
+     */
+    private function assertIndexation(string $productReference, bool $expectedIsIndexed, ?string $shopReference = null): void
+    {
         $productId = $this->getSharedStorage()->get($productReference);
-        $product = new Product($productId);
+        $shopId = $shopReference ? $this->getSharedStorage()->get($shopReference) : null;
+        $product = new Product($productId, false, null, $shopId);
         Assert::assertSame(
-            0,
-            (int) $product->indexed,
-            sprintf('Unexpected indexed field value %s for product "%s"', $product->indexed, $productReference)
+            $expectedIsIndexed,
+            (bool) $product->indexed,
+            sprintf(
+                'Unexpected indexed field value %s for product "%s"%s',
+                $product->indexed,
+                $productReference,
+                $shopReference ? sprintf(' in shop %s', $shopReference) : ''
+            )
         );
     }
 }

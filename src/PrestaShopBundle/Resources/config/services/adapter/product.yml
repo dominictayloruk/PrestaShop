@@ -88,9 +88,7 @@ services:
       - '@prestashop.core.localization.locale.repository'
       - '@=service("prestashop.adapter.legacy.context").getContext().language.getLocale()'
       - '@=service("prestashop.adapter.legacy.configuration").get("PS_CURRENCY_DEFAULT")'
-      - '@prestashop.adapter.data_provider.product'
       - '@prestashop.adapter.tax.tax_computer'
-      - '@prestashop.adapter.product.repository.product_repository'
       - '@=service("prestashop.adapter.legacy.context").getContext().country.id'
       - '@prestashop.adapter.product.image.product_image_url_factory'
       - '@translator'
@@ -109,6 +107,8 @@ services:
       - "@=service('prestashop.adapter.legacy.configuration').getInt('PS_COUNTRY_DEFAULT')"
       - '@prestashop.adapter.product.options.redirect_target_provider'
       - '@prestashop.adapter.product.image.product_image_url_factory'
+      - '@prestashop.adapter.product.specific_price.repository.specific_price_repository'
+      - '@prestashop.adapter.legacy.configuration'
     tags:
       - name: tactician.handler
         command: PrestaShop\PrestaShop\Core\Domain\Product\Query\GetProductForEditing
@@ -161,7 +161,7 @@ services:
   prestashop.adapter.product.command_handler.update_product_options_handler:
     class: PrestaShop\PrestaShop\Adapter\Product\CommandHandler\UpdateProductOptionsHandler
     arguments:
-      - '@prestashop.adapter.product.repository.product_repository'
+      - '@prestashop.adapter.product.repository.product_multi_shop_repository'
       - '@prestashop.adapter.product.update.product_indexation_updater'
     tags:
       - name: tactician.handler
@@ -197,7 +197,7 @@ services:
   prestashop.adapter.product.command_handler.update_product_shipping_handler:
     class: PrestaShop\PrestaShop\Adapter\Product\CommandHandler\UpdateProductShippingHandler
     arguments:
-      - '@prestashop.adapter.product.repository.product_repository'
+      - '@prestashop.adapter.product.repository.product_multi_shop_repository'
     tags:
       - name: tactician.handler
         command: PrestaShop\PrestaShop\Core\Domain\Product\Command\UpdateProductShippingCommand
@@ -293,6 +293,7 @@ services:
       - '@prestashop.adapter.product.pack.update.product_pack_updater'
       - '@prestashop.adapter.product.combination.update.combination_deleter'
       - '@prestashop.adapter.product.virtual_product.update.virtual_product_updater'
+      - '@prestashop.adapter.product.stock.update.product_stock_updater'
 
   prestashop.adapter.product.command_handler.delete_product_handler:
     class: PrestaShop\PrestaShop\Adapter\Product\CommandHandler\DeleteProductHandler
@@ -381,11 +382,15 @@ services:
 
   prestashop.adapter.product.repository.tag_repository:
     class: PrestaShop\PrestaShop\Adapter\Product\Repository\TagRepository
+    arguments:
+      - '@doctrine.dbal.default_connection'
+      - '%database_prefix%'
 
   prestashop.adapter.product.updater.product_tag_updater:
     class: PrestaShop\PrestaShop\Adapter\Product\Update\ProductTagUpdater
     arguments:
       - '@prestashop.adapter.product.repository.tag_repository'
+      - '@prestashop.adapter.product.update.product_indexation_updater'
 
   prestashop.adapter.product.update.product_category_updater:
     class: PrestaShop\PrestaShop\Adapter\Product\Update\ProductCategoryUpdater

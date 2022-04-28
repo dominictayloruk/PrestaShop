@@ -439,7 +439,7 @@ class OrderCore extends ObjectModel
                 $this->{$field} = 0;
             }
 
-            $this->{$field} = number_format($this->{$field}, Context::getContext()->getComputingPrecision(), '.', '');
+            $this->{$field} = (float) number_format($this->{$field}, Context::getContext()->getComputingPrecision(), '.', '');
         }
 
         /* Update order detail */
@@ -655,6 +655,7 @@ class OrderCore extends ObjectModel
 
             $this->setProductImageInformations($row);
             $this->setProductCurrentStock($row);
+            $row = $this->setProductReduction($row);
 
             // Backward compatibility 1.4 -> 1.5
             $this->setProductPrices($row);
@@ -662,7 +663,7 @@ class OrderCore extends ObjectModel
             $this->setProductCustomizedDatas($row, $customized_datas);
 
             // Add information for virtual product
-            if ($row['download_hash'] && !empty($row['download_hash'])) {
+            if (!empty($row['download_hash'])) {
                 $row['filename'] = ProductDownload::getFilenameFromIdProduct((int) $row['product_id']);
                 // Get the display filename
                 $row['display_filename'] = ProductDownload::getFilenameFromFilename($row['filename']);
@@ -679,6 +680,35 @@ class OrderCore extends ObjectModel
         }
 
         return $result_array;
+    }
+
+    /**
+     * @param array $product
+     *
+     * @return array
+     */
+    protected function setProductReduction(array $product): array
+    {
+        $address = Address::initialize($this->id_address_delivery, true);
+        $id_country = (int) $address->id_country;
+
+        $specific_price = SpecificPrice::getSpecificPrice(
+            $product['product_id'],
+            $product['id_shop'],
+            $this->id_currency,
+            $id_country,
+            $this->id_shop_group,
+            $product['product_quantity'],
+            $product['product_attribute_id']
+        );
+        $product['reduction_type'] = 0;
+        $product['reduction_applies'] = false;
+        if ($specific_price) {
+            $product['reduction_type'] = $specific_price['reduction_type'];
+            $product['reduction_applies'] = (float) $specific_price['reduction'];
+        }
+
+        return $product;
     }
 
     public static function getIdOrderProduct($id_customer, $id_product)
@@ -1169,7 +1199,7 @@ class OrderCore extends ObjectModel
      *
      * @param int $id_cart Cart id
      *
-     * @return OrderCore
+     * @return OrderCore|null
      */
     public static function getByCartId($id_cart)
     {
@@ -1878,7 +1908,7 @@ class OrderCore extends ObjectModel
         // if payment_method is define, we used this
         $order_payment->payment_method = ($payment_method ? $payment_method : $this->payment);
         $order_payment->transaction_id = $payment_transaction_id;
-        $order_payment->amount = $amount_paid;
+        $order_payment->amount = (float) $amount_paid;
         $order_payment->date_add = ($date ? $date : null);
 
         // Add time to the date if needed
@@ -1987,7 +2017,7 @@ class OrderCore extends ObjectModel
      */
     public function getShipping()
     {
-        $results = Db::getInstance()->executeS(
+        return Db::getInstance()->executeS(
             'SELECT DISTINCT oc.`id_order_invoice`, oc.`weight`, oc.`shipping_cost_tax_excl`, oc.`shipping_cost_tax_incl`, c.`url`, oc.`id_carrier`, c.`name` as `carrier_name`, oc.`date_add`, "Delivery" as `type`, "true" as `can_edit`, oc.`tracking_number`, oc.`id_order_carrier`, osl.`name` as order_state_name, c.`name` as state_name
             FROM `' . _DB_PREFIX_ . 'orders` o
             LEFT JOIN `' . _DB_PREFIX_ . 'order_history` oh
@@ -2001,11 +2031,6 @@ class OrderCore extends ObjectModel
             WHERE o.`id_order` = ' . (int) $this->id . '
             GROUP BY c.id_carrier'
         );
-        foreach ($results as &$row) {
-            $row['carrier_name'] = Cart::replaceZeroByShopName($row['carrier_name']);
-        }
-
-        return $results;
     }
 
     /**

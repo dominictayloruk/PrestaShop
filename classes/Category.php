@@ -24,8 +24,6 @@
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  */
 
-use PrestaShop\PrestaShop\Adapter\SymfonyContainer;
-
 /**
  * Class CategoryCore.
  */
@@ -48,13 +46,16 @@ class CategoryCore extends ObjectModel
     /** @var mixed string or array of Description */
     public $description;
 
+    /** @var mixed string or array of Additional description */
+    public $additional_description;
+
     /** @var int Parent category ID */
     public $id_parent;
 
     /** @var int default Category id */
     public $id_category_default;
 
-    /** @var int Parents number */
+    /** @var int|null Parents number */
     public $level_depth;
 
     /** @var int Nested tree model "left" value */
@@ -127,6 +128,7 @@ class CategoryCore extends ObjectModel
                 ],
             ],
             'description' => ['type' => self::TYPE_HTML, 'lang' => true, 'validate' => 'isCleanHtml'],
+            'additional_description' => ['type' => self::TYPE_HTML, 'lang' => true, 'validate' => 'isCleanHtml'],
             'meta_title' => ['type' => self::TYPE_STRING, 'lang' => true, 'validate' => 'isGenericName', 'size' => 255],
             'meta_description' => ['type' => self::TYPE_STRING, 'lang' => true, 'validate' => 'isGenericName', 'size' => 512],
             'meta_keywords' => ['type' => self::TYPE_STRING, 'lang' => true, 'validate' => 'isGenericName', 'size' => 255],
@@ -885,7 +887,7 @@ class CategoryCore extends ObjectModel
         }
 
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS('
-		SELECT c.*, cl.`id_lang`, cl.`name`, cl.`description`, cl.`link_rewrite`, cl.`meta_title`, cl.`meta_keywords`, cl.`meta_description`
+		SELECT c.*, cl.`id_lang`, cl.`name`, cl.`description`, cl.`additional_description`, cl.`link_rewrite`, cl.`meta_title`, cl.`meta_keywords`, cl.`meta_description`
 		FROM `' . _DB_PREFIX_ . 'category` c
 		' . Shop::addSqlAssociation('category', 'c') . '
 		LEFT JOIN `' . _DB_PREFIX_ . 'category_lang` cl ON (c.`id_category` = cl.`id_category` AND `id_lang` = ' . (int) $idLang . ' ' . Shop::addSqlRestrictionOnLang('cl') . ')
@@ -1730,9 +1732,7 @@ class CategoryCore extends ObjectModel
         }
         $this->cleanGroups();
         if (empty($list)) {
-            $sfContainer = SymfonyContainer::getInstance();
-            $groupDataProvider = $sfContainer->get('prestashop.adapter.group.group_data_provider');
-            $list = $groupDataProvider->getAllGroupIds();
+            $list = Group::getAllGroupIds();
         }
         $this->addGroups($list);
 

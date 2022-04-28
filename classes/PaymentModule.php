@@ -217,14 +217,10 @@ abstract class PaymentModuleCore extends Module
         Shop $shop = null,
         ?string $order_reference = null
     ) {
-        /* @phpstan-ignore-next-line */
         if (self::DEBUG_MODE) {
             PrestaShopLogger::addLog('PaymentModule::validateOrder - Function called', 1, null, 'Cart', (int) $id_cart, true);
         }
 
-        if (!isset($this->context)) {
-            $this->context = Context::getContext();
-        }
         $this->context->cart = new Cart((int) $id_cart);
         $this->context->customer = new Customer((int) $this->context->cart->id_customer);
         // The tax cart is loaded before the customer so re-cache the tax calculation method
@@ -329,8 +325,10 @@ abstract class PaymentModuleCore extends Module
         // Amount paid by customer is not the right one -> Status = payment error
         // We don't use the following condition to avoid the float precision issues : http://www.php.net/manual/en/language.types.float.php
         // if ($order->total_paid != $order->total_paid_real)
-        // We use number_format in order to compare two string
-        if ($order_status->logable && number_format($cart_total_paid, Context::getContext()->getComputingPrecision()) != number_format($amount_paid, _PS_PRICE_COMPUTE_PRECISION_)) {
+        // We use number_format to convert the numbers to strings and strict inequality to compare them to avoid auto reconversions to numbers in PHP < 8.0
+        $comp_precision = Context::getContext()->getComputingPrecision();
+        if ($order_status->logable && (number_format($cart_total_paid, $comp_precision) !== number_format($amount_paid, $comp_precision))) {
+            PrestaShopLogger::addLog('PaymentModule::validateOrder - Total paid amount does not match cart total', 3, null, 'Cart', (int) $id_cart, true);
             $id_order_state = Configuration::get('PS_OS_ERROR');
         }
 
@@ -372,7 +370,6 @@ abstract class PaymentModuleCore extends Module
             throw new PrestaShopException('The order address country is not active.');
         }
 
-        /* @phpstan-ignore-next-line */
         if (self::DEBUG_MODE) {
             PrestaShopLogger::addLog('PaymentModule::validateOrder - Payment is about to be added', 1, null, 'Cart', (int) $id_cart, true);
         }
@@ -415,7 +412,6 @@ abstract class PaymentModuleCore extends Module
             if (!empty($message)) {
                 $message = strip_tags($message, '<br>');
                 if (Validate::isCleanHtml($message)) {
-                    /* @phpstan-ignore-next-line */
                     if (self::DEBUG_MODE) {
                         PrestaShopLogger::addLog('PaymentModule::validateOrder - Message is about to be added', 1, null, 'Cart', (int) $id_cart, true);
                     }
@@ -549,7 +545,6 @@ abstract class PaymentModuleCore extends Module
                 }
             }
 
-            /* @phpstan-ignore-next-line */
             if (self::DEBUG_MODE) {
                 PrestaShopLogger::addLog('PaymentModule::validateOrder - Hook validateOrder is about to be called', 1, null, 'Cart', (int) $id_cart, true);
             }
@@ -569,7 +564,6 @@ abstract class PaymentModuleCore extends Module
                 }
             }
 
-            /* @phpstan-ignore-next-line */
             if (self::DEBUG_MODE) {
                 PrestaShopLogger::addLog('PaymentModule::validateOrder - Order Status is about to be added', 1, null, 'Cart', (int) $id_cart, true);
             }
@@ -617,7 +611,7 @@ abstract class PaymentModuleCore extends Module
                     Hook::exec('actionPDFInvoiceRender', ['order_invoice_list' => $order_invoice_list]);
                     $pdf = new PDF($order_invoice_list, PDF::TEMPLATE_INVOICE, $this->context->smarty);
                     $file_attachement['content'] = $pdf->render(false);
-                    $file_attachement['name'] = Configuration::get('PS_INVOICE_PREFIX', (int) $order->id_lang, null, $order->id_shop) . sprintf('%06d', $order->invoice_number) . '.pdf';
+                    $file_attachement['name'] = $pdf->getFilename();
                     $file_attachement['mime'] = 'application/pdf';
                     $this->context->language = $currentLanguage;
                     $this->context->getTranslator()->setLocale($currentLanguage->locale);
@@ -625,7 +619,6 @@ abstract class PaymentModuleCore extends Module
                     $file_attachement = null;
                 }
 
-                /* @phpstan-ignore-next-line */
                 if (self::DEBUG_MODE) {
                     PrestaShopLogger::addLog('PaymentModule::validateOrder - Mail is about to be sent', 1, null, 'Cart', (int) $id_cart, true);
                 }
@@ -744,7 +737,6 @@ abstract class PaymentModuleCore extends Module
             $this->currentOrder = (int) $order->id;
         }
 
-        /* @phpstan-ignore-next-line */
         if (self::DEBUG_MODE) {
             PrestaShopLogger::addLog('PaymentModule::validateOrder - End of validateOrder', 1, null, 'Cart', (int) $id_cart, true);
         }
