@@ -28,7 +28,6 @@ declare(strict_types=1);
 namespace PrestaShopBundle\Form\Admin\Extension;
 
 use Closure;
-use PrestaShopBundle\Form\Admin\Type\DisablingSwitchType;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Form\AbstractTypeExtension;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
@@ -48,10 +47,14 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  */
 class DisablingSwitchExtension extends AbstractTypeExtension
 {
+    use DisablingSwitchTrait;
+
     public const FIELD_PREFIX = 'disabling_switch_';
 
     public const SWITCH_OPTION = 'disabling_switch';
+    public const SWITCH_EVENT_OPTION = 'disabling_switch_event';
     public const DISABLED_VALUE_OPTION = 'disabled_value';
+    public const SWITCH_STATE_ON_DISABLE_OPTION = 'switch_state_on_disable';
 
     /**
      * @var EventSubscriberInterface
@@ -82,7 +85,7 @@ class DisablingSwitchExtension extends AbstractTypeExtension
     {
         // This particular field has the expected option enabled, so we assign the add listener to dynamically add the
         // associated DisablingSwitchType to the parent
-        $hasToggleOption = $builder->getOption(self::SWITCH_OPTION);
+        $hasToggleOption = $builder->getOption(static::SWITCH_OPTION);
         if ($hasToggleOption) {
             $builder->addEventSubscriber($this->addDisablingSwitchListener);
         }
@@ -95,7 +98,42 @@ class DisablingSwitchExtension extends AbstractTypeExtension
      */
     public function buildView(FormView $view, FormInterface $form, array $options): void
     {
-        $view->vars[self::SWITCH_OPTION] = $options[self::SWITCH_OPTION];
+        $switchableParent = $this->getSwitchableParent($form);
+        if ($switchableParent) {
+            $disablingFieldName = DisablingSwitchExtension::FIELD_PREFIX . $switchableParent->getName();
+            $parent = $switchableParent->getParent();
+            if ($parent->has($disablingFieldName)) {
+                $shouldBeDisabled = $this->shouldFormBeDisabled($switchableParent, $switchableParent->getData());
+
+                // We only set the HTML attribute not the form field option disabled, or else its value will be ignored and
+                // won't be part of the form submitted data, that's why we only set this attribute for the view This will
+                // correctly set the input state on initial rendering and even on submit since buildView happens after the
+                // submitted data is handled by the form
+                $view->vars['attr']['disabled'] = $shouldBeDisabled;
+            }
+        }
+    }
+
+    /**
+     * The switch option may be defined on a compound input, so we need to get back the parent with the option to get
+     * back the appropriate options and be able to check the disabled status even for children. For non-compound forms
+     * the switchable parent is actually itself.
+     *
+     * @param FormInterface $form
+     *
+     * @return FormInterface|null
+     */
+    private function getSwitchableParent(FormInterface $form): ?FormInterface
+    {
+        if (!$form->getParent()) {
+            return null;
+        }
+
+        if ($form->getConfig()->getOption(static::SWITCH_OPTION, false)) {
+            return $form;
+        }
+
+        return $this->getSwitchableParent($form->getParent());
     }
 
     /**
@@ -105,7 +143,7 @@ class DisablingSwitchExtension extends AbstractTypeExtension
     {
         $resolver
             ->setDefaults([
-                self::SWITCH_OPTION => false,
+                static::SWITCH_OPTION => false,
                 // We use this value to know if the field state is disabled or not on first rendering, if the value is null
                 // we have other fallback options, the priority is:
                 //   - disabled_value
@@ -124,10 +162,17 @@ class DisablingSwitchExtension extends AbstractTypeExtension
                 // ex: 'disabled_value' => function (?array $data, FormInterface $form): bool {
                 //          return empty($data['reduction_type']) || empty($data['reduction_value']);
                 //      },
-                self::DISABLED_VALUE_OPTION => null,
+                static::DISABLED_VALUE_OPTION => null,
+                // You can define an JS event triggered on witch changes
+                static::SWITCH_EVENT_OPTION => null,
+                // Define the state of the switch component when value is disabled (by default on off)
+                static::SWITCH_STATE_ON_DISABLE_OPTION => 'off',
             ])
-            ->setAllowedTypes(self::SWITCH_OPTION, 'bool')
-            ->setAllowedTypes(self::DISABLED_VALUE_OPTION, ['null', 'string', 'int', 'array', 'object', 'bool', 'float', 'callback', Closure::class])
+            ->setAllowedTypes(static::SWITCH_OPTION, 'bool')
+            ->setAllowedTypes(static::DISABLED_VALUE_OPTION, ['null', 'string', 'int', 'array', 'object', 'bool', 'float', 'callback', Closure::class])
+            ->setAllowedTypes(static::SWITCH_EVENT_OPTION, ['string', 'null'])
+            ->setAllowedTypes(static::SWITCH_STATE_ON_DISABLE_OPTION, 'string')
+            ->setAllowedValues(static::SWITCH_STATE_ON_DISABLE_OPTION, ['off', 'on'])
         ;
     }
 }

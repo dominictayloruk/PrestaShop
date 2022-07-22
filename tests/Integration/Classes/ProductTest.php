@@ -28,22 +28,18 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Classes;
 
-use Configuration;
-use Context;
 use PHPUnit\Framework\TestCase;
 use Product;
-use Shop;
+use Tests\Integration\Utility\ContextMockerTrait;
 
 class ProductTest extends TestCase
 {
+    use ContextMockerTrait;
+
     protected function setUp(): void
     {
         parent::setUp();
-
-        $mockContext = $this->createMock(Context::class);
-        $mockContext->shop = new Shop((int) Configuration::get('PS_SHOP_DEFAULT'));
-
-        Context::setInstanceForTesting($mockContext);
+        self::mockContext();
     }
 
     public function testSaveActiveRecordStyle(): void

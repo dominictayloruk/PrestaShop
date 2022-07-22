@@ -30,9 +30,23 @@ use Cache;
 use Module;
 use PHPUnit\Framework\TestCase;
 use PrestaShop\PrestaShop\Core\Addon\Module\ModuleManagerBuilder;
+use Tests\Integration\Utility\ContextMockerTrait;
 
+/**
+ * These tests install and uninstalls modules causing the cache to be cleared. So it's better to run it isolated.
+ *
+ * @group isolatedProcess
+ */
 class ModuleTest extends TestCase
 {
+    use ContextMockerTrait;
+
+    public static function setUpBeforeClass(): void
+    {
+        parent::setUpBeforeClass();
+        static::mockContext();
+    }
+
     /**
      * @return array a list of modules to control override features
      */
@@ -83,16 +97,16 @@ class ModuleTest extends TestCase
      */
     public function testGetRightListForModule(): void
     {
-        define('STDIN', true);
         ModuleManagerBuilder::getInstance()->build()->install('bankwire');
         $module = Module::getInstanceByName('bankwire');
         Cache::clean('hook_alias');
         $possibleHooksList = $module->getPossibleHooksList();
 
-        $this->assertCount(2, $possibleHooksList);
+        $this->assertCount(3, $possibleHooksList);
 
-        $this->assertEquals('displayPaymentReturn', $possibleHooksList[0]['name']);
-        $this->assertEquals('paymentOptions', $possibleHooksList[1]['name']);
+        $this->assertEquals('displayHome', $possibleHooksList[0]['name']);
+        $this->assertEquals('displayPaymentReturn', $possibleHooksList[1]['name']);
+        $this->assertEquals('paymentOptions', $possibleHooksList[2]['name']);
 
         Module::getInstanceByName('bankwire')->uninstall();
     }

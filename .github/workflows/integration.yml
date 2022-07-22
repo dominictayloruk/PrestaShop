@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php: [ '7.2', '7.3', '7.4', '8.0' ]
+        php: [ '7.2', '7.3', '7.4', '8.0', '8.1' ]
       fail-fast: false
     steps:
       - name: Cancel Previous Runs
@@ -28,12 +28,17 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v2
         with:
-          node-version: '14'
+          node-version: '16'
+
+      - name: Setup NPM
+        run: npm install -g npm@7
 
       - uses: actions/checkout@v2
 
       - name: PrestaShop Configuration
-        run: cp .github/workflows/phpunit/parameters.yml app/config/parameters.yml
+        run: |
+          cp .github/workflows/phpunit/parameters.yml app/config/parameters.yml
+          cp .github/workflows/phpunit/parameters.php app/config/parameters.php
 
       - name: Get Composer Cache Directory
         id: composer-cache
@@ -56,21 +61,21 @@ jobs:
       - name: Composer Install
         run: composer install --ansi --prefer-dist --no-interaction --no-progress
 
-      - name: Build assets
-        run: make assets
+      - name: Update phpunit version
+        if: ${{ startsWith(matrix.php, '8.') }}
+        run: composer update -w --ignore-platform-reqs --no-interaction phpunit/phpunit
+
+      - name: Build theme assets
+        run: make front-classic
 
       - name: Change MySQL authentication method
         run: mysql -h127.0.0.1 -uroot -ppassword -e "ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY 'password'; FLUSH PRIVILEGES;"
-
-      - name: Prepare PrestaShop parameters
-        run: cp .github/workflows/phpunit/parameters.php app/config/parameters.php
 
       - name: Run integration-tests
         run: composer run-script integration-tests --timeout=0
         env:
           SYMFONY_DEPRECATIONS_HELPER: disabled
 
-      - name: Run integration-behaviour-tests
-        run: composer run-script integration-behaviour-tests --timeout=0
-        env:
-          SYMFONY_DEPRECATIONS_HELPER: disabled
+      - name: Test git versionned files unchanged
+        if: ${{ !startsWith(matrix.php, '8.') }}  # composer.lock changes when updating phpunit version
+        run: git diff --exit-code

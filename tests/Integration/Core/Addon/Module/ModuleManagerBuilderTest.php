@@ -34,8 +34,14 @@ use Module;
 use PHPUnit\Framework\TestCase;
 use PrestaShop\PrestaShop\Core\Addon\Module\ModuleManagerBuilder;
 use PrestaShop\PrestaShop\Core\Module\ModuleManager;
+use Tests\Resources\ResourceResetter;
 use Tools;
 
+/**
+ * These tests install and uninstalls modules causing the cache to be cleared. So it's better to run it isolated.
+ *
+ * @group isolatedProcess
+ */
 class ModuleManagerBuilderTest extends TestCase
 {
     /**
@@ -64,21 +70,6 @@ class ModuleManagerBuilderTest extends TestCase
         }
     }
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Context::getContext()->employee = new Employee(1);
-
-        $this->moduleManagerBuilder = ModuleManagerBuilder::getInstance();
-        $this->moduleManager = $this->moduleManagerBuilder->build();
-
-        $this->moduleNames = [
-            'pscsx32412',
-            'pscsx3241',
-        ];
-    }
-
     public static function tearDownAfterClass(): void
     {
         parent::tearDownAfterClass();
@@ -102,6 +93,24 @@ class ModuleManagerBuilderTest extends TestCase
         // Remove overrides
         @unlink(_PS_ROOT_DIR_ . '/override/controllers/admin/AdminProductsController.php');
         @unlink(_PS_ROOT_DIR_ . '/override/classes/Cart.php');
+
+        // Reset modules folder
+        (new ResourceResetter())->resetTestModules();
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Context::getContext()->employee = new Employee(1);
+
+        $this->moduleManagerBuilder = ModuleManagerBuilder::getInstance();
+        $this->moduleManager = $this->moduleManagerBuilder->build();
+
+        $this->moduleNames = [
+            'pscsx32412',
+            'pscsx3241',
+        ];
     }
 
     public function testInstall(): void
@@ -142,8 +151,13 @@ class ModuleManagerBuilderTest extends TestCase
             $this->assertTrue((bool) $this->moduleManager->uninstall($name));
         }
 
-        $this->assertFileNotExists($actual_override_cart);
-        $this->assertFileNotExists($actual_override_admin_product);
+        if (method_exists($this, 'assertFileDoesNotExist')) {
+            $this->assertFileDoesNotExist($actual_override_cart);
+            $this->assertFileDoesNotExist($actual_override_admin_product);
+        } else {
+            $this->assertFileNotExists($actual_override_cart);
+            $this->assertFileNotExists($actual_override_admin_product);
+        }
     }
 
     /**

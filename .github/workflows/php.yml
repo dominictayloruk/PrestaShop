@@ -1,7 +1,13 @@
 name: PHP
 on: [ push, pull_request ]
+permissions:
+  contents: read
+
 jobs:
   php-cs-fixer:
+    permissions:
+      actions: write  # for styfle/cancel-workflow-action to cancel/stop running workflows
+      contents: read  # for actions/checkout to fetch code
     name: PHP CS Fixer
     runs-on: ubuntu-latest
     steps:
@@ -41,11 +47,14 @@ jobs:
         run: composer normalize --dry-run --no-check-lock
 
   phpstan:
+    permissions:
+      actions: write  # for styfle/cancel-workflow-action to cancel/stop running workflows
+      contents: read  # for actions/checkout to fetch code
     name: PHP Static Analysis
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php: [ '7.2', '7.3', '7.4', '8.0' ]
+        php: [ '7.2', '7.3', '7.4', '8.0', '8.1' ]
       fail-fast: false
     steps:
       - name: Cancel Previous Runs
@@ -82,11 +91,14 @@ jobs:
         run: ./vendor/bin/phpstan analyse -c phpstan.neon.dist
 
   phpunit:
+    permissions:
+      actions: write  # for styfle/cancel-workflow-action to cancel/stop running workflows
+      contents: read  # for actions/checkout to fetch code
     name: PHPUnit
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php: [ '7.2', '7.3', '7.4', '8.0' ]
+        php: [ '7.2', '7.3', '7.4', '8.0', '8.1' ]
       fail-fast: false
     steps:
       - name: Cancel Previous Runs
@@ -118,24 +130,15 @@ jobs:
       - name: Composer Install
         run: composer install --ansi --prefer-dist --no-interaction --no-progress
 
-      - name: Run phpunit (without DB)
+      - name: Update phpunit version
+        if: ${{ startsWith(matrix.php, '8.') }}
+        run: composer update -w --ignore-platform-reqs --no-interaction phpunit/phpunit
+
+      - name: Run phpunit
         run: ./vendor/phpunit/phpunit/phpunit -c tests/Unit/phpunit.xml
         env:
           SYMFONY_DEPRECATIONS_HELPER: disabled
 
-      - name: Setup MySQL
-        uses: mirromutth/mysql-action@v1.1
-        with:
-          mysql version: '8.0'
-          mysql database: 'prestashop'
-          mysql root password: 'password'
-
-      - name: Wait for MySQL
-        run: while ! mysqladmin ping -h127.0.0.1 --silent; do sleep 0.2; done && sleep 0.2
-
-      - name: Change MySQL authentication method
-        run: mysql -h127.0.0.1 -uroot -ppassword -e "ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY 'password'; FLUSH PRIVILEGES;"
-
-      - name: Install PrestaShop
-        # yamllint disable-line rule:line-length
-        run: php install-dev/index_cli.php --language=en --country=fr --domain=localhost --db_server=127.0.0.1 --db_password=password --db_name=prestashop --db_create=1 --name=prestashop.unit.test --email=demo@prestashop.com --password=prestashop_demo
+      - name: Test git versionned files unchanged
+        if: ${{ !startsWith(matrix.php, '8.') }}  # composer.lock changes when updating phpunit version
+        run: git diff --exit-code

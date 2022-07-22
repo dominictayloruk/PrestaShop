@@ -448,6 +448,10 @@ class LinkCore
             throw new \InvalidArgumentException('Invalid category parameter');
         }
 
+        if ((int) $params['id'] === 0) {
+            Tools::displayAsDeprecated('Generating URL with id 0 is deprecated');
+        }
+
         $rule = 'category_rule';
 
         if (!$alias) {
@@ -1136,7 +1140,7 @@ class LinkCore
             }
         } else {
             /** @FIXME html_entity_decode has been added due to '&amp;' => '%3B' ... */
-            $request = html_entity_decode($request);
+            $request = html_entity_decode($request ?? '');
             if ($requestUrlEncode) {
                 $request = urlencode($request);
             }

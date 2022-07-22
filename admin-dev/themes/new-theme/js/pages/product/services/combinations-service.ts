@@ -52,14 +52,33 @@ export default class CombinationsService {
     });
   }
 
-  updateListedCombination(combinationId: number, data: Record<string, any>): JQuery.jqXHR<any> {
-    return $.ajax({
-      url: this.router.generate('admin_products_combinations_update_combination_from_listing', {
-        combinationId,
-      }),
-      data,
-      type: 'PATCH',
-    });
+  bulkDeleteCombinations(productId: number, combinationIds: number[], abortSignal: AbortSignal): Promise<Response> {
+    const formData = new FormData();
+    formData.append('combinationIds', JSON.stringify(combinationIds));
+
+    return fetch(
+      this.router.generate('admin_products_combinations_bulk_delete', {productId}),
+      {
+        method: 'POST',
+        body: formData,
+        signal: abortSignal,
+      },
+    );
+  }
+
+  updateCombinationList(productId: number, formData: FormData): Promise<Response> {
+    formData.append('_method', 'PATCH');
+
+    return fetch(
+      this.router.generate('admin_products_combinations_update_combination_from_listing', {productId}),
+      {
+        method: 'POST',
+        body: formData,
+        headers: {
+          _method: 'PATCH',
+        },
+      },
+    );
   }
 
   /**
@@ -76,27 +95,20 @@ export default class CombinationsService {
     });
   }
 
-  bulkUpdate(productId: number, combinationId: number, formData: FormData): Promise<Response> {
+  bulkUpdate(productId: number, combinationIds: number[], formData: FormData, abortSignal: AbortSignal): Promise<Response> {
     formData.append('_method', 'PATCH');
+    formData.append('combinationIds', JSON.stringify(combinationIds));
 
     return fetch(this.router.generate('admin_products_combinations_bulk_edit_combination',
       {
         productId,
-        combinationId,
       }), {
       method: 'POST',
       body: formData,
       headers: {
         _method: 'PATCH',
       },
+      signal: abortSignal,
     });
-  }
-
-  getCombinationIds(productId: number): JQuery.jqXHR<any> {
-    return $.get(
-      this.router.generate('admin_products_combinations_ids', {
-        productId,
-      }),
-    );
   }
 }
