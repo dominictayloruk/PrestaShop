@@ -1,4 +1,5 @@
-{#**
+<?php
+/**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
@@ -21,33 +22,41 @@
  * @author    PrestaShop SA and Contributors <contact@prestashop.com>
  * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
- *#}
+ */
 
-{% trans_default_domain "Admin.Orderscustomers.Feature" %}
-{% import '@PrestaShop/Admin/macros.html.twig' as ps %}
+declare(strict_types=1);
 
-{% form_theme invoiceOptionsForm '@PrestaShop/Admin/TwigTemplateForm/prestashop_ui_kit.html.twig' %}
+namespace PrestaShop\PrestaShop\Core\Util;
 
-{% block content %}
-  {{ form_start(invoiceOptionsForm, {action: path('admin_order_invoices_process'), attr: {id: 'form-invoices-options'}}) }}
-    {% block invoice_options %}
-    <div class="card">
-      <h3 class="card-header">
-        <i class="material-icons">settings</i>
-        {{ 'Invoice options'|trans }}
-      </h3>
-      <div class="card-body">
-        <div class="form-wrapper">
-          {{ form_widget(invoiceOptionsForm) }}
-          {{ form_rest(invoiceOptionsForm) }}
-        </div>
-      </div>
-      <div class="card-footer">
-        <div class="d-flex justify-content-end">
-          <button class="btn btn-primary" id="save-invoices-options-button">{{ 'Save'|trans({}, 'Admin.Actions') }}</button>
-        </div>
-      </div>
-    </div>
-    {% endblock %}
-  {{ form_end(invoiceOptionsForm) }}
-{% endblock %}
+class Sorter
+{
+    public const ORDER_ASC = 'ASC';
+    public const ORDER_DESC = 'DESC';
+
+    /**
+     * @param array<array<string, mixed>> $array
+     * @param string $order
+     * @param string ...$criterias
+     *
+     * @return array
+     */
+    public function natural(array $array, string $order, string ...$criterias): array
+    {
+        usort($array, function ($a, $b) use ($order, $criterias) {
+            $cmp = 0;
+            foreach ($criterias as $criteria) {
+                if (!isset($a[$criteria]) || !isset($b[$criteria])) {
+                    return 0;
+                }
+                $cmp = strnatcmp($a[$criteria], $b[$criteria]);
+                if ($cmp !== 0) {
+                    break;
+                }
+            }
+
+            return static::ORDER_DESC === $order ? $cmp : $cmp * -1;
+        });
+
+        return $array;
+    }
+}
